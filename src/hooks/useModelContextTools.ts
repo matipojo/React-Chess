@@ -22,7 +22,8 @@ type ChessActions = {
 
 export function useModelContextTools({ board, playMove, restartGame, promotePawn, animateMove }: ChessActions) {
   useEffect(() => {
-    if (!navigator.modelContext) {
+    const mc = navigator.modelContext;
+    if (!mc) {
       return;
     }
 
@@ -163,6 +164,47 @@ export function useModelContextTools({ board, playMove, restartGame, promotePawn
       },
     ];
 
-    navigator.modelContext.provideContext({ tools });
+    const toolNames = tools.map(t => t.name);
+
+    function cleanupTools() {
+      const ctx = navigator.modelContext;
+      if (!ctx) {
+        return;
+      }
+      if (typeof ctx.clearContext === 'function') {
+        ctx.clearContext();
+        return;
+      }
+      if (typeof ctx.unregisterTool === 'function') {
+        for (const name of toolNames) {
+          try {
+            ctx.unregisterTool(name);
+          } catch {
+            // Already unregistered or unsupported in this snapshot of the API.
+          }
+        }
+      }
+    }
+
+    if (typeof mc.provideContext === 'function') {
+      mc.provideContext({ tools });
+    } else if (typeof mc.registerTool === 'function') {
+      for (const tool of tools) {
+        if (typeof mc.unregisterTool === 'function') {
+          try {
+            mc.unregisterTool(tool.name);
+          } catch {
+            // ignore duplicate-unregister failures
+          }
+        }
+        mc.registerTool(tool);
+      }
+    } else {
+      return;
+    }
+
+    return () => {
+      cleanupTools();
+    };
   }, [board, playMove, restartGame, promotePawn, animateMove]);
 }

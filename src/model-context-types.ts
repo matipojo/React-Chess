@@ -6,7 +6,10 @@ type ModelContextTool = {
 };
 
 type ModelContext = {
-  provideContext: (context: { tools: ModelContextTool[] }) => void;
+  provideContext?: (context: { tools: ModelContextTool[] }) => void;
+  registerTool?: (tool: ModelContextTool) => void | { unregister?: () => void };
+  unregisterTool?: (name: string) => void;
+  clearContext?: () => void;
 };
 
 declare global {
