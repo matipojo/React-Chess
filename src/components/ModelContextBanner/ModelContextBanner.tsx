@@ -35,18 +35,27 @@ export default function ModelContextBanner() {
     <div style={BANNER_STYLES}>
       <span>
         This demo requires the <strong>document.modelContext</strong> API.
-        Download{' '}
+        Open this page in{' '}
         <a
-          href="https://www.google.com/chrome/canary/"
+          href="https://learn.chatgpt.com/docs/webmcp"
           target="_blank"
           rel="noopener noreferrer"
           style={LINK_STYLES}
         >
-          Chrome Canary
+          Codex on ChatGPT desktop
         </a>
-        {' '}and enable{' '}
+        , or use{' '}
+        <a
+          href="https://www.google.com/chrome/"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={LINK_STYLES}
+        >
+          Chrome
+        </a>
+        {' '}with{' '}
         <strong>chrome://flags/#enable-webmcp-testing</strong>
-        {' '}to use AI tools with this chess game.
+        {' '}enabled to use AI tools with this chess game.
       </span>
     </div>
   );
