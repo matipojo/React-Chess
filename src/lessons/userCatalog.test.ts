@@ -48,6 +48,25 @@ describe("user catalog", () => {
     expect(readUserCatalog()).toHaveLength(2);
     expect(findUserLesson("custom:forks")?.body).toBe("Updated body.");
 
+    upsertUserLesson({
+      id: "game:scholars-mate",
+      kind: "game",
+      title: "4. Qxf7# — checkmate",
+      body: "The queen takes on f7.",
+      gameId: "scholars-mate",
+      arrows: [{ from: "c4", to: "f7" }],
+      highlights: [{ square: "f7", kind: "correct" }],
+      quiz: {
+        question: "Where does the queen mate?",
+        type: "click-square",
+        correct: ["f7"],
+      },
+    });
+    const taught = findUserLesson("scholars-mate");
+    expect(taught?.arrows).toEqual([{ from: "c4", to: "f7" }]);
+    expect(taught?.quiz?.correct).toEqual(["f7"]);
+    expect(taught?.highlights?.[0].square).toBe("f7");
+
     expect(removeUserLesson("custom:forks").map((item) => item.id)).toEqual([
       "game:scholars-mate",
     ]);

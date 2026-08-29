@@ -88,6 +88,7 @@ export function useChessLessons({
   const parkedRef = useRef<ParkedLearnSession | null>(null);
   const loadedLineRef = useRef<LoadedLine | null>(null);
   const quizResolverRef = useRef<((result: { correct: boolean; square: string }) => void) | null>(null);
+  const lastQuizRef = useRef<QuizState | null>(null);
   const playChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const highlightsRef = useRef<BoardHighlight[]>([]);
   const arrowsRef = useRef<BoardArrow[]>([]);
@@ -109,6 +110,29 @@ export function useChessLessons({
     }
     setUserLessons(upsertUserLesson(lesson));
   }, []);
+
+  const cloneQuiz = (value: QuizState | null): QuizState | undefined => {
+    if (!value) {
+      return undefined;
+    }
+    return {
+      ...value,
+      correct: [...value.correct],
+    };
+  };
+
+  const overlayPersistFields = useCallback(() => {
+    const line = loadedLineRef.current;
+    return {
+      fen: boardToFen(boardRef.current),
+      highlights: highlightsRef.current.map((item) => ({ ...item })),
+      arrows: arrowsRef.current.map((item) => ({ ...item })),
+      quiz: cloneQuiz(lastQuizRef.current),
+      moves: line ? line.moves : undefined,
+      notes: line ? line.notes : undefined,
+      ply: line ? line.ply : undefined,
+    };
+  }, [boardRef]);
 
   const applyBoard = useCallback(
     (board: Board) => {
@@ -236,18 +260,15 @@ export function useChessLessons({
   const persistCurrentLesson = useCallback(() => {
     const line = loadedLineRef.current;
     const coach = coachRef.current;
+    const extras = overlayPersistFields();
     if (line && line.id !== "custom") {
       persistLesson({
         id: `game:${line.id}`,
         kind: "game",
-        title: line.name,
+        title: coach ? coach.title : line.name,
         body: coach ? coach.body : "",
         gameId: line.id,
-        moves: line.moves,
-        notes: line.notes,
-        fen: boardToFen(boardRef.current),
-        highlights: highlightsRef.current.map((item) => ({ ...item })),
-        arrows: arrowsRef.current.map((item) => ({ ...item })),
+        ...extras,
       });
       return;
     }
@@ -260,13 +281,9 @@ export function useChessLessons({
       kind: "custom",
       title,
       body: coach ? coach.body : "",
-      fen: boardToFen(boardRef.current),
-      highlights: highlightsRef.current.map((item) => ({ ...item })),
-      arrows: arrowsRef.current.map((item) => ({ ...item })),
-      moves: line ? line.moves : undefined,
-      notes: line ? line.notes : undefined,
+      ...extras,
     });
-  }, [boardRef, persistLesson]);
+  }, [persistLesson, overlayPersistFields]);
 
   const discardParkedLesson = useCallback(() => {
     parkedRef.current = null;
@@ -324,6 +341,7 @@ export function useChessLessons({
     resetHistory();
     highlightsRef.current = [];
     arrowsRef.current = [];
+    lastQuizRef.current = null;
     coachRef.current = null;
     learnModeRef.current = false;
     setLearnMode(false);
@@ -343,16 +361,16 @@ export function useChessLessons({
     coachRef.current = next;
     setCoachState(next);
     updateCurrentSnapshot();
+    const extras = overlayPersistFields();
     const line = loadedLineRef.current;
     if (line && line.id !== "custom") {
       persistLesson({
         id: `game:${line.id}`,
         kind: "game",
-        title: line.name,
+        title: next.title,
         body: next.body,
         gameId: line.id,
-        moves: line.moves,
-        notes: line.notes,
+        ...extras,
       });
       return;
     }
@@ -361,32 +379,37 @@ export function useChessLessons({
       kind: "custom",
       title: next.title,
       body: next.body,
-      fen: boardToFen(boardRef.current),
-      highlights: highlightsRef.current.map((item) => ({ ...item })),
-      arrows: arrowsRef.current.map((item) => ({ ...item })),
-      moves: line ? line.moves : undefined,
-      notes: line ? line.notes : undefined,
+      ...extras,
     });
-  }, [boardRef, enterLearnMode, persistLesson, updateCurrentSnapshot]);
+  }, [enterLearnMode, overlayPersistFields, persistLesson, updateCurrentSnapshot]);
 
   const annotateBoard = useCallback(
-    (nextHighlights: BoardHighlight[], nextArrows: BoardArrow[]) => {
+    (nextHighlights?: BoardHighlight[], nextArrows?: BoardArrow[]) => {
+      const resolvedHighlights =
+        nextHighlights !== undefined
+          ? nextHighlights
+          : highlightsRef.current.map((item) => ({ ...item }));
+      const resolvedArrows =
+        nextArrows !== undefined
+          ? nextArrows
+          : arrowsRef.current.map((item) => ({ ...item }));
       logLessonDebug("visual", "annotate-board", {
         pieces: piecesForDebug(boardRef.current),
         ...overlaySnapshot({
-          highlights: nextHighlights,
-          arrows: nextArrows,
+          highlights: resolvedHighlights,
+          arrows: resolvedArrows,
           coachTitle: coachRef.current ? coachRef.current.title : null,
         }),
       });
       enterLearnMode();
-      highlightsRef.current = nextHighlights;
-      arrowsRef.current = nextArrows;
-      setHighlights(nextHighlights);
-      setArrows(nextArrows);
+      highlightsRef.current = resolvedHighlights;
+      arrowsRef.current = resolvedArrows;
+      setHighlights(resolvedHighlights);
+      setArrows(resolvedArrows);
       updateCurrentSnapshot();
       const coach = coachRef.current;
       const line = loadedLineRef.current;
+      const extras = overlayPersistFields();
       if (coach) {
         persistLesson({
           id:
@@ -394,18 +417,14 @@ export function useChessLessons({
               ? `game:${line.id}`
               : `custom:${lessonSlug(coach.title)}`,
           kind: line && line.id !== "custom" ? "game" : "custom",
-          title: line && line.id !== "custom" ? line.name : coach.title,
+          title: coach.title,
           body: coach.body,
           gameId: line && line.id !== "custom" ? line.id : undefined,
-          fen: boardToFen(boardRef.current),
-          highlights: nextHighlights.map((item) => ({ ...item })),
-          arrows: nextArrows.map((item) => ({ ...item })),
-          moves: line ? line.moves : undefined,
-          notes: line ? line.notes : undefined,
+          ...extras,
         });
       }
     },
-    [boardRef, enterLearnMode, persistLesson, updateCurrentSnapshot]
+    [boardRef, enterLearnMode, overlayPersistFields, persistLesson, updateCurrentSnapshot]
   );
 
   const clearLesson = useCallback(() => {
@@ -413,6 +432,7 @@ export function useChessLessons({
     coachRef.current = null;
     highlightsRef.current = [];
     arrowsRef.current = [];
+    lastQuizRef.current = null;
     setCoachState(null);
     setHighlights([]);
     setArrows([]);
@@ -453,14 +473,13 @@ export function useChessLessons({
         pushSnapshot();
         const coach = coachRef.current;
         if (coach) {
+          lastQuizRef.current = null;
           persistLesson({
             id: `custom:${lessonSlug(coach.title)}`,
             kind: "custom",
             title: coach.title,
             body: coach.body,
-            fen: boardToFen(next),
-            highlights: highlightsRef.current.map((item) => ({ ...item })),
-            arrows: arrowsRef.current.map((item) => ({ ...item })),
+            ...overlayPersistFields(),
           });
         }
         return { success: true, message: "Position set" };
@@ -468,7 +487,7 @@ export function useChessLessons({
         return { success: false, message: `${error}` };
       }
     },
-    [applyBoard, cancelQuiz, clearAnnotations, discardParkedLesson, hideCheckmate, persistLesson, pushSnapshot]
+    [applyBoard, cancelQuiz, clearAnnotations, discardParkedLesson, hideCheckmate, overlayPersistFields, persistLesson, pushSnapshot]
   );
 
   const noteForPly = (line: LoadedLine, ply: number): string | undefined => {
@@ -527,6 +546,7 @@ export function useChessLessons({
       setLearnMode(true);
       setQuiz(null);
       setQuizFeedback("");
+      lastQuizRef.current = null;
       const line: LoadedLine = {
         id: game.id,
         name: game.name,
@@ -696,9 +716,7 @@ export function useChessLessons({
             title: coach ? coach.title : current.name,
             body: coach ? coach.body : "",
             gameId: current.id === "custom" ? undefined : current.id,
-            moves: current.moves,
-            notes: current.notes,
-            fen: boardToFen(boardRef.current),
+            ...overlayPersistFields(),
           });
         }
 
@@ -716,7 +734,7 @@ export function useChessLessons({
       );
       return next;
     },
-    [animateThenPlay, boardRef, clearAnnotations, enterLearnMode, ensureStartingSnapshot, persistLesson, pushSnapshot]
+    [animateThenPlay, boardRef, clearAnnotations, enterLearnMode, ensureStartingSnapshot, overlayPersistFields, persistLesson, pushSnapshot]
   );
 
   const demonstratePiece = useCallback(
@@ -727,6 +745,7 @@ export function useChessLessons({
       setLearnMode(true);
       setQuiz(null);
       setQuizFeedback("");
+      lastQuizRef.current = null;
       arrowsRef.current = [];
       setArrows([]);
       const lesson = getPieceLesson(pieceName) || getPieceLesson(parsePieceType(pieceName));
@@ -784,24 +803,34 @@ export function useChessLessons({
       cancelQuiz();
       resetHistory();
       const moves = item.moves || [];
+      const lineId =
+        item.kind === "game"
+          ? item.gameId || item.id.replace(/^game:/, "")
+          : item.id;
+      const savedPly =
+        typeof item.ply === "number"
+          ? item.ply
+          : item.fen && moves.length > 0
+            ? moves.length
+            : 0;
       if (moves.length > 0 && !item.fen) {
         loadedLineRef.current = {
-          id: item.id,
+          id: lineId,
           name: item.title,
           moves,
           notes: item.notes || [],
-          ply: 0,
+          ply: savedPly,
         };
         applyBoard(startingLearnBoard());
       } else if (item.fen) {
         loadedLineRef.current =
           moves.length > 0
             ? {
-                id: item.id,
+                id: lineId,
                 name: item.title,
                 moves,
                 notes: item.notes || [],
-                ply: 0,
+                ply: savedPly,
               }
             : null;
         applyBoard(boardFromFen(item.fen, true));
@@ -809,16 +838,25 @@ export function useChessLessons({
         loadedLineRef.current = null;
         applyBoard(startingLearnBoard());
       }
+      const restoredQuiz = cloneQuiz(item.quiz || null) || null;
+      const restoredHighlights = (item.highlights || [])
+        .filter((mark) =>
+          restoredQuiz ? mark.kind !== "wrong" && mark.kind !== "correct" : true
+        )
+        .map((mark) => ({ ...mark }));
       applyOverlays(
-        (item.highlights || []).map((mark) => ({ ...mark })),
+        restoredHighlights,
         (item.arrows || []).map((arrow) => ({ ...arrow })),
         {
           title: item.title,
           body: item.body,
-          step: 0,
+          step: savedPly,
           totalSteps: moves.length || undefined,
         }
       );
+      lastQuizRef.current = restoredQuiz;
+      setQuiz(restoredQuiz);
+      setQuizFeedback("");
       pushSnapshot();
       return {
         success: true,
@@ -828,6 +866,14 @@ export function useChessLessons({
     },
     [applyBoard, applyOverlays, cancelQuiz, discardParkedLesson, hideCheckmate, pushSnapshot, resetHistory]
   );
+
+  const lessonHasTeaching = (item: SavedLesson) => {
+    return Boolean(
+      item.quiz ||
+      (item.highlights && item.highlights.length > 0) ||
+      (item.arrows && item.arrows.length > 0)
+    );
+  };
 
   const openSavedLesson = useCallback(
     (id: string) => {
@@ -842,6 +888,9 @@ export function useChessLessons({
       restoringRef.current = true;
       try {
         if (item.kind === "game") {
+          if (lessonHasTeaching(item)) {
+            return restoreCustomLesson(item);
+          }
           const game = getFamousGame(item.gameId || item.id.replace(/^game:/, ""));
           if (game) {
             return applyFamousGame(game);
@@ -889,18 +938,38 @@ export function useChessLessons({
       correct: nextQuiz.correct,
     });
     enterLearnMode();
+    lastQuizRef.current = {
+      ...nextQuiz,
+      correct: [...nextQuiz.correct],
+    };
     setQuiz(nextQuiz);
     setQuizFeedback("");
     setHighlights((prev) =>
       prev.filter((mark) => mark.kind !== "wrong" && mark.kind !== "correct")
     );
+    const coach = coachRef.current;
+    const line = loadedLineRef.current;
+    const extras = overlayPersistFields();
+    if (coach || (line && line.id !== "custom")) {
+      persistLesson({
+        id:
+          line && line.id !== "custom"
+            ? `game:${line.id}`
+            : `custom:${lessonSlug(coach ? coach.title : "quiz")}`,
+        kind: line && line.id !== "custom" ? "game" : "custom",
+        title: coach ? coach.title : line && line.id !== "custom" ? line.name : "Quiz",
+        body: coach ? coach.body : nextQuiz.question,
+        gameId: line && line.id !== "custom" ? line.id : undefined,
+        ...extras,
+      });
+    }
     if (quizResolverRef.current) {
       quizResolverRef.current({ correct: false, square: "" });
     }
     return new Promise<{ correct: boolean; square: string }>((resolve) => {
       quizResolverRef.current = resolve;
     });
-  }, [enterLearnMode]);
+  }, [enterLearnMode, overlayPersistFields, persistLesson]);
 
   const onSquareClick = useCallback(
     (square: string) => {

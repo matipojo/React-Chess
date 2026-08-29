@@ -59,4 +59,6 @@ export type SavedLesson = {
   fen?: string;
   highlights?: BoardHighlight[];
   arrows?: BoardArrow[];
+  quiz?: QuizState;
+  ply?: number;
 };

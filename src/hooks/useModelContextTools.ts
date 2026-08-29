@@ -20,7 +20,7 @@ type LessonActions = {
   enterLearnMode: () => void;
   exitLearnMode: () => void;
   setCoach: (coach: CoachState) => void;
-  annotateBoard: (highlights: BoardHighlight[], arrows: BoardArrow[]) => void;
+  annotateBoard: (highlights?: BoardHighlight[], arrows?: BoardArrow[]) => void;
   clearLesson: () => void;
   setPosition: (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => { success: boolean; message: string };
   loadGame: (id: string) => { success: boolean; message: string; data: unknown };
@@ -297,7 +297,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'annotate-board',
-        description: 'Highlight squares and draw arrows on the board. kinds: move, capture, key, wrong, correct.',
+        description: 'Highlight squares and draw arrows on the board. kinds: move, capture, key, wrong, correct. Omit highlights or arrows to leave the current ones in place; pass an empty array to clear that overlay.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -325,8 +325,8 @@ export function useModelContextTools(actions: ChessActions) {
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const highlights = Array.isArray(params.highlights) ? params.highlights as BoardHighlight[] : [];
-          const arrows = Array.isArray(params.arrows) ? params.arrows as BoardArrow[] : [];
+          const highlights = Array.isArray(params.highlights) ? params.highlights as BoardHighlight[] : undefined;
+          const arrows = Array.isArray(params.arrows) ? params.arrows as BoardArrow[] : undefined;
           actionsRef.current.lessons.annotateBoard(highlights, arrows);
           return { success: true, message: 'Board annotations updated', data: { highlights: highlights.length, arrows: arrows.length } };
         },
