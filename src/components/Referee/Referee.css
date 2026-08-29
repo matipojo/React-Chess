@@ -81,6 +81,7 @@
   flex: 0 0 var(--panel-width);
   width: var(--panel-width);
   max-width: var(--panel-width);
+  overflow: hidden;
 }
 
 @media (max-width: 640px) {
@@ -113,9 +114,9 @@
     flex: none;
     width: 100%;
     max-width: none;
+    height: min(38vh, 280px);
     max-height: min(38vh, 280px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow: hidden;
     border-radius: 16px 16px 0 0;
     z-index: 20;
     align-self: auto;
