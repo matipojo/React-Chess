@@ -22,6 +22,7 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
     const [isAnimating, setIsAnimating] = useState(false);
     const handElementRef = useRef<HTMLDivElement | null>(null);
     const pieceCloneElementRef = useRef<HTMLDivElement | null>(null);
+    const lastHandSquareRef = useRef<Position | null>(null);
 
     const convertPositionToPixels = (position: Position) => {
       if (!chessboardRef.current) return { x: 0, y: 0 };
@@ -56,8 +57,13 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
         const fromPixels = convertPositionToPixels(from);
         const toPixels = convertPositionToPixels(to);
 
-        // Bottom left corner of the screen
-        const startPosition = { x: 0, y: window.innerHeight };
+        const lastSquare = lastHandSquareRef.current;
+        const startPosition = lastSquare
+          ? (() => {
+              const lastPixels = convertPositionToPixels(lastSquare);
+              return { x: lastPixels.x, y: lastPixels.y - 30 };
+            })()
+          : { x: 0, y: window.innerHeight };
 
         // Keep original piece visible during hand approach, hide it when hand reaches piece
 
@@ -87,7 +93,7 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
         document.body.appendChild(pieceClone);
         pieceCloneElementRef.current = pieceClone;
 
-        // Create hand starting from bottom left corner
+        // Create hand starting from last rest position, or bottom left on first move
         const hand = document.createElement('div') as HTMLDivElement;
         hand.className = 'simple-hand-animation';
         hand.style.position = 'fixed';
@@ -127,6 +133,7 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
             // Cleanup after piece movement is complete
             setTimeout(() => {
               restoreOriginalPiece();
+              lastHandSquareRef.current = to.clone();
               
               if (pieceClone.parentNode) {
                 pieceClone.remove();
