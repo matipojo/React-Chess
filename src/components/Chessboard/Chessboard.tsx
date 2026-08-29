@@ -101,6 +101,32 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     return chessboard.getBoundingClientRect().width / 8;
   }
 
+  function dragOriginRect(chessboard: HTMLDivElement) {
+    const origin = chessboard.parentElement ?? chessboard;
+    return origin.getBoundingClientRect();
+  }
+
+  function setDraggedPiecePosition(
+    piece: HTMLElement,
+    clientX: number,
+    clientY: number,
+    chessboard: HTMLDivElement
+  ) {
+    const origin = dragOriginRect(chessboard);
+    const boardRect = chessboard.getBoundingClientRect();
+    const halfTile = tileSize(chessboard) / 2;
+    const minX = boardRect.left - origin.left - halfTile + 25;
+    const minY = boardRect.top - origin.top - halfTile + 25;
+    const maxX = boardRect.right - origin.left - halfTile - 25;
+    const maxY = boardRect.bottom - origin.top - halfTile - 25;
+    const x = Math.min(Math.max(clientX - origin.left - halfTile, minX), maxX);
+    const y = Math.min(Math.max(clientY - origin.top - halfTile, minY), maxY);
+    piece.style.position = "absolute";
+    piece.style.zIndex = "10";
+    piece.style.left = `${x}px`;
+    piece.style.top = `${y}px`;
+  }
+
   function squareFromPointer(clientX: number, clientY: number, chessboard: HTMLDivElement): Position | null {
     const rect = chessboard.getBoundingClientRect();
     const size = rect.width / 8;
@@ -135,14 +161,7 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
         return;
       }
       setGrabPosition(square);
-
-      const halfTile = tileSize(chessboard) / 2;
-      const x = e.clientX - halfTile;
-      const y1 = e.clientY - halfTile;
-      element.style.position = "absolute";
-      element.style.left = `${x}px`;
-      element.style.top = `${y1}px`;
-
+      setDraggedPiecePosition(element, e.clientX, e.clientY, chessboard);
       setActivePiece(element);
     }
   }
@@ -150,31 +169,7 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
   function movePiece(e: React.MouseEvent) {
     const chessboard = chessboardRef.current;
     if (activePiece && chessboard) {
-      const rect = chessboard.getBoundingClientRect();
-      const halfTile = rect.width / 16;
-      const minX = rect.left - halfTile + 25;
-      const minY = rect.top - halfTile + 25;
-      const maxX = rect.right - halfTile - 25;
-      const maxY = rect.bottom - halfTile - 25;
-      const x = e.clientX - halfTile;
-      const y = e.clientY - halfTile;
-      activePiece.style.position = "absolute";
-
-      if (x < minX) {
-        activePiece.style.left = `${minX}px`;
-      } else if (x > maxX) {
-        activePiece.style.left = `${maxX}px`;
-      } else {
-        activePiece.style.left = `${x}px`;
-      }
-
-      if (y < minY) {
-        activePiece.style.top = `${minY}px`;
-      } else if (y > maxY) {
-        activePiece.style.top = `${maxY}px`;
-      } else {
-        activePiece.style.top = `${y}px`;
-      }
+      setDraggedPiecePosition(activePiece, e.clientX, e.clientY, chessboard);
     }
   }
 
@@ -193,7 +188,8 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
         var succes = playMove(currentPiece.clone(), new Position(x, y));
 
         if(!succes) {
-          activePiece.style.position = "relative";
+          activePiece.style.removeProperty("position");
+          activePiece.style.removeProperty("z-index");
           activePiece.style.removeProperty("top");
           activePiece.style.removeProperty("left");
         }
