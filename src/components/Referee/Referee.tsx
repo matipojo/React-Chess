@@ -252,14 +252,38 @@ export default function Referee() {
       (!!loaded && loaded.ply < loaded.moves.length));
 
   return (
-    <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
-      <div className="referee-board">
-        <div className="referee-toolbar">
-          <p className="referee-status">
-            {lessons.learnMode ? "Learn mode" : `Total turns: ${board.totalTurns}`}
-          </p>
-          {lessons.learnMode && <LessonDebugConsole />}
+    <>
+      <div className="mode-switch">
+        <div className="mode-pills" role="radiogroup" aria-label="App mode">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!lessons.learnMode}
+            className={!lessons.learnMode ? "is-active" : undefined}
+            onClick={() => lessons.exitLearnMode()}
+          >
+            play
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={lessons.learnMode}
+            className={lessons.learnMode ? "is-active" : undefined}
+            onClick={() => lessons.enterLearnMode()}
+          >
+            learn
+          </button>
         </div>
+      </div>
+      <div id="app">
+        <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
+          <div className="referee-board">
+            <div className="referee-toolbar">
+              {!lessons.learnMode && (
+                <p className="referee-status">Total turns: {board.totalTurns}</p>
+              )}
+              {lessons.learnMode && <LessonDebugConsole />}
+            </div>
         <div className="modal hidden" ref={modalRef}>
           <div className="modal-body">
             <img
@@ -313,7 +337,9 @@ export default function Referee() {
           canBack={canBack}
           canNext={canNext}
         />
-      )}
-    </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }

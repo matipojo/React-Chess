@@ -6,6 +6,44 @@
   flex-wrap: wrap;
 }
 
+.mode-switch {
+  display: flex;
+  justify-content: center;
+  padding: 16px 16px 0;
+}
+
+.mode-pills {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: #2a2a2a;
+  border: 1px solid #3d3d3d;
+  border-radius: 999px;
+}
+
+.mode-pills button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: #cfcfcf;
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  cursor: pointer;
+}
+
+.mode-pills button:hover {
+  color: #fff;
+}
+
+.mode-pills button.is-active {
+  background: #779556;
+  color: #fff;
+}
+
 .referee-board {
   position: relative;
 }

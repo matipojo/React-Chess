@@ -136,3 +136,11 @@ export function startingLearnBoard(): Board {
   board.calculateAllMoves();
   return board;
 }
+
+export function startingPlayBoard(): Board {
+  const board = initialBoard.clone();
+  board.learnMode = false;
+  board.winningTeam = undefined;
+  board.calculateAllMoves();
+  return board;
+}

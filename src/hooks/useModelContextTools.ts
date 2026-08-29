@@ -215,7 +215,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'enter-learn-mode',
-        description: 'Switch the app into interactive learning mode. Use before teaching, famous games, piece demos, or quizzes. Disables checkmate so teaching positions can omit kings.',
+        description: 'Switch the app into interactive learning mode, or resume the previous lesson if one was saved by exit-learn-mode. Use before teaching, famous games, piece demos, or quizzes. Disables checkmate so teaching positions can omit kings.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           actionsRef.current.lessons.enterLearnMode();
@@ -224,11 +224,11 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'exit-learn-mode',
-        description: 'Leave learning mode and restore a standard playable game.',
+        description: 'Leave learning mode, save the current lesson so it can be resumed, clear coaching overlays, and restore a standard playable game.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           actionsRef.current.lessons.exitLearnMode();
-          return { success: true, message: 'Learn mode off. Board reset to starting position.', data: null };
+          return { success: true, message: 'Learn mode off. Lesson saved. Re-enter learn to resume.', data: null };
         },
       },
       {

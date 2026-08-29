@@ -4,12 +4,10 @@ import Referee from './components/Referee/Referee';
 
 function App() {
   return (
-    <>
+    <div className="page-root">
       <ModelContextBanner />
-      <div id="app">
-        <Referee/>
-      </div>
-    </>
+      <Referee/>
+    </div>
   );
 }
 

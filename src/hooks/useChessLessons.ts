@@ -23,6 +23,7 @@ import {
   parseTeam,
   PlacedPiece,
   startingLearnBoard,
+  startingPlayBoard,
 } from "../utils/board-setup";
 import {
   chessNotationToCoordinates,
@@ -38,6 +39,12 @@ type LessonSnapshot = {
   arrows: BoardArrow[];
   coach: CoachState | null;
   ply: number;
+};
+
+type ParkedLearnSession = {
+  history: LessonSnapshot[];
+  historyIndex: number;
+  loadedLine: LoadedLine | null;
 };
 
 type Args = {
@@ -68,6 +75,8 @@ export function useChessLessons({
   const [quizFeedback, setQuizFeedback] = useState<string>("");
   const [animating, setAnimating] = useState(false);
 
+  const learnModeRef = useRef(false);
+  const parkedRef = useRef<ParkedLearnSession | null>(null);
   const loadedLineRef = useRef<LoadedLine | null>(null);
   const quizResolverRef = useRef<((result: { correct: boolean; square: string }) => void) | null>(null);
   const playChainRef = useRef<Promise<unknown>>(Promise.resolve());
@@ -202,18 +211,53 @@ export function useChessLessons({
     }
   }, [pushSnapshot]);
 
+  const discardParkedLesson = useCallback(() => {
+    parkedRef.current = null;
+  }, []);
+
   const enterLearnMode = useCallback(() => {
-    logLessonDebug("visual", "enter-learn-mode", { pieces: piecesForDebug(boardRef.current) });
     hideCheckmate();
+    if (learnModeRef.current) {
+      ensureStartingSnapshot();
+      return;
+    }
+    const parked = parkedRef.current;
+    if (parked && parked.history.length > 0) {
+      const index = Math.max(0, Math.min(parked.historyIndex, parked.history.length - 1));
+      const snap = parked.history[index];
+      logLessonDebug("visual", "enter-learn-mode", {
+        resumed: true,
+        pieces: piecesForDebug(snap.board),
+      });
+      parkedRef.current = null;
+      loadedLineRef.current = parked.loadedLine;
+      historyRef.current = parked.history;
+      publishHistory(index, parked.history.length);
+      restoreSnapshot(snap);
+      learnModeRef.current = true;
+      setLearnMode(true);
+      return;
+    }
+    logLessonDebug("visual", "enter-learn-mode", { pieces: piecesForDebug(boardRef.current) });
+    learnModeRef.current = true;
     setLearnMode(true);
     cancelQuiz();
     const next = boardRef.current.clone();
     applyBoard(next);
     ensureStartingSnapshot();
-  }, [applyBoard, boardRef, cancelQuiz, ensureStartingSnapshot, hideCheckmate]);
+  }, [applyBoard, boardRef, cancelQuiz, ensureStartingSnapshot, hideCheckmate, publishHistory, restoreSnapshot]);
 
   const exitLearnMode = useCallback(() => {
+    if (!learnModeRef.current) {
+      return;
+    }
     logLessonDebug("visual", "exit-learn-mode", {});
+    updateCurrentSnapshot();
+    parkedRef.current = {
+      history: historyRef.current,
+      historyIndex: historyIndexRef.current,
+      loadedLine: loadedLineRef.current,
+    };
     if (quizResolverRef.current) {
       quizResolverRef.current({ correct: false, square: "" });
       quizResolverRef.current = null;
@@ -223,26 +267,25 @@ export function useChessLessons({
     highlightsRef.current = [];
     arrowsRef.current = [];
     coachRef.current = null;
+    learnModeRef.current = false;
     setLearnMode(false);
     setCoachState(null);
     setHighlights([]);
     setArrows([]);
     setQuiz(null);
     setQuizFeedback("");
-    const reset = startingLearnBoard();
-    reset.learnMode = false;
-    reset.calculateAllMoves();
+    const reset = startingPlayBoard();
     boardRef.current = reset;
     setBoard(reset);
-  }, [boardRef, resetHistory, setBoard]);
+  }, [boardRef, resetHistory, setBoard, updateCurrentSnapshot]);
 
   const setCoach = useCallback((next: CoachState) => {
     logLessonDebug("visual", "set-coach", { title: next.title, body: next.body, step: next.step, totalSteps: next.totalSteps });
-    setLearnMode(true);
+    enterLearnMode();
     coachRef.current = next;
     setCoachState(next);
     updateCurrentSnapshot();
-  }, [updateCurrentSnapshot]);
+  }, [enterLearnMode, updateCurrentSnapshot]);
 
   const annotateBoard = useCallback(
     (nextHighlights: BoardHighlight[], nextArrows: BoardArrow[]) => {
@@ -254,14 +297,14 @@ export function useChessLessons({
           coachTitle: coachRef.current ? coachRef.current.title : null,
         }),
       });
-      setLearnMode(true);
+      enterLearnMode();
       highlightsRef.current = nextHighlights;
       arrowsRef.current = nextArrows;
       setHighlights(nextHighlights);
       setArrows(nextArrows);
       updateCurrentSnapshot();
     },
-    [boardRef, updateCurrentSnapshot]
+    [boardRef, enterLearnMode, updateCurrentSnapshot]
   );
 
   const clearLesson = useCallback(() => {
@@ -284,6 +327,8 @@ export function useChessLessons({
   const setPosition = useCallback(
     (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => {
       hideCheckmate();
+      discardParkedLesson();
+      learnModeRef.current = true;
       setLearnMode(true);
       cancelQuiz();
       clearAnnotations();
@@ -310,7 +355,7 @@ export function useChessLessons({
         return { success: false, message: `${error}` };
       }
     },
-    [applyBoard, cancelQuiz, clearAnnotations, hideCheckmate, pushSnapshot]
+    [applyBoard, cancelQuiz, clearAnnotations, discardParkedLesson, hideCheckmate, pushSnapshot]
   );
 
   const noteForPly = (line: LoadedLine, ply: number): string | undefined => {
@@ -372,6 +417,8 @@ export function useChessLessons({
         };
       }
       hideCheckmate();
+      discardParkedLesson();
+      learnModeRef.current = true;
       setLearnMode(true);
       setQuiz(null);
       setQuizFeedback("");
@@ -398,7 +445,7 @@ export function useChessLessons({
         data: { id: game.id, name: game.name, moves: game.moves.length },
       };
     },
-    [applyBoard, applyOverlays, hideCheckmate, pushSnapshot, resetHistory]
+    [applyBoard, applyOverlays, discardParkedLesson, hideCheckmate, pushSnapshot, resetHistory]
   );
 
   const gotoMove = useCallback(
@@ -544,6 +591,8 @@ export function useChessLessons({
   const demonstratePiece = useCallback(
     (pieceName: string, square?: string, color?: string) => {
       hideCheckmate();
+      discardParkedLesson();
+      learnModeRef.current = true;
       setLearnMode(true);
       setQuiz(null);
       setQuizFeedback("");
@@ -583,7 +632,7 @@ export function useChessLessons({
         data: { square: squareName, destinations },
       };
     },
-    [applyBoard, applyOverlays, boardRef, hideCheckmate, pushSnapshot, resetHistory]
+    [applyBoard, applyOverlays, boardRef, discardParkedLesson, hideCheckmate, pushSnapshot, resetHistory]
   );
 
   const askQuiz = useCallback((nextQuiz: QuizState) => {
@@ -592,7 +641,7 @@ export function useChessLessons({
       type: nextQuiz.type,
       correct: nextQuiz.correct,
     });
-    setLearnMode(true);
+    enterLearnMode();
     setQuiz(nextQuiz);
     setQuizFeedback("");
     setHighlights((prev) =>
@@ -607,7 +656,7 @@ export function useChessLessons({
     return new Promise<{ correct: boolean; square: string }>((resolve) => {
       quizResolverRef.current = resolve;
     });
-  }, []);
+  }, [enterLearnMode]);
 
   const onSquareClick = useCallback(
     (square: string) => {
