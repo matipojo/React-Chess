@@ -8,10 +8,21 @@
   box-sizing: border-box;
   border: 1px solid #3d3d3d;
   align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.lesson-coach-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .lesson-coach-handle {
   display: none;
+  flex-shrink: 0;
 }
 
 .lesson-coach-kicker {
@@ -73,7 +84,10 @@
 .lesson-coach-nav {
   display: flex;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: auto;
+  padding-top: 16px;
+  flex-shrink: 0;
+  background: #2a2a2a;
 }
 
 .lesson-coach-nav button {
@@ -130,9 +144,9 @@
   }
 
   .lesson-coach-nav {
-    margin-top: 10px;
-    position: sticky;
-    bottom: 0;
+    margin-top: auto;
+    padding-top: 10px;
+    position: static;
   }
 
   .lesson-coach-nav button {
