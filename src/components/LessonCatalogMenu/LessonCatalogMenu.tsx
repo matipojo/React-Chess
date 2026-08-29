@@ -8,10 +8,6 @@ type Props = {
 };
 
 export default function LessonCatalogMenu({ lessons, onOpen, onRemove }: Props) {
-  if (lessons.length === 0) {
-    return null;
-  }
-
   return (
     <div className="lesson-catalog-bar">
       <details className="lesson-catalog">
@@ -20,6 +16,9 @@ export default function LessonCatalogMenu({ lessons, onOpen, onRemove }: Props) 
           <span className="lesson-catalog-count">{lessons.length}</span>
         </summary>
         <ul className="lesson-catalog-list">
+          {lessons.length === 0 && (
+            <li className="lesson-catalog-empty">No saved lessons yet.</li>
+          )}
           {lessons.map((lesson) => (
             <li key={lesson.id} className="lesson-catalog-item">
               <button

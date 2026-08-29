@@ -254,8 +254,8 @@ export default function Referee() {
 
   return (
     <>
-      <div className="mode-switch">
-        <div className="mode-pills" role="radiogroup" aria-label="App mode">
+      <header className="app-header">
+        <nav className="app-header-modes" role="radiogroup" aria-label="App mode">
           <button
             type="button"
             role="radio"
@@ -263,7 +263,7 @@ export default function Referee() {
             className={!lessons.learnMode ? "is-active" : undefined}
             onClick={() => lessons.exitLearnMode()}
           >
-            play
+            Play
           </button>
           <button
             type="button"
@@ -272,28 +272,28 @@ export default function Referee() {
             className={lessons.learnMode ? "is-active" : undefined}
             onClick={() => lessons.enterLearnMode()}
           >
-            learn
+            Learn
           </button>
+        </nav>
+        <div className="app-header-actions">
+          {!lessons.learnMode && (
+            <p className="referee-status">Turns: {board.totalTurns}</p>
+          )}
+          {lessons.learnMode && (
+            <LessonCatalogMenu
+              lessons={lessons.userLessons}
+              onOpen={(id) => {
+                lessons.openSavedLesson(id);
+              }}
+              onRemove={lessons.deleteSavedLesson}
+            />
+          )}
+          {lessons.learnMode && <LessonDebugConsole />}
         </div>
-      </div>
+      </header>
       <div id="app">
         <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
           <div className="referee-board">
-            <div className="referee-toolbar">
-              {!lessons.learnMode && (
-                <p className="referee-status">Total turns: {board.totalTurns}</p>
-              )}
-              {lessons.learnMode && (
-                <LessonCatalogMenu
-                  lessons={lessons.userLessons}
-                  onOpen={(id) => {
-                    lessons.openSavedLesson(id);
-                  }}
-                  onRemove={lessons.deleteSavedLesson}
-                />
-              )}
-              {lessons.learnMode && <LessonDebugConsole />}
-            </div>
             <div className="modal hidden" ref={modalRef}>
               <div className="modal-body">
                 <img

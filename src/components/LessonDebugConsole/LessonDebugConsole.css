@@ -147,11 +147,11 @@
 @media (max-width: 640px) {
   .lesson-debug-panel {
     position: fixed;
-    top: auto;
+    top: 56px;
     right: 8px;
     left: 8px;
-    bottom: calc(min(38vh, 280px) + 12px);
+    bottom: auto;
     width: auto;
-    max-height: 36vh;
+    max-height: min(48vh, 360px);
   }
 }
