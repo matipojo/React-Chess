@@ -41,3 +41,22 @@ export type LoadedLine = {
   notes: { ply: number; text: string }[];
   ply: number;
 };
+
+export type SavedLessonKind = "game" | "piece" | "custom";
+
+export type SavedLesson = {
+  id: string;
+  kind: SavedLessonKind;
+  title: string;
+  body: string;
+  savedAt: number;
+  gameId?: string;
+  moves?: string[];
+  notes?: { ply: number; text: string }[];
+  piece?: string;
+  square?: string;
+  color?: string;
+  fen?: string;
+  highlights?: BoardHighlight[];
+  arrows?: BoardArrow[];
+};

@@ -13,6 +13,7 @@ import {
 import { PieceType, TeamType } from "../../Types";
 import Chessboard, { ChessboardHandle } from "../Chessboard/Chessboard";
 import LessonCoach from "../LessonCoach/LessonCoach";
+import LessonCatalogMenu from "../LessonCatalogMenu/LessonCatalogMenu";
 import { Howl } from "howler";
 import { useModelContextTools } from "../../hooks/useModelContextTools";
 import { useChessLessons } from "../../hooks/useChessLessons";
@@ -282,61 +283,70 @@ export default function Referee() {
               {!lessons.learnMode && (
                 <p className="referee-status">Total turns: {board.totalTurns}</p>
               )}
+              {lessons.learnMode && (
+                <LessonCatalogMenu
+                  lessons={lessons.userLessons}
+                  onOpen={(id) => {
+                    lessons.openSavedLesson(id);
+                  }}
+                  onRemove={lessons.deleteSavedLesson}
+                />
+              )}
               {lessons.learnMode && <LessonDebugConsole />}
             </div>
-        <div className="modal hidden" ref={modalRef}>
-          <div className="modal-body">
-            <img
-              onClick={() => promotePawnAction(PieceType.ROOK)}
-              src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
-            />
-            <img
-              onClick={() => promotePawnAction(PieceType.BISHOP)}
-              src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
-            />
-            <img
-              onClick={() => promotePawnAction(PieceType.KNIGHT)}
-              src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
-            />
-            <img
-              onClick={() => promotePawnAction(PieceType.QUEEN)}
-              src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
-            />
-          </div>
-        </div>
-        <div className="modal hidden" ref={checkmateModalRef}>
-          <div className="modal-body">
-            <div className="checkmate-body">
-              <span>
-                The winning team is{" "}
-                {board.winningTeam === TeamType.OUR ? "white" : "black"}!
-              </span>
-              <button onClick={restartGame}>Play again</button>
+            <div className="modal hidden" ref={modalRef}>
+              <div className="modal-body">
+                <img
+                  onClick={() => promotePawnAction(PieceType.ROOK)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.BISHOP)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.KNIGHT)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.QUEEN)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
+                />
+              </div>
             </div>
+            <div className="modal hidden" ref={checkmateModalRef}>
+              <div className="modal-body">
+                <div className="checkmate-body">
+                  <span>
+                    The winning team is{" "}
+                    {board.winningTeam === TeamType.OUR ? "white" : "black"}!
+                  </span>
+                  <button onClick={restartGame}>Play again</button>
+                </div>
+              </div>
+            </div>
+            <Chessboard
+              ref={chessboardHandleRef}
+              playMove={playMove}
+              pieces={board.pieces}
+              highlights={lessons.highlights}
+              arrows={lessons.arrows}
+              interaction={lessons.quiz ? "quiz" : "play"}
+              locked={lessons.animating}
+              onSquareClick={lessons.onSquareClick}
+            />
           </div>
-        </div>
-        <Chessboard
-          ref={chessboardHandleRef}
-          playMove={playMove}
-          pieces={board.pieces}
-          highlights={lessons.highlights}
-          arrows={lessons.arrows}
-          interaction={lessons.quiz ? "quiz" : "play"}
-          locked={lessons.animating}
-          onSquareClick={lessons.onSquareClick}
-        />
-      </div>
-      {lessons.learnMode && (
-        <LessonCoach
-          coach={lessons.coach}
-          quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
-          quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
-          quizFeedback={lessons.quizFeedback}
-          onBack={showStepNav ? lessons.stepBack : undefined}
-          onNext={showStepNav ? lessons.stepNext : undefined}
-          canBack={canBack}
-          canNext={canNext}
-        />
+          {lessons.learnMode && (
+            <LessonCoach
+              coach={lessons.coach}
+              quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
+              quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
+              quizFeedback={lessons.quizFeedback}
+              onBack={showStepNav ? lessons.stepBack : undefined}
+              onNext={showStepNav ? lessons.stepNext : undefined}
+              canBack={canBack}
+              canNext={canNext}
+            />
           )}
         </div>
       </div>

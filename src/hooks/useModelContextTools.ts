@@ -233,7 +233,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'list-lessons',
-        description: 'Lists famous games, piece tutorials, and quiz types the user can ask for.',
+        description: 'Lists famous games, piece tutorials, saved user-catalog lessons, and quiz types.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => ({
           success: true,
@@ -342,7 +342,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'load-game',
-        description: 'Load a curated famous game by id or name (scholars-mate, fools-mate, italian-game, opera-game). Sets the starting position. Then call play-line.',
+        description: 'Load a curated famous game or a saved user-catalog lesson by id or name (scholars-mate, fools-mate, italian-game, opera-game). Sets the starting position. Then call play-line for famous games.',
         inputSchema: {
           type: 'object',
           properties: {
