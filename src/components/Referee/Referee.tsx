@@ -1,16 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { initialBoard } from "../../Constants";
 import { Piece, Position } from "../../models";
 import { Board } from "../../models/Board";
-import { Pawn } from "../../models/Pawn";
 import {
   bishopMove,
-  getPossibleBishopMoves,
-  getPossibleKingMoves,
-  getPossibleKnightMoves,
-  getPossiblePawnMoves,
-  getPossibleQueenMoves,
-  getPossibleRookMoves,
   kingMove,
   knightMove,
   pawnMove,
@@ -19,8 +12,11 @@ import {
 } from "../../referee/rules";
 import { PieceType, TeamType } from "../../Types";
 import Chessboard, { ChessboardHandle } from "../Chessboard/Chessboard";
+import LessonCoach from "../LessonCoach/LessonCoach";
 import { Howl } from "howler";
 import { useModelContextTools } from "../../hooks/useModelContextTools";
+import { useChessLessons } from "../../hooks/useChessLessons";
+import "./Referee.css";
 
 const moveSound = new Howl({
   src: [`${process.env.PUBLIC_URL}/sounds/move-self.mp3`],
@@ -40,104 +36,47 @@ export default function Referee() {
   const modalRef = useRef<HTMLDivElement>(null);
   const checkmateModalRef = useRef<HTMLDivElement>(null);
   const chessboardHandleRef = useRef<ChessboardHandle>(null);
+  const boardRef = useRef<Board>(board);
+  boardRef.current = board;
+
+  const hideCheckmate = useCallback(() => {
+    checkmateModalRef.current?.classList.add("hidden");
+  }, []);
+
+  const playMoveSync = useCallback((from: Position, to: Position): boolean => {
+    const clonedBoard = boardRef.current.clone();
+    const success = clonedBoard.tryPlayMove(from, to, {
+      ignoreTurn: clonedBoard.learnMode,
+    });
+    if (!success) {
+      return false;
+    }
+
+    boardRef.current = clonedBoard;
+    setBoard(clonedBoard);
+    moveSound.play();
+
+    if (clonedBoard.winningTeam !== undefined && !clonedBoard.learnMode) {
+      checkmateModalRef.current?.classList.remove("hidden");
+      checkmateSound.play();
+    }
+
+    const moved = clonedBoard.pieces.find((piece) => piece.samePosition(to));
+    if (moved && moved.isPawn) {
+      const promotionRow = moved.team === TeamType.OUR ? 7 : 0;
+      if (to.y === promotionRow) {
+        modalRef.current?.classList.remove("hidden");
+        setPromotionPawn(moved.clone());
+      }
+    }
+
+    return true;
+  }, []);
 
   function playMove(playedPiece: Piece, destination: Position): boolean {
-    // If the playing piece doesn't have any moves return
-    if (playedPiece.possibleMoves === undefined) return false;
-
-    // Prevent the inactive team from playing
-    if (playedPiece.team === TeamType.OUR && board.totalTurns % 2 !== 1)
-      return false;
-    if (playedPiece.team === TeamType.OPPONENT && board.totalTurns % 2 !== 0)
-      return false;
-
-    let playedMoveIsValid = false;
-
-    const validMove = playedPiece.possibleMoves?.some((m) =>
-      m.samePosition(destination)
-    );
-
-    if (!validMove) return false;
-
-    const enPassantMove = isEnPassantMove(
-      playedPiece.position,
-      destination,
-      playedPiece.type,
-      playedPiece.team
-    );
-
-    // playMove modifies the board thus we
-    // need to call setBoard
-    setBoard(() => {
-      const clonedBoard = board.clone();
-      clonedBoard.totalTurns += 1;
-      // Playing the move
-      playedMoveIsValid = clonedBoard.playMove(
-        enPassantMove,
-        validMove,
-        playedPiece,
-        destination
-      );
-
-      if (playedMoveIsValid) {
-        moveSound.play();
-      }
-
-      if (clonedBoard.winningTeam !== undefined) {
-        checkmateModalRef.current?.classList.remove("hidden");
-        checkmateSound.play();
-      }
-
-      return clonedBoard;
-    });
-
-    // This is for promoting a pawn
-    let promotionRow = playedPiece.team === TeamType.OUR ? 7 : 0;
-
-    if (destination.y === promotionRow && playedPiece.isPawn) {
-      modalRef.current?.classList.remove("hidden");
-      setPromotionPawn((previousPromotionPawn) => {
-        const clonedPlayedPiece = playedPiece.clone();
-        clonedPlayedPiece.position = destination.clone();
-        return clonedPlayedPiece;
-      });
-    }
-
-    return playedMoveIsValid;
+    return playMoveSync(playedPiece.position, destination);
   }
 
-  function isEnPassantMove(
-    initialPosition: Position,
-    desiredPosition: Position,
-    type: PieceType,
-    team: TeamType
-  ) {
-    const pawnDirection = team === TeamType.OUR ? 1 : -1;
-
-    if (type === PieceType.PAWN) {
-      if (
-        (desiredPosition.x - initialPosition.x === -1 ||
-          desiredPosition.x - initialPosition.x === 1) &&
-        desiredPosition.y - initialPosition.y === pawnDirection
-      ) {
-        const piece = board.pieces.find(
-          (p) =>
-            p.position.x === desiredPosition.x &&
-            p.position.y === desiredPosition.y - pawnDirection &&
-            p.isPawn &&
-            (p as Pawn).enPassant
-        );
-        if (piece) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  //TODO
-  //Add stalemate!
   function isValidMove(
     initialPosition: Position,
     desiredPosition: Position,
@@ -204,7 +143,7 @@ export default function Referee() {
     }
 
     setBoard(() => {
-      const clonedBoard = board.clone();
+      const clonedBoard = boardRef.current.clone();
       clonedBoard.pieces = clonedBoard.pieces.reduce((results, piece) => {
         if (piece.samePiecePosition(promotionPawn)) {
           results.push(
@@ -217,12 +156,12 @@ export default function Referee() {
       }, [] as Piece[]);
 
       clonedBoard.calculateAllMoves();
-
+      boardRef.current = clonedBoard;
       return clonedBoard;
     });
 
     modalRef.current?.classList.add("hidden");
-  }, [board, promotionPawn]);
+  }, [promotionPawn]);
 
   function promotionTeamType() {
     return promotionPawn?.team === TeamType.OUR ? "w" : "b";
@@ -230,58 +169,114 @@ export default function Referee() {
 
   const restartGameAction = useCallback(() => {
     checkmateModalRef.current?.classList.add("hidden");
-    setBoard(initialBoard.clone());
+    const next = initialBoard.clone();
+    next.learnMode = boardRef.current.learnMode;
+    next.calculateAllMoves();
+    boardRef.current = next;
+    setBoard(next);
   }, []);
 
   const animateMove = useCallback((from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => {
     chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
   }, []);
 
+  const lessons = useChessLessons({
+    boardRef,
+    setBoard,
+    playMoveSync,
+    animateMove,
+    hideCheckmate,
+  });
+
   useModelContextTools({
-    board,
+    getBoard: () => boardRef.current,
     playMove,
     restartGame: restartGameAction,
     promotePawn: promotePawnAction,
     animateMove,
+    lessons,
   });
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const piece = params.get("piece");
+    const game = params.get("game");
+    if (piece) {
+      try {
+        lessons.demonstratePiece(piece);
+      } catch {
+        // ignore invalid demo links
+      }
+    } else if (game) {
+      lessons.loadGame(game);
+    }
+    // Run once so a shared lesson link can open without WebMCP.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loaded = lessons.loadedLine.current;
+  const canStep = !!loaded && !lessons.animating && !lessons.quiz;
+
   return (
-    <>
-      <p style={{ color: "white", fontSize: "24px", textAlign: "center" }}>
-        Total turns: {board.totalTurns}
-      </p>
-      <div className="modal hidden" ref={modalRef}>
-        <div className="modal-body">
-          <img
-            onClick={() => promotePawnAction(PieceType.ROOK)}
-            src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
-          />
-          <img
-            onClick={() => promotePawnAction(PieceType.BISHOP)}
-            src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
-          />
-          <img
-            onClick={() => promotePawnAction(PieceType.KNIGHT)}
-            src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
-          />
-          <img
-            onClick={() => promotePawnAction(PieceType.QUEEN)}
-            src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
-          />
-        </div>
-      </div>
-      <div className="modal hidden" ref={checkmateModalRef}>
-        <div className="modal-body">
-          <div className="checkmate-body">
-            <span>
-              The winning team is{" "}
-              {board.winningTeam === TeamType.OUR ? "white" : "black"}!
-            </span>
-            <button onClick={restartGameAction}>Play again</button>
+    <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
+      <div className="referee-board">
+        <p className="referee-status">
+          {lessons.learnMode ? "Learn mode" : `Total turns: ${board.totalTurns}`}
+        </p>
+        <div className="modal hidden" ref={modalRef}>
+          <div className="modal-body">
+            <img
+              onClick={() => promotePawnAction(PieceType.ROOK)}
+              src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
+            />
+            <img
+              onClick={() => promotePawnAction(PieceType.BISHOP)}
+              src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
+            />
+            <img
+              onClick={() => promotePawnAction(PieceType.KNIGHT)}
+              src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
+            />
+            <img
+              onClick={() => promotePawnAction(PieceType.QUEEN)}
+              src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
+            />
           </div>
         </div>
+        <div className="modal hidden" ref={checkmateModalRef}>
+          <div className="modal-body">
+            <div className="checkmate-body">
+              <span>
+                The winning team is{" "}
+                {board.winningTeam === TeamType.OUR ? "white" : "black"}!
+              </span>
+              <button onClick={restartGameAction}>Play again</button>
+            </div>
+          </div>
+        </div>
+        <Chessboard
+          ref={chessboardHandleRef}
+          playMove={playMove}
+          pieces={board.pieces}
+          highlights={lessons.highlights}
+          arrows={lessons.arrows}
+          interaction={lessons.quiz ? "quiz" : "play"}
+          locked={lessons.animating}
+          onSquareClick={lessons.onSquareClick}
+        />
       </div>
-      <Chessboard ref={chessboardHandleRef} playMove={playMove} pieces={board.pieces} />
-    </>
+      {lessons.learnMode && (
+        <LessonCoach
+          coach={lessons.coach}
+          quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
+          quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
+          quizFeedback={lessons.quizFeedback}
+          onBack={loaded ? lessons.stepBack : undefined}
+          onNext={loaded ? lessons.stepNext : undefined}
+          canBack={canStep && !!loaded && loaded.ply > 0}
+          canNext={canStep && !!loaded && loaded.ply < loaded.moves.length}
+        />
+      )}
+    </div>
   );
 }

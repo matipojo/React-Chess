@@ -4,9 +4,12 @@ import Tile from "../Tile/Tile";
 import {
   VERTICAL_AXIS,
   HORIZONTAL_AXIS,
+  GRID_SIZE,
 } from "../../Constants";
 import { Piece, Position } from "../../models";
 import SimpleHandAnimation, { SimpleHandAnimationRef } from "./HandAnimation/SimpleHandAnimation";
+import { BoardArrow, BoardHighlight } from "../../lessons/types";
+import { chessNotationToCoordinates, coordinatesToNotation } from "../../utils/chess-notation-utils";
 
 export type ChessboardHandle = {
   animateMove: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => void;
@@ -15,9 +18,22 @@ export type ChessboardHandle = {
 interface Props {
   playMove: (piece: Piece, position: Position) => boolean;
   pieces: Piece[];
+  highlights?: BoardHighlight[];
+  arrows?: BoardArrow[];
+  interaction?: "play" | "quiz";
+  locked?: boolean;
+  onSquareClick?: (square: string) => void;
 }
 
-const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard({playMove, pieces}, ref) {
+const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard({
+  playMove,
+  pieces,
+  highlights,
+  arrows,
+  interaction,
+  locked,
+  onSquareClick,
+}, ref) {
   const [activePiece, setActivePiece] = useState<HTMLElement | null>(null);
   const [grabPosition, setGrabPosition] = useState<Position>(new Position(-1, -1));
   const chessboardRef = useRef<HTMLDivElement>(null);
@@ -61,7 +77,18 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     return new Position(x, y);
   }
 
+  function squareFromEvent(e: React.MouseEvent): Position | null {
+    const chessboard = chessboardRef.current;
+    if (!chessboard) {
+      return null;
+    }
+    return squareFromPointer(e.clientX, e.clientY, chessboard);
+  }
+
   function grabPiece(e: React.MouseEvent) {
+    if (locked || interaction === "quiz") {
+      return;
+    }
     const element = e.target as HTMLElement;
     const chessboard = chessboardRef.current;
     if (element.classList.contains("chess-piece") && chessboard) {
@@ -95,29 +122,19 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
       const y = e.clientY - halfTile;
       activePiece.style.position = "absolute";
 
-      //If x is smaller than minimum amount
       if (x < minX) {
         activePiece.style.left = `${minX}px`;
-      }
-      //If x is bigger than maximum amount
-      else if (x > maxX) {
+      } else if (x > maxX) {
         activePiece.style.left = `${maxX}px`;
-      }
-      //If x is in the constraints
-      else {
+      } else {
         activePiece.style.left = `${x}px`;
       }
 
-      //If y is smaller than minimum amount
       if (y < minY) {
         activePiece.style.top = `${minY}px`;
-      }
-      //If y is bigger than maximum amount
-      else if (y > maxY) {
+      } else if (y > maxY) {
         activePiece.style.top = `${maxY}px`;
-      }
-      //If y is in the constraints
-      else {
+      } else {
         activePiece.style.top = `${y}px`;
       }
     }
@@ -138,7 +155,6 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
         var succes = playMove(currentPiece.clone(), new Position(x, y));
 
         if(!succes) {
-          //RESETS THE PIECE POSITION
           activePiece.style.position = "relative";
           activePiece.style.removeProperty("top");
           activePiece.style.removeProperty("left");
@@ -148,7 +164,24 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     }
   }
 
+  function handleClick(e: React.MouseEvent) {
+    if (interaction !== "quiz") {
+      return;
+    }
+    const square = squareFromEvent(e);
+    if (!square || !onSquareClick) {
+      return;
+    }
+    onSquareClick(coordinatesToNotation(square.x, square.y));
+  }
+
   let board = [];
+  const highlightMap: { [square: string]: string } = {};
+  if (highlights) {
+    for (let h = 0; h < highlights.length; h++) {
+      highlightMap[highlights[h].square.toLowerCase()] = highlights[h].kind;
+    }
+  }
 
   for (let j = VERTICAL_AXIS.length - 1; j >= 0; j--) {
     for (let i = 0; i < HORIZONTAL_AXIS.length; i++) {
@@ -159,12 +192,47 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
       let image = piece ? piece.image : undefined;
 
       let currentPiece = activePiece != null ? pieces.find(p => p.samePosition(grabPosition)) : undefined;
-      let highlight = currentPiece?.possibleMoves ? 
+      let highlight = currentPiece?.possibleMoves ?
       currentPiece.possibleMoves.some(p => p.samePosition(new Position(i, j))) : false;
+      const mark = highlightMap[coordinatesToNotation(i, j)];
 
-      board.push(<Tile key={`${j},${i}`} image={image} number={number} highlight={highlight} />);
+      board.push(
+        <Tile
+          key={`${j},${i}`}
+          image={image}
+          number={number}
+          highlight={highlight}
+          highlightKind={mark}
+        />
+      );
     }
   }
+
+  const arrowElements = (arrows || []).map((arrow, index) => {
+    try {
+      const from = chessNotationToCoordinates(arrow.from.toLowerCase());
+      const to = chessNotationToCoordinates(arrow.to.toLowerCase());
+      const x1 = from.x * GRID_SIZE + GRID_SIZE / 2;
+      const y1 = (7 - from.y) * GRID_SIZE + GRID_SIZE / 2;
+      const x2 = to.x * GRID_SIZE + GRID_SIZE / 2;
+      const y2 = (7 - to.y) * GRID_SIZE + GRID_SIZE / 2;
+      return (
+        <line
+          key={`${arrow.from}-${arrow.to}-${index}`}
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke={arrow.color || "#ffc107"}
+          strokeWidth={6}
+          markerEnd="url(#lesson-arrowhead)"
+          opacity={0.9}
+        />
+      );
+    } catch {
+      return null;
+    }
+  });
 
   return (
     <>
@@ -182,11 +250,29 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
               onMouseMove={(e) => movePiece(e)}
               onMouseDown={(e) => grabPiece(e)}
               onMouseUp={(e) => dropPiece(e)}
+              onClick={handleClick}
               id="chessboard"
               ref={chessboardRef}
             >
               {board}
             </div>
+            {arrowElements.length > 0 && (
+              <svg className="board-arrows" viewBox="0 0 600 600">
+                <defs>
+                  <marker
+                    id="lesson-arrowhead"
+                    markerWidth="8"
+                    markerHeight="8"
+                    refX="6"
+                    refY="3"
+                    orient="auto"
+                  >
+                    <polygon points="0 0, 8 3, 0 6" fill="#ffc107" />
+                  </marker>
+                </defs>
+                {arrowElements}
+              </svg>
+            )}
           </div>
         </div>
         <div className="chessboard-axis-file">

@@ -47,7 +47,12 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
       const sourceTile = tiles[tileIndex] as HTMLElement;
       const originalPiece = sourceTile?.querySelector('.chess-piece') as HTMLElement;
 
-      if (!originalPiece) return;
+      if (!originalPiece) {
+        if (onAnimationComplete) {
+          onAnimationComplete();
+        }
+        return;
+      }
 
       const restoreOriginalPiece = () => {
         originalPiece.style.visibility = 'visible';

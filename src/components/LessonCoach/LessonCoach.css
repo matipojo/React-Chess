@@ -1,0 +1,141 @@
+.lesson-coach {
+  width: 280px;
+  max-width: 90vw;
+  background: #2a2a2a;
+  color: #f3f3f3;
+  border-radius: 12px;
+  padding: 20px;
+  box-sizing: border-box;
+  border: 1px solid #3d3d3d;
+  align-self: stretch;
+}
+
+.lesson-coach-handle {
+  display: none;
+}
+
+.lesson-coach-kicker {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9ccc65;
+  font-weight: 700;
+}
+
+.lesson-coach h2 {
+  margin: 0 0 12px;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.lesson-coach-body,
+.lesson-coach p {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #ddd;
+}
+
+.lesson-coach-step {
+  font-size: 13px;
+  color: #aaa;
+}
+
+.lesson-coach-quiz {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #1f1f1f;
+  border: 1px solid #779556;
+}
+
+.lesson-coach-quiz-label {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ccc65;
+  font-weight: 700;
+}
+
+.lesson-coach-hint {
+  font-size: 13px;
+  color: #bbb;
+  font-style: italic;
+}
+
+.lesson-coach-feedback {
+  font-weight: 600;
+  color: #fff;
+}
+
+.lesson-coach-nav {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.lesson-coach-nav button {
+  flex: 1;
+  background: #779556;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lesson-coach-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lesson-coach-nav button:not(:disabled):hover {
+  background: #6a854c;
+}
+
+@media (max-width: 640px) {
+  .lesson-coach {
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+    border: 1px solid #3d3d3d;
+    border-bottom: none;
+  }
+
+  .lesson-coach-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 0 auto 10px;
+    border-radius: 999px;
+    background: #555;
+  }
+
+  .lesson-coach h2 {
+    font-size: 17px;
+    margin: 0 0 8px;
+  }
+
+  .lesson-coach-body,
+  .lesson-coach p {
+    font-size: 14px;
+    margin: 0 0 8px;
+  }
+
+  .lesson-coach-quiz {
+    margin-top: 4px;
+    padding: 8px 10px;
+  }
+
+  .lesson-coach-nav {
+    margin-top: 10px;
+    position: sticky;
+    bottom: 0;
+  }
+
+  .lesson-coach-nav button {
+    padding: 8px 10px;
+  }
+}

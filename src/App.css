@@ -1,7 +1,10 @@
 #app {
-    display: grid;
-    place-content: center;
-    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    box-sizing: border-box;
     background-color: #202020;
 }
 

@@ -16,10 +16,12 @@ export class Board {
   pieces: Piece[];
   totalTurns: number;
   winningTeam?: TeamType;
+  learnMode: boolean;
 
-  constructor(pieces: Piece[], totalTurns: number) {
+  constructor(pieces: Piece[], totalTurns: number, learnMode: boolean = false) {
     this.pieces = pieces;
     this.totalTurns = totalTurns;
+    this.learnMode = learnMode;
   }
 
   get currentTeam(): TeamType {
@@ -42,8 +44,16 @@ export class Board {
       ];
     }
 
-    // Check if the current team moves are valid
-    this.checkCurrentTeamMoves();
+    const hasKing = this.pieces.some(
+      (p) => p.isKing && p.team === this.currentTeam
+    );
+    if (hasKing) {
+      this.checkCurrentTeamMoves();
+    }
+
+    if (this.learnMode) {
+      return;
+    }
 
     // Remove the posibble moves for the team that is not playing
     for (const piece of this.pieces.filter(
@@ -92,7 +102,10 @@ export class Board {
         // Get the king of the cloned board
         const clonedKing = simulatedBoard.pieces.find(
           (p) => p.isKing && p.team === simulatedBoard.currentTeam
-        )!;
+        );
+        if (!clonedKing) {
+          continue;
+        }
 
         // Loop through all enemy pieces, update their possible moves
         // And check if the current team's king will be in danger
@@ -158,6 +171,7 @@ export class Board {
     destination: Position
   ): boolean {
     const pawnDirection = playedPiece.team === TeamType.OUR ? 1 : -1;
+    const origin = playedPiece.position.clone();
     const destinationPiece = this.pieces.find((p) =>
       p.samePosition(destination)
     );
@@ -169,10 +183,10 @@ export class Board {
       destinationPiece.team === playedPiece.team
     ) {
       const direction =
-        destinationPiece.position.x - playedPiece.position.x > 0 ? 1 : -1;
-      const newKingXPosition = playedPiece.position.x + direction * 2;
+        destinationPiece.position.x - origin.x > 0 ? 1 : -1;
+      const newKingXPosition = origin.x + direction * 2;
       this.pieces = this.pieces.map((p) => {
-        if (p.samePiecePosition(playedPiece)) {
+        if (p.samePosition(origin)) {
           p.position.x = newKingXPosition;
         } else if (p.samePiecePosition(destinationPiece)) {
           p.position.x = newKingXPosition - direction;
@@ -186,18 +200,18 @@ export class Board {
     }
 
     if (enPassantMove) {
+      const captured = new Position(
+        destination.x,
+        destination.y - pawnDirection
+      );
       this.pieces = this.pieces.reduce((results, piece) => {
-        if (piece.samePiecePosition(playedPiece)) {
+        if (piece.samePosition(origin)) {
           if (piece.isPawn) (piece as Pawn).enPassant = false;
           piece.position.x = destination.x;
           piece.position.y = destination.y;
           piece.hasMoved = true;
           results.push(piece);
-        } else if (
-          !piece.samePosition(
-            new Position(destination.x, destination.y - pawnDirection)
-          )
-        ) {
+        } else if (!piece.samePosition(captured)) {
           if (piece.isPawn) {
             (piece as Pawn).enPassant = false;
           }
@@ -213,11 +227,11 @@ export class Board {
       //AND IF A PIECE IS ATTACKED, REMOVES IT
       this.pieces = this.pieces.reduce((results, piece) => {
         // Piece that we are currently moving
-        if (piece.samePiecePosition(playedPiece)) {
+        if (piece.samePosition(origin) && piece.team === playedPiece.team && piece.type === playedPiece.type) {
           //SPECIAL MOVE
           if (piece.isPawn)
             (piece as Pawn).enPassant =
-              Math.abs(playedPiece.position.y - destination.y) === 2 &&
+              Math.abs(origin.y - destination.y) === 2 &&
               piece.type === PieceType.PAWN;
           piece.position.x = destination.x;
           piece.position.y = destination.y;
@@ -243,10 +257,80 @@ export class Board {
     return true;
   }
 
-  clone(): Board {
-    return new Board(
-      this.pieces.map((p) => p.clone()),
-      this.totalTurns
+  isEnPassantMove(
+    initialPosition: Position,
+    desiredPosition: Position,
+    type: PieceType,
+    team: TeamType
+  ): boolean {
+    const pawnDirection = team === TeamType.OUR ? 1 : -1;
+
+    if (type !== PieceType.PAWN) {
+      return false;
+    }
+
+    if (
+      (desiredPosition.x - initialPosition.x === -1 ||
+        desiredPosition.x - initialPosition.x === 1) &&
+      desiredPosition.y - initialPosition.y === pawnDirection
+    ) {
+      const piece = this.pieces.find(
+        (p) =>
+          p.position.x === desiredPosition.x &&
+          p.position.y === desiredPosition.y - pawnDirection &&
+          p.isPawn &&
+          (p as Pawn).enPassant
+      );
+      return !!piece;
+    }
+
+    return false;
+  }
+
+  tryPlayMove(
+    from: Position,
+    to: Position,
+    options: { ignoreTurn?: boolean; ignoreLegality?: boolean } = {}
+  ): boolean {
+    const piece = this.pieces.find((p) => p.samePosition(from));
+    if (!piece) {
+      return false;
+    }
+
+    if (!options.ignoreTurn && !this.learnMode && piece.team !== this.currentTeam) {
+      return false;
+    }
+
+    this.calculateAllMoves();
+    const moving = this.pieces.find((p) => p.samePosition(from));
+    if (!moving) {
+      return false;
+    }
+
+    const enPassantMove = this.isEnPassantMove(
+      from,
+      to,
+      moving.type,
+      moving.team
     );
+    const validMove =
+      moving.possibleMoves?.some((m) => m.samePosition(to)) ?? false;
+
+    if (!validMove && !options.ignoreLegality) {
+      return false;
+    }
+
+    this.totalTurns += 1;
+    return this.playMove(enPassantMove, true, moving, to);
+  }
+
+  clone(): Board {
+    const cloned = new Board(
+      this.pieces.map((p) => p.clone()),
+      this.totalTurns,
+      this.learnMode
+    );
+    cloned.winningTeam = this.winningTeam;
+    return cloned;
   }
 }
