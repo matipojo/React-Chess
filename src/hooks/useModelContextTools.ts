@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Board } from '../models/Board';
 import { Piece } from '../models/Piece';
 import { Position } from '../models/Position';
 import { PieceType } from '../Types';
 import { chessNotationToCoordinates, parseMoveNotation } from '../utils/chess-notation-utils';
-import '../model-context-types';
+import { getModelContext } from '../model-context-types';
 
 type ToolResponse = {
   success: boolean;
@@ -20,9 +20,12 @@ type ChessActions = {
   animateMove?: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => void;
 };
 
-export function useModelContextTools({ board, playMove, restartGame, promotePawn, animateMove }: ChessActions) {
+export function useModelContextTools(actions: ChessActions) {
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
+
   useEffect(() => {
-    const mc = navigator.modelContext;
+    const mc = getModelContext();
     if (!mc) {
       return;
     }
@@ -32,22 +35,25 @@ export function useModelContextTools({ board, playMove, restartGame, promotePawn
         name: 'get-board-state',
         description: 'Retrieves the current state of the chess board including piece positions, current turn, total moves, and game status.',
         inputSchema: { type: 'object', properties: {} },
-        execute: async (): Promise<ToolResponse> => ({
-          success: true,
-          message: 'Board state retrieved successfully',
-          data: {
-            pieces: board.pieces.map(piece => ({
-              type: piece.type,
-              team: piece.team,
-              position: { x: piece.position.x, y: piece.position.y },
-              hasMoved: piece.hasMoved,
-              possibleMoves: piece.possibleMoves?.map(m => ({ x: m.x, y: m.y })) || [],
-            })),
-            totalTurns: board.totalTurns,
-            currentTeamTurn: board.currentTeam,
-            winningTeam: board.winningTeam,
-          },
-        }),
+        execute: async (): Promise<ToolResponse> => {
+          const { board } = actionsRef.current;
+          return {
+            success: true,
+            message: 'Board state retrieved successfully',
+            data: {
+              pieces: board.pieces.map(piece => ({
+                type: piece.type,
+                team: piece.team,
+                position: { x: piece.position.x, y: piece.position.y },
+                hasMoved: piece.hasMoved,
+                possibleMoves: piece.possibleMoves?.map(m => ({ x: m.x, y: m.y })) || [],
+              })),
+              totalTurns: board.totalTurns,
+              currentTeamTurn: board.currentTeam,
+              winningTeam: board.winningTeam,
+            },
+          };
+        },
       },
       {
         name: 'make-move',
@@ -64,6 +70,7 @@ export function useModelContextTools({ board, playMove, restartGame, promotePawn
           required: ['move'],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const { board, playMove, animateMove } = actionsRef.current;
           try {
             const { from: fromNotation, to: toNotation } = parseMoveNotation(params.move as string);
             const fromCoords = chessNotationToCoordinates(fromNotation);
@@ -118,6 +125,7 @@ export function useModelContextTools({ board, playMove, restartGame, promotePawn
           required: ['position'],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const { board } = actionsRef.current;
           const pos = params.position as { x: number; y: number };
           const position = new Position(pos.x, pos.y);
           const piece = board.pieces.find(p => p.samePosition(position));
@@ -139,7 +147,7 @@ export function useModelContextTools({ board, playMove, restartGame, promotePawn
         description: 'Restarts the chess game to initial position.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
-          restartGame();
+          actionsRef.current.restartGame();
           return { success: true, message: 'Game restarted', data: null };
         },
       },
@@ -158,53 +166,42 @@ export function useModelContextTools({ board, playMove, restartGame, promotePawn
           required: ['pieceType'],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          promotePawn(params.pieceType as PieceType);
+          actionsRef.current.promotePawn(params.pieceType as PieceType);
           return { success: true, message: `Pawn promoted to ${params.pieceType}`, data: null };
         },
       },
     ];
 
-    const toolNames = tools.map(t => t.name);
+    const controller = new AbortController();
 
-    function cleanupTools() {
-      const ctx = navigator.modelContext;
-      if (!ctx) {
+    const register = async () => {
+      if (typeof mc.registerTool === 'function') {
+        for (const tool of tools) {
+          if (controller.signal.aborted) {
+            return;
+          }
+          await Promise.resolve(mc.registerTool(tool, { signal: controller.signal }));
+        }
         return;
       }
-      if (typeof ctx.clearContext === 'function') {
-        ctx.clearContext();
+
+      if (typeof mc.provideContext === 'function') {
+        mc.provideContext({ tools });
+      }
+    };
+
+    void register().catch((error: unknown) => {
+      if (controller.signal.aborted) {
         return;
       }
-      if (typeof ctx.unregisterTool === 'function') {
-        for (const name of toolNames) {
-          try {
-            ctx.unregisterTool(name);
-          } catch {
-            // Already unregistered or unsupported in this snapshot of the API.
-          }
-        }
-      }
-    }
-
-    if (typeof mc.provideContext === 'function') {
-      mc.provideContext({ tools });
-    } else if (typeof mc.registerTool === 'function') {
-      for (const tool of tools) {
-        if (typeof mc.unregisterTool === 'function') {
-          try {
-            mc.unregisterTool(tool.name);
-          } catch {
-            // ignore duplicate-unregister failures
-          }
-        }
-        mc.registerTool(tool);
-      }
-    } else {
-      return;
-    }
+      console.error('Failed to register model context tools', error);
+    });
 
     return () => {
-      cleanupTools();
+      controller.abort();
+      if (typeof mc.clearContext === 'function') {
+        mc.clearContext();
+      }
     };
-  }, [board, playMove, restartGame, promotePawn, animateMove]);
+  }, []);
 }

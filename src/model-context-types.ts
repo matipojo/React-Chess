@@ -5,17 +5,33 @@ type ModelContextTool = {
   execute: (params: Record<string, unknown>) => Promise<unknown>;
 };
 
+type ModelContextRegisterToolOptions = {
+  signal?: AbortSignal;
+};
+
 type ModelContext = {
   provideContext?: (context: { tools: ModelContextTool[] }) => void;
-  registerTool?: (tool: ModelContextTool) => void | { unregister?: () => void };
-  unregisterTool?: (name: string) => void;
+  registerTool?: (
+    tool: ModelContextTool,
+    options?: ModelContextRegisterToolOptions
+  ) => void | Promise<void> | { unregister?: () => void };
+  unregisterTool?: (name: string) => void | Promise<void>;
   clearContext?: () => void;
 };
 
 declare global {
-  interface Navigator {
+  interface Document {
     modelContext?: ModelContext;
   }
+
+  interface Navigator {
+    /** @deprecated Use document.modelContext instead. */
+    modelContext?: ModelContext;
+  }
+}
+
+export function getModelContext(): ModelContext | undefined {
+  return document.modelContext ?? navigator.modelContext;
 }
 
 export type { ModelContextTool };

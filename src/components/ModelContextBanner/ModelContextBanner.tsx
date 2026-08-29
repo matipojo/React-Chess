@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getModelContext } from "../../model-context-types";
 
 const BANNER_STYLES = {
   background: 'linear-gradient(90deg, #ff6f00, #d32f2f)',
@@ -23,7 +24,7 @@ const LINK_STYLES = {
 export default function ModelContextBanner() {
   const [available, setAvailable] = useState(false);
   useEffect(() => {
-    setAvailable('modelContext' in navigator);
+    setAvailable(Boolean(getModelContext()));
   }, []);
 
   if (available) {
@@ -33,7 +34,7 @@ export default function ModelContextBanner() {
   return (
     <div style={BANNER_STYLES}>
       <span>
-        This demo requires the <strong>navigator.modelContext</strong> API.
+        This demo requires the <strong>document.modelContext</strong> API.
         Download{' '}
         <a
           href="https://www.google.com/chrome/canary/"
