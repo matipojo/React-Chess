@@ -4,3 +4,15 @@
     height: 100vh;
     background-color: #202020;
 }
+
+@media (max-width: 640px) {
+    #app {
+        align-items: flex-start;
+        padding: 8px 8px 0;
+        min-height: 100svh;
+    }
+
+    #app:has(.referee-learn) {
+        padding-bottom: min(38vh, 280px);
+    }
+}

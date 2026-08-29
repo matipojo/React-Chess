@@ -4,7 +4,6 @@ import Tile from "../Tile/Tile";
 import {
   VERTICAL_AXIS,
   HORIZONTAL_AXIS,
-  GRID_SIZE,
 } from "../../Constants";
 import { Piece, Position } from "../../models";
 import SimpleHandAnimation, { SimpleHandAnimationRef } from "./HandAnimation/SimpleHandAnimation";
@@ -44,19 +43,37 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     },
   }));
 
+  function tileSize(chessboard: HTMLDivElement) {
+    return chessboard.getBoundingClientRect().width / 8;
+  }
+
+  function squareFromPointer(clientX: number, clientY: number, chessboard: HTMLDivElement): Position | null {
+    const rect = chessboard.getBoundingClientRect();
+    const size = rect.width / 8;
+    if (size <= 0) {
+      return null;
+    }
+    const x = Math.floor((clientX - rect.left) / size);
+    const y = 7 - Math.floor((clientY - rect.top) / size);
+    if (x < 0 || x > 7 || y < 0 || y > 7) {
+      return null;
+    }
+    return new Position(x, y);
+  }
+
   function grabPiece(e: React.MouseEvent) {
     const element = e.target as HTMLElement;
     const chessboard = chessboardRef.current;
     if (element.classList.contains("chess-piece") && chessboard) {
-      const grabX = Math.floor((e.clientX - chessboard.offsetLeft) / GRID_SIZE);
-      const boardSize = GRID_SIZE * 8;
-      const grabY = Math.abs(
-        Math.ceil((e.clientY - chessboard.offsetTop - boardSize) / GRID_SIZE)
-      );
-      setGrabPosition(new Position(grabX, grabY));
+      const square = squareFromPointer(e.clientX, e.clientY, chessboard);
+      if (!square) {
+        return;
+      }
+      setGrabPosition(square);
 
-      const x = e.clientX - GRID_SIZE / 2;
-      const y1 = e.clientY - GRID_SIZE / 2;
+      const halfTile = tileSize(chessboard) / 2;
+      const x = e.clientX - halfTile;
+      const y1 = e.clientY - halfTile;
       element.style.position = "absolute";
       element.style.left = `${x}px`;
       element.style.top = `${y1}px`;
@@ -68,11 +85,12 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
   function movePiece(e: React.MouseEvent) {
     const chessboard = chessboardRef.current;
     if (activePiece && chessboard) {
-      const halfTile = GRID_SIZE / 2;
-      const minX = chessboard.offsetLeft - halfTile + 25;
-      const minY = chessboard.offsetTop - halfTile + 25;
-      const maxX = chessboard.offsetLeft + chessboard.clientWidth - halfTile - 25;
-      const maxY = chessboard.offsetTop + chessboard.clientHeight - halfTile - 25;
+      const rect = chessboard.getBoundingClientRect();
+      const halfTile = rect.width / 16;
+      const minX = rect.left - halfTile + 25;
+      const minY = rect.top - halfTile + 25;
+      const maxX = rect.right - halfTile - 25;
+      const maxY = rect.bottom - halfTile - 25;
       const x = e.clientX - halfTile;
       const y = e.clientY - halfTile;
       activePiece.style.position = "absolute";
@@ -108,11 +126,9 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
   function dropPiece(e: React.MouseEvent) {
     const chessboard = chessboardRef.current;
     if (activePiece && chessboard) {
-      const x = Math.floor((e.clientX - chessboard.offsetLeft) / GRID_SIZE);
-      const boardSize = GRID_SIZE * 8;
-      const y = Math.abs(
-        Math.ceil((e.clientY - chessboard.offsetTop - boardSize) / GRID_SIZE)
-      );
+      const dropped = squareFromPointer(e.clientX, e.clientY, chessboard);
+      const x = dropped ? dropped.x : -1;
+      const y = dropped ? dropped.y : -1;
 
       const currentPiece = pieces.find((p) =>
         p.samePosition(grabPosition)
@@ -154,26 +170,28 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     <>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ display: 'flex' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-around', paddingRight: '8px' }}>
+          <div className="chessboard-axis-rank">
             {VERTICAL_AXIS.slice().reverse().map((rank) => (
-              <span key={rank} style={{ color: '#aaa', fontSize: '14px', fontWeight: 'bold', textAlign: 'center', height: `${GRID_SIZE}px`, lineHeight: `${GRID_SIZE}px` }}>
+              <span key={rank}>
                 {rank}
               </span>
             ))}
           </div>
-          <div
-            onMouseMove={(e) => movePiece(e)}
-            onMouseDown={(e) => grabPiece(e)}
-            onMouseUp={(e) => dropPiece(e)}
-            id="chessboard"
-            ref={chessboardRef}
-          >
-            {board}
+          <div className="chessboard-wrap">
+            <div
+              onMouseMove={(e) => movePiece(e)}
+              onMouseDown={(e) => grabPiece(e)}
+              onMouseUp={(e) => dropPiece(e)}
+              id="chessboard"
+              ref={chessboardRef}
+            >
+              {board}
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', paddingLeft: '28px' }}>
+        <div className="chessboard-axis-file">
           {HORIZONTAL_AXIS.map((file) => (
-            <span key={file} style={{ color: '#aaa', fontSize: '14px', fontWeight: 'bold', textAlign: 'center', width: `${GRID_SIZE}px`, paddingTop: '8px' }}>
+            <span key={file}>
               {file}
             </span>
           ))}

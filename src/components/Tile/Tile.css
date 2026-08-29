@@ -1,16 +1,16 @@
 .tile {
   display: grid;
   place-content: center;
-  width: 75px;
-  height: 75px;
+  width: var(--tile-size, 75px);
+  height: var(--tile-size, 75px);
 }
 
 .tile .chess-piece {
-  width: 75px;
-  height: 75px;
+  width: var(--tile-size, 75px);
+  height: var(--tile-size, 75px);
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 75px;
+  background-size: var(--tile-size, 75px);
 }
 
 .tile .chess-piece:hover {
@@ -30,13 +30,13 @@
 }
 
 .tile img {
-  width: 60px;
+  width: calc(var(--tile-size, 75px) * 0.8);
 }
 
 .tile-highlight:not(.chess-piece-tile)::before {
   content: " ";
-  width: 20px;
-  height: 20px;
+  width: calc(var(--tile-size, 75px) * 0.27);
+  height: calc(var(--tile-size, 75px) * 0.27);
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.4);
 }
@@ -44,8 +44,8 @@
 .tile-highlight.chess-piece-tile::before {
   position: absolute;
   content: " ";
-  width: 65px;
-  height: 65px;
+  width: calc(var(--tile-size, 75px) * 0.87);
+  height: calc(var(--tile-size, 75px) * 0.87);
   border: 5px solid rgba(0, 0, 0, 0.4);
   border-radius: 50%;
 }

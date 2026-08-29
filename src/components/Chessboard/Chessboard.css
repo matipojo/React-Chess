@@ -1,10 +1,62 @@
+.chessboard-wrap {
+  --board-size: calc(var(--tile-size, 75px) * 8);
+  position: relative;
+  width: var(--board-size);
+  height: var(--board-size);
+}
+
 #chessboard {
   display: grid;
-  grid-template-columns: repeat(8, 75px);
-  grid-template-rows: repeat(8, 75px);
-  width: 600px;
-  height: 600px;
+  grid-template-columns: repeat(8, var(--tile-size, 75px));
+  grid-template-rows: repeat(8, var(--tile-size, 75px));
+  width: var(--board-size);
+  height: var(--board-size);
   background-color: blue;
+}
+
+.chessboard-axis-rank {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding-right: 8px;
+}
+
+.chessboard-axis-rank span,
+.chessboard-axis-file span {
+  color: #aaa;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.chessboard-axis-rank span {
+  height: var(--tile-size, 75px);
+  line-height: var(--tile-size, 75px);
+}
+
+.chessboard-axis-file {
+  display: flex;
+  padding-left: 28px;
+}
+
+.chessboard-axis-file span {
+  width: var(--tile-size, 75px);
+  padding-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .chessboard-axis-rank span,
+  .chessboard-axis-file span {
+    font-size: 11px;
+  }
+
+  .chessboard-axis-rank {
+    padding-right: 4px;
+  }
+
+  .chessboard-axis-file {
+    padding-left: 18px;
+  }
 }
 
 .modal {

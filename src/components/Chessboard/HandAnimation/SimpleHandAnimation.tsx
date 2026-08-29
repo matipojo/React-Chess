@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Position } from '../../../models/Position';
-import { GRID_SIZE } from '../../../Constants';
 import './SimpleHandAnimation.css';
 
 const HAND_APPROACH_DURATION = 1000; // 1 second for hand to reach piece from corner
@@ -28,8 +27,9 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
       if (!chessboardRef.current) return { x: 0, y: 0 };
       
       const chessboardRect = chessboardRef.current.getBoundingClientRect();
-      const baseX = position.x * GRID_SIZE + GRID_SIZE / 2;
-      const baseY = (7 - position.y) * GRID_SIZE + GRID_SIZE / 2;
+      const tile = chessboardRect.width / 8;
+      const baseX = position.x * tile + tile / 2;
+      const baseY = (7 - position.y) * tile + tile / 2;
       
       return { 
         x: chessboardRect.left + baseX, 
