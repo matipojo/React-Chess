@@ -187,7 +187,7 @@ export default function Referee() {
   function playMove(playedPiece: Piece, destination: Position): boolean {
     const success = playMoveSync(playedPiece.position, destination);
     if (success && lessons.learnMode) {
-      lessons.clearAnnotations();
+      lessons.recordLearnMove();
     }
     return success;
   }
@@ -224,7 +224,14 @@ export default function Referee() {
   }, []);
 
   const loaded = lessons.loadedLine.current;
-  const canStep = !!loaded && !lessons.animating && !lessons.quiz;
+  const canStep = !lessons.animating && !lessons.quiz;
+  const showStepNav =
+    lessons.historyLength > 1 || (!!loaded && loaded.moves.length > 0);
+  const canBack = canStep && lessons.historyIndex > 0;
+  const canNext =
+    canStep &&
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length));
 
   return (
     <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
@@ -280,10 +287,10 @@ export default function Referee() {
           quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
           quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
           quizFeedback={lessons.quizFeedback}
-          onBack={loaded ? lessons.stepBack : undefined}
-          onNext={loaded ? lessons.stepNext : undefined}
-          canBack={canStep && !!loaded && loaded.ply > 0}
-          canNext={canStep && !!loaded && loaded.ply < loaded.moves.length}
+          onBack={showStepNav ? lessons.stepBack : undefined}
+          onNext={showStepNav ? lessons.stepNext : undefined}
+          canBack={canBack}
+          canNext={canNext}
         />
       )}
     </div>
