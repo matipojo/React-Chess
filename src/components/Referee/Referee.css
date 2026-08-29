@@ -10,11 +10,21 @@
   position: relative;
 }
 
+.referee-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 12px;
+  min-height: 32px;
+  flex-wrap: wrap;
+}
+
 .referee-status {
   color: white;
   font-size: 24px;
   text-align: center;
-  margin: 0 0 12px;
+  margin: 0;
 }
 
 .referee-learn {
@@ -48,9 +58,13 @@
     gap: 0;
   }
 
+  .referee-learn .referee-toolbar {
+    margin: 0 0 6px;
+  }
+
   .referee-learn .referee-status {
     font-size: 14px;
-    margin: 0 0 6px;
+    margin: 0;
   }
 
   .referee-learn .lesson-coach {

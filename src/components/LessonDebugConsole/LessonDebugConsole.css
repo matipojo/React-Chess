@@ -1,0 +1,157 @@
+.lesson-debug {
+  position: relative;
+}
+
+.lesson-debug-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #2a2a2a;
+  color: #f3f3f3;
+  border: 1px solid #3d3d3d;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lesson-debug-toggle:hover,
+.lesson-debug-open .lesson-debug-toggle {
+  border-color: #ffc107;
+}
+
+.lesson-debug-count {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #5c4a12;
+  color: #ffc107;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.lesson-debug-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  width: min(420px, calc(100vw - 24px));
+  max-height: min(52vh, 420px);
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  border: 1px solid #3d3d3d;
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.lesson-debug-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid #333;
+}
+
+.lesson-debug-toolbar button {
+  background: #2a2a2a;
+  color: #ddd;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lesson-debug-toolbar button.is-active,
+.lesson-debug-toolbar button:hover {
+  border-color: #ffc107;
+  color: #fff;
+}
+
+.lesson-debug-list {
+  margin: 0;
+  padding: 8px;
+  overflow: auto;
+  list-style: none;
+}
+
+.lesson-debug-empty {
+  color: #888;
+  font-size: 13px;
+  padding: 12px 4px;
+}
+
+.lesson-debug-item {
+  margin: 0 0 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #242424;
+  border-left: 3px solid #666;
+}
+
+.lesson-debug-item.kind-tool {
+  border-left-color: #64b5f6;
+}
+
+.lesson-debug-item.kind-user-move {
+  border-left-color: #9ccc65;
+}
+
+.lesson-debug-item.kind-visual {
+  border-left-color: #ffc107;
+}
+
+.lesson-debug-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.lesson-debug-kind {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #aaa;
+  font-weight: 700;
+}
+
+.lesson-debug-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.lesson-debug-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: #888;
+}
+
+.lesson-debug-item pre {
+  margin: 0;
+  max-height: 140px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #ccc;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 640px) {
+  .lesson-debug-panel {
+    position: fixed;
+    top: auto;
+    right: 8px;
+    left: 8px;
+    bottom: calc(min(38vh, 280px) + 12px);
+    width: auto;
+    max-height: 36vh;
+  }
+}

@@ -16,6 +16,9 @@ import LessonCoach from "../LessonCoach/LessonCoach";
 import { Howl } from "howler";
 import { useModelContextTools } from "../../hooks/useModelContextTools";
 import { useChessLessons } from "../../hooks/useChessLessons";
+import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
+import { logLessonDebug } from "../../lessons/debugLog";
+import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import "./Referee.css";
 
 const moveSound = new Howl({
@@ -173,6 +176,11 @@ export default function Referee() {
   }, []);
 
   const animateMove = useCallback((from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => {
+    logLessonDebug("visual", "animate-move", {
+      from: coordinatesToNotation(from.x, from.y),
+      to: coordinatesToNotation(to.x, to.y),
+      team,
+    });
     chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
   }, []);
 
@@ -185,7 +193,17 @@ export default function Referee() {
   });
 
   function playMove(playedPiece: Piece, destination: Position): boolean {
+    const from = coordinatesToNotation(playedPiece.position.x, playedPiece.position.y);
+    const to = coordinatesToNotation(destination.x, destination.y);
     const success = playMoveSync(playedPiece.position, destination);
+    logLessonDebug("user-move", "drop", {
+      piece: playedPiece.type,
+      team: playedPiece.team,
+      from,
+      to,
+      success,
+      learnMode: lessons.learnMode,
+    });
     if (success && lessons.learnMode) {
       lessons.recordLearnMove();
     }
@@ -236,9 +254,12 @@ export default function Referee() {
   return (
     <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
       <div className="referee-board">
-        <p className="referee-status">
-          {lessons.learnMode ? "Learn mode" : `Total turns: ${board.totalTurns}`}
-        </p>
+        <div className="referee-toolbar">
+          <p className="referee-status">
+            {lessons.learnMode ? "Learn mode" : `Total turns: ${board.totalTurns}`}
+          </p>
+          {lessons.learnMode && <LessonDebugConsole />}
+        </div>
         <div className="modal hidden" ref={modalRef}>
           <div className="modal-body">
             <img

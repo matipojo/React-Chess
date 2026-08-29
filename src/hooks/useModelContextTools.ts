@@ -5,6 +5,7 @@ import { Position } from '../models/Position';
 import { PieceType } from '../Types';
 import { chessNotationToCoordinates, parseMoveNotation } from '../utils/chess-notation-utils';
 import { getModelContext } from '../model-context-types';
+import { logLessonDebug } from '../lessons/debugLog';
 import { BoardArrow, BoardHighlight, CoachState, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
 
@@ -455,6 +456,31 @@ export function useModelContextTools(actions: ChessActions) {
     ];
 
     const toolNames = tools.map(t => t.name);
+    const wrappedTools = tools.map((tool) => ({
+      ...tool,
+      execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+        const started = Date.now();
+        logLessonDebug("tool", tool.name, { phase: "start", params: params || {} });
+        try {
+          const result = await tool.execute(params);
+          logLessonDebug("tool", tool.name, {
+            phase: "end",
+            durationMs: Date.now() - started,
+            params: params || {},
+            result,
+          });
+          return result;
+        } catch (error) {
+          logLessonDebug("tool", tool.name, {
+            phase: "error",
+            durationMs: Date.now() - started,
+            params: params || {},
+            error: `${error}`,
+          });
+          throw error;
+        }
+      },
+    }));
     const registration = new AbortController();
 
     function cleanupTools() {
@@ -479,9 +505,9 @@ export function useModelContextTools(actions: ChessActions) {
     }
 
     if (typeof mc.provideContext === 'function') {
-      mc.provideContext({ tools });
+      mc.provideContext({ tools: wrappedTools });
     } else if (typeof mc.registerTool === 'function') {
-      for (const tool of tools) {
+      for (const tool of wrappedTools) {
         if (typeof mc.unregisterTool === 'function') {
           try {
             mc.unregisterTool(tool.name);
