@@ -73,10 +73,6 @@ export default function Referee() {
     return true;
   }, []);
 
-  function playMove(playedPiece: Piece, destination: Position): boolean {
-    return playMoveSync(playedPiece.position, destination);
-  }
-
   function isValidMove(
     initialPosition: Position,
     desiredPosition: Position,
@@ -188,10 +184,23 @@ export default function Referee() {
     hideCheckmate,
   });
 
+  function playMove(playedPiece: Piece, destination: Position): boolean {
+    const success = playMoveSync(playedPiece.position, destination);
+    if (success && lessons.learnMode) {
+      lessons.clearAnnotations();
+    }
+    return success;
+  }
+
+  function restartGame() {
+    restartGameAction();
+    lessons.clearAnnotations();
+  }
+
   useModelContextTools({
     getBoard: () => boardRef.current,
     playMove,
-    restartGame: restartGameAction,
+    restartGame,
     promotePawn: promotePawnAction,
     animateMove,
     lessons,
@@ -250,7 +259,7 @@ export default function Referee() {
                 The winning team is{" "}
                 {board.winningTeam === TeamType.OUR ? "white" : "black"}!
               </span>
-              <button onClick={restartGameAction}>Play again</button>
+              <button onClick={restartGame}>Play again</button>
             </div>
           </div>
         </div>

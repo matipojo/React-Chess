@@ -73,12 +73,27 @@ export function useChessLessons({
     [boardRef, setBoard]
   );
 
+  const clearAnnotations = useCallback(() => {
+    setHighlights([]);
+    setArrows([]);
+  }, []);
+
+  const cancelQuiz = useCallback(() => {
+    if (quizResolverRef.current) {
+      quizResolverRef.current({ correct: false, square: "" });
+      quizResolverRef.current = null;
+    }
+    setQuiz(null);
+    setQuizFeedback("");
+  }, []);
+
   const enterLearnMode = useCallback(() => {
     hideCheckmate();
     setLearnMode(true);
+    cancelQuiz();
     const next = boardRef.current.clone();
     applyBoard(next);
-  }, [applyBoard, boardRef, hideCheckmate]);
+  }, [applyBoard, boardRef, cancelQuiz, hideCheckmate]);
 
   const exitLearnMode = useCallback(() => {
     if (quizResolverRef.current) {
@@ -129,6 +144,8 @@ export function useChessLessons({
     (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => {
       hideCheckmate();
       setLearnMode(true);
+      cancelQuiz();
+      clearAnnotations();
       try {
         let next: Board;
         if (args.fen) {
@@ -145,7 +162,7 @@ export function useChessLessons({
         return { success: false, message: `${error}` };
       }
     },
-    [applyBoard, hideCheckmate]
+    [applyBoard, cancelQuiz, clearAnnotations, hideCheckmate]
   );
 
   const noteForPly = (line: LoadedLine, ply: number): string | undefined => {
@@ -175,6 +192,8 @@ export function useChessLessons({
     }
     line.ply = target;
     applyBoard(next);
+    cancelQuiz();
+    clearAnnotations();
     const note = noteForPly(line, target);
     setCoachState({
       title: line.name,
@@ -183,7 +202,7 @@ export function useChessLessons({
       totalSteps: line.moves.length,
     });
     return true;
-  }, [applyBoard]);
+  }, [applyBoard, cancelQuiz, clearAnnotations]);
 
   const loadGame = useCallback(
     (id: string) => {
@@ -308,6 +327,7 @@ export function useChessLessons({
           const from = new Position(fromCoords.x, fromCoords.y);
           const to = new Position(toCoords.x, toCoords.y);
           const ok = await animateThenPlay(from, to);
+          clearAnnotations();
           if (!ok) {
             return {
               success: false,
@@ -342,7 +362,7 @@ export function useChessLessons({
       );
       return next;
     },
-    [animateThenPlay, enterLearnMode]
+    [animateThenPlay, clearAnnotations, enterLearnMode]
   );
 
   const demonstratePiece = useCallback(
@@ -392,6 +412,9 @@ export function useChessLessons({
     setLearnMode(true);
     setQuiz(nextQuiz);
     setQuizFeedback("");
+    setHighlights((prev) =>
+      prev.filter((mark) => mark.kind !== "wrong" && mark.kind !== "correct")
+    );
     if (quizResolverRef.current) {
       quizResolverRef.current({ correct: false, square: "" });
     }
@@ -408,20 +431,15 @@ export function useChessLessons({
       const normalized = square.toLowerCase();
       const correctList = quiz.correct.map((item) => item.toLowerCase());
       const correct = correctList.indexOf(normalized) !== -1;
-      setQuizFeedback(correct ? "Correct." : "Not quite — try reading the board again.");
-      setHighlights((prev) =>
-        prev
-          .filter((mark) => mark.kind !== "wrong" && mark.kind !== "correct")
-          .concat([{ square: normalized, kind: correct ? "correct" : "wrong" }])
-      );
       const resolver = quizResolverRef.current;
       quizResolverRef.current = null;
       if (resolver) {
         resolver({ correct, square: normalized });
       }
-      if (correct) {
-        setQuiz(null);
-      }
+      setQuiz(null);
+      setQuizFeedback("");
+      setHighlights([]);
+      setArrows([]);
     },
     [quiz]
   );
@@ -486,5 +504,6 @@ export function useChessLessons({
     stepBack,
     stepNext,
     listLessons,
+    clearAnnotations,
   };
 }
