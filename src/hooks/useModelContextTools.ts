@@ -172,36 +172,51 @@ export function useModelContextTools(actions: ChessActions) {
       },
     ];
 
-    const controller = new AbortController();
+    const toolNames = tools.map(t => t.name);
+    const registration = new AbortController();
 
-    const register = async () => {
-      if (typeof mc.registerTool === 'function') {
-        for (const tool of tools) {
-          if (controller.signal.aborted) {
-            return;
+    function cleanupTools() {
+      registration.abort();
+      const ctx = getModelContext();
+      if (!ctx) {
+        return;
+      }
+      if (typeof ctx.clearContext === 'function') {
+        ctx.clearContext();
+        return;
+      }
+      if (typeof ctx.unregisterTool === 'function') {
+        for (const name of toolNames) {
+          try {
+            ctx.unregisterTool(name);
+          } catch {
+            // Already unregistered or unsupported in this snapshot of the API.
           }
-          await Promise.resolve(mc.registerTool(tool, { signal: controller.signal }));
         }
-        return;
       }
+    }
 
-      if (typeof mc.provideContext === 'function') {
-        mc.provideContext({ tools });
+    if (typeof mc.provideContext === 'function') {
+      mc.provideContext({ tools });
+    } else if (typeof mc.registerTool === 'function') {
+      for (const tool of tools) {
+        if (typeof mc.unregisterTool === 'function') {
+          try {
+            mc.unregisterTool(tool.name);
+          } catch {
+            // ignore duplicate-unregister failures
+          }
+        }
+        void Promise.resolve(mc.registerTool(tool, { signal: registration.signal })).catch(() => {
+          // Duplicate names, aborted Strict Mode remounts, or unsupported snapshots.
+        });
       }
-    };
-
-    void register().catch((error: unknown) => {
-      if (controller.signal.aborted) {
-        return;
-      }
-      console.error('Failed to register model context tools', error);
-    });
+    } else {
+      return;
+    }
 
     return () => {
-      controller.abort();
-      if (typeof mc.clearContext === 'function') {
-        mc.clearContext();
-      }
+      cleanupTools();
     };
   }, []);
 }
