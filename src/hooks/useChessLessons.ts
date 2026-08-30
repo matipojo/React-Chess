@@ -1120,6 +1120,39 @@ export function useChessLessons({
     publishHistory(nextIndex, historyRef.current.length);
   }, [animating, publishHistory, restoreSnapshot]);
 
+  const stepFirst = useCallback(() => {
+    if (animating || historyIndexRef.current <= 0) {
+      return;
+    }
+    logLessonDebug("visual", "step-first", {
+      fromIndex: historyIndexRef.current,
+    });
+    restoreSnapshot(historyRef.current[0]);
+    publishHistory(0, historyRef.current.length);
+  }, [animating, publishHistory, restoreSnapshot]);
+
+  const stepLast = useCallback(() => {
+    if (animating) {
+      return;
+    }
+    const line = loadedLineRef.current;
+    logLessonDebug("visual", "step-last", {
+      historyIndex: historyIndexRef.current,
+      historyLength: historyRef.current.length,
+      ply: line ? line.ply : null,
+    });
+    if (line && line.ply < line.moves.length) {
+      rebuildToPly(line, line.moves.length);
+      return;
+    }
+    const lastIndex = historyRef.current.length - 1;
+    if (lastIndex < 0 || historyIndexRef.current >= lastIndex) {
+      return;
+    }
+    restoreSnapshot(historyRef.current[lastIndex]);
+    publishHistory(lastIndex, historyRef.current.length);
+  }, [animating, publishHistory, rebuildToPly, restoreSnapshot]);
+
   const stepNext = useCallback(() => {
     if (animating) {
       return;
@@ -1215,6 +1248,8 @@ export function useChessLessons({
     recordLearnMove,
     stepBack,
     stepNext,
+    stepFirst,
+    stepLast,
     listLessons,
     clearAnnotations,
     openSavedLesson,

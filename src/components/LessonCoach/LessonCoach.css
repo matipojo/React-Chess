@@ -67,6 +67,48 @@
   flex-shrink: 0;
 }
 
+.lesson-coach-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lesson-coach-heading-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lesson-coach-reset {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: #3d3d3d;
+  color: #fff;
+  cursor: pointer;
+}
+
+.lesson-coach-reset svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lesson-coach-reset:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.lesson-coach-reset:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .lesson-coach-kicker {
   margin: 0 0 8px;
   font-size: 11px;
@@ -206,6 +248,18 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.lesson-coach-nav-icon {
+  flex: 0 0 42px;
+  padding: 10px 0;
+}
+
+.lesson-coach-nav-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+  margin: 0 auto;
 }
 
 .lesson-coach-nav button:disabled {

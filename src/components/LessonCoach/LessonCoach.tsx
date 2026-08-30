@@ -7,6 +7,33 @@ import ChessLinkedText from "./ChessLinkedText";
 import { ChessRefPart } from "../../utils/chess-text-links";
 import "./LessonCoach.css";
 
+function ResetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 5V2L7 7l5 5V9c2.76 0 5 2.24 5 5a5 5 0 0 1-9.9 1H6.02A7 7 0 0 0 19 14c0-3.87-3.13-7-7-7z"
+      />
+    </svg>
+  );
+}
+
+function SkipStartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M6 6h2.2v12H6V6zm4.2 6 8.8 6V6l-8.8 6z" />
+    </svg>
+  );
+}
+
+function SkipEndIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M15.8 6H18v12h-2.2V6zM5 18l8.8-6L5 6v12z" />
+    </svg>
+  );
+}
+
 type Props = {
   coach: CoachState | null;
   quizQuestion?: string;
@@ -20,8 +47,14 @@ type Props = {
   resolvePeekSquares?: (ref: ChessRefPart) => string[];
   onBack?: () => void;
   onNext?: () => void;
+  onFirst?: () => void;
+  onLast?: () => void;
+  onReset?: () => void;
   canBack?: boolean;
   canNext?: boolean;
+  canFirst?: boolean;
+  canLast?: boolean;
+  canReset?: boolean;
 };
 
 export default function LessonCoach({
@@ -37,8 +70,14 @@ export default function LessonCoach({
   resolvePeekSquares,
   onBack,
   onNext,
+  onFirst,
+  onLast,
+  onReset,
   canBack,
   canNext,
+  canFirst,
+  canLast,
+  canReset,
 }: Props) {
   const [copiedId, setCopiedId] = useState<string>("");
   const waiting = Boolean(waitPrompt && waitChoices && waitChoices.length > 0);
@@ -94,16 +133,34 @@ export default function LessonCoach({
     <aside className="lesson-coach" dir={dir} lang={lang}>
       <div className="lesson-coach-handle" aria-hidden="true" />
       <div className="lesson-coach-content">
-        <p className="lesson-coach-kicker">Learn</p>
+        <div className="lesson-coach-heading">
+          <div className="lesson-coach-heading-text">
+            <p className="lesson-coach-kicker">Learn</p>
+            {coach && (
+              <h2>
+                <ChessLinkedText
+                  text={coach.title}
+                  onHoverSquares={onHoverSquares}
+                  resolvePeekSquares={resolvePeekSquares}
+                />
+              </h2>
+            )}
+          </div>
+          {onReset && (
+            <button
+              type="button"
+              className="lesson-coach-reset"
+              aria-label="Reset lesson"
+              title="Reset lesson"
+              onClick={onReset}
+              disabled={!canReset}
+            >
+              <ResetIcon />
+            </button>
+          )}
+        </div>
         {coach && (
           <>
-            <h2>
-              <ChessLinkedText
-                text={coach.title}
-                onHoverSquares={onHoverSquares}
-                resolvePeekSquares={resolvePeekSquares}
-              />
-            </h2>
             <div className="lesson-coach-body">
               {paragraphs.map((paragraph, index) => {
                 const { dir: paragraphDir } = detectTextDirection(paragraph);
@@ -223,12 +280,36 @@ export default function LessonCoach({
       </div>
       {(onBack || onNext) && (
         <div className="lesson-coach-nav" dir="ltr">
+          {onFirst && (
+            <button
+              type="button"
+              className="lesson-coach-nav-icon"
+              aria-label="First step"
+              title="First step"
+              onClick={onFirst}
+              disabled={!canFirst}
+            >
+              <SkipStartIcon />
+            </button>
+          )}
           <button type="button" onClick={onBack} disabled={!canBack}>
             Back
           </button>
           <button type="button" onClick={onNext} disabled={!canNext}>
             Next
           </button>
+          {onLast && (
+            <button
+              type="button"
+              className="lesson-coach-nav-icon"
+              aria-label="Last step"
+              title="Last step"
+              onClick={onLast}
+              disabled={!canLast}
+            >
+              <SkipEndIcon />
+            </button>
+          )}
         </div>
       )}
     </aside>

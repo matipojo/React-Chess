@@ -278,11 +278,17 @@ export default function Referee() {
     (!!loaded && loaded.moves.length > 0) ||
     waitingOnUser;
   const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
+  const canFirst = canBack;
   const canNext =
     canStep &&
     (lessons.historyIndex < lessons.historyLength - 1 ||
       (!!loaded && loaded.ply < loaded.moves.length) ||
       waitingOnUser);
+  const canLast =
+    canStep &&
+    !waitingOnUser &&
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length));
 
   return (
     <>
@@ -384,8 +390,14 @@ export default function Referee() {
               resolvePeekSquares={resolvePeekSquares}
               onBack={showStepNav ? lessons.stepBack : undefined}
               onNext={showStepNav ? lessons.stepNext : undefined}
+              onFirst={showStepNav ? lessons.stepFirst : undefined}
+              onLast={showStepNav ? lessons.stepLast : undefined}
+              onReset={showStepNav ? lessons.stepFirst : undefined}
               canBack={canBack}
               canNext={canNext}
+              canFirst={canFirst}
+              canLast={canLast}
+              canReset={canFirst}
             />
           )}
         </div>

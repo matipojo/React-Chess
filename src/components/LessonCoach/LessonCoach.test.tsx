@@ -88,6 +88,51 @@ describe("LessonCoach", () => {
     expect(onNext).toHaveBeenCalled();
   });
 
+  it("places reset opposite the title and jump controls beside Back and Next", () => {
+    const onReset = jest.fn();
+    const onFirst = jest.fn();
+    const onLast = jest.fn();
+    const { container, getByRole } = render(
+      <LessonCoach
+        coach={{
+          lessonTitle: "Italian Opening",
+          title: "Develop the knight",
+          body: "Develop pieces.",
+          step: 2,
+          totalSteps: 3,
+        }}
+        onBack={() => undefined}
+        onNext={() => undefined}
+        onFirst={onFirst}
+        onLast={onLast}
+        onReset={onReset}
+        canBack
+        canNext
+        canFirst
+        canLast
+        canReset
+      />
+    );
+    const heading = container.querySelector(".lesson-coach-heading");
+    const title = container.querySelector("h2");
+    const reset = getByRole("button", { name: "Reset lesson" });
+    expect(heading && title && heading.contains(title) && heading.contains(reset)).toBeTruthy();
+    reset.click();
+    expect(onReset).toHaveBeenCalled();
+
+    const nav = container.querySelector(".lesson-coach-nav");
+    const first = getByRole("button", { name: "First step" });
+    const last = getByRole("button", { name: "Last step" });
+    const back = getByRole("button", { name: "Back" });
+    const next = getByRole("button", { name: "Next" });
+    expect(nav && first.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(nav && next.compareDocumentPosition(last) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    first.click();
+    last.click();
+    expect(onFirst).toHaveBeenCalled();
+    expect(onLast).toHaveBeenCalled();
+  });
+
   it("links moves in the wait prompt and choice labels", () => {
     const { container } = render(
       <LessonCoach
