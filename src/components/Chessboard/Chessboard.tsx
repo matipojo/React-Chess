@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./Chessboard.css";
 import Tile from "../Tile/Tile";
 import {
@@ -37,9 +37,16 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
   locked,
   onSquareClick,
 }, ref) {
-  const [activePiece, setActivePiece] = useState<HTMLElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [grabPosition, setGrabPosition] = useState<Position>(new Position(-1, -1));
   const chessboardRef = useRef<HTMLDivElement>(null);
+  const dragPreviewRef = useRef<HTMLDivElement>(null);
+  const pointerRef = useRef({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const grabPositionRef = useRef(grabPosition);
+  const piecesRef = useRef(pieces);
+  grabPositionRef.current = grabPosition;
+  piecesRef.current = pieces;
   const simpleHandAnimationRef = useRef<SimpleHandAnimationRef>(null);
   const pendingAnimationCallbackRef = useRef<(() => void) | null>(null);
   const lastPaintFingerprintRef = useRef("");
@@ -96,31 +103,27 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     return chessboard.getBoundingClientRect().width / 8;
   }
 
-  function dragOriginRect(chessboard: HTMLDivElement) {
-    const origin = chessboard.parentElement ?? chessboard;
-    return origin.getBoundingClientRect();
-  }
-
   function setDraggedPiecePosition(
-    piece: HTMLElement,
     clientX: number,
     clientY: number,
     chessboard: HTMLDivElement
   ) {
-    const origin = dragOriginRect(chessboard);
-    const boardRect = chessboard.getBoundingClientRect();
+    const preview = dragPreviewRef.current;
+    if (!preview) {
+      return;
+    }
+    const origin = (chessboard.parentElement ?? chessboard).getBoundingClientRect();
     const halfTile = tileSize(chessboard) / 2;
-    const minX = boardRect.left - origin.left - halfTile + 25;
-    const minY = boardRect.top - origin.top - halfTile + 25;
-    const maxX = boardRect.right - origin.left - halfTile - 25;
-    const maxY = boardRect.bottom - origin.top - halfTile - 25;
-    const x = Math.min(Math.max(clientX - origin.left - halfTile, minX), maxX);
-    const y = Math.min(Math.max(clientY - origin.top - halfTile, minY), maxY);
-    piece.style.position = "absolute";
-    piece.style.zIndex = "10";
-    piece.style.left = `${x}px`;
-    piece.style.top = `${y}px`;
+    preview.style.left = `${clientX - origin.left - halfTile}px`;
+    preview.style.top = `${clientY - origin.top - halfTile}px`;
   }
+
+  useLayoutEffect(() => {
+    const chessboard = chessboardRef.current;
+    if (isDragging && chessboard) {
+      setDraggedPiecePosition(pointerRef.current.x, pointerRef.current.y, chessboard);
+    }
+  }, [isDragging]);
 
   function squareFromPointer(clientX: number, clientY: number, chessboard: HTMLDivElement): Position | null {
     const rect = chessboard.getBoundingClientRect();
@@ -155,43 +158,55 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
       if (!square) {
         return;
       }
+      e.preventDefault();
+      pointerRef.current = { x: e.clientX, y: e.clientY };
+      grabPositionRef.current = square;
+      isDraggingRef.current = true;
       setGrabPosition(square);
-      setDraggedPiecePosition(element, e.clientX, e.clientY, chessboard);
-      setActivePiece(element);
+      setIsDragging(true);
     }
   }
 
-  function movePiece(e: React.MouseEvent) {
+  function moveDraggedPiece(clientX: number, clientY: number) {
     const chessboard = chessboardRef.current;
-    if (activePiece && chessboard) {
-      setDraggedPiecePosition(activePiece, e.clientX, e.clientY, chessboard);
+    if (!isDraggingRef.current || !chessboard) {
+      return;
     }
+    pointerRef.current = { x: clientX, y: clientY };
+    setDraggedPiecePosition(clientX, clientY, chessboard);
   }
 
-  function dropPiece(e: React.MouseEvent) {
+  function dropPiece(clientX: number, clientY: number) {
     const chessboard = chessboardRef.current;
-    if (activePiece && chessboard) {
-      const dropped = squareFromPointer(e.clientX, e.clientY, chessboard);
-      const x = dropped ? dropped.x : -1;
-      const y = dropped ? dropped.y : -1;
-
-      const currentPiece = pieces.find((p) =>
-        p.samePosition(grabPosition)
-      );
-
-      if (currentPiece) {
-        var succes = playMove(currentPiece.clone(), new Position(x, y));
-
-        if(!succes) {
-          activePiece.style.removeProperty("position");
-          activePiece.style.removeProperty("z-index");
-          activePiece.style.removeProperty("top");
-          activePiece.style.removeProperty("left");
-        }
-      }
-      setActivePiece(null);
+    if (!isDraggingRef.current || !chessboard) {
+      return;
+    }
+    isDraggingRef.current = false;
+    setIsDragging(false);
+    const dropped = squareFromPointer(clientX, clientY, chessboard);
+    const x = dropped ? dropped.x : -1;
+    const y = dropped ? dropped.y : -1;
+    const currentPiece = piecesRef.current.find((p) =>
+      p.samePosition(grabPositionRef.current)
+    );
+    if (currentPiece) {
+      playMove(currentPiece.clone(), new Position(x, y));
     }
   }
+
+  useEffect(() => {
+    if (!isDragging) {
+      return;
+    }
+    const onMove = (e: MouseEvent) => moveDraggedPiece(e.clientX, e.clientY);
+    const onUp = (e: MouseEvent) => dropPiece(e.clientX, e.clientY);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging]);
 
   function handleClick(e: React.MouseEvent) {
     if (interaction !== "quiz") {
@@ -218,17 +233,19 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     }
   }
 
+  const draggedPiece = isDragging ? pieces.find((p) => p.samePosition(grabPosition)) : undefined;
+
   for (let j = VERTICAL_AXIS.length - 1; j >= 0; j--) {
     for (let i = 0; i < HORIZONTAL_AXIS.length; i++) {
       const number = j + i + 2;
       const piece = pieces.find((p) =>
         p.samePosition(new Position(i, j))
       );
-      let image = piece ? piece.image : undefined;
+      const isDragSource = isDragging && grabPosition.samePosition(new Position(i, j));
+      let image = piece && !isDragSource ? piece.image : undefined;
 
-      let currentPiece = activePiece != null ? pieces.find(p => p.samePosition(grabPosition)) : undefined;
-      let highlight = currentPiece?.possibleMoves ?
-      currentPiece.possibleMoves.some(p => p.samePosition(new Position(i, j))) : false;
+      let highlight = draggedPiece?.possibleMoves ?
+      draggedPiece.possibleMoves.some(p => p.samePosition(new Position(i, j))) : false;
       const squareName = coordinatesToNotation(i, j);
       const mark = highlightMap[squareName];
 
@@ -285,9 +302,7 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
           </div>
           <div className="chessboard-wrap">
             <div
-              onMouseMove={(e) => movePiece(e)}
               onMouseDown={(e) => grabPiece(e)}
-              onMouseUp={(e) => dropPiece(e)}
               onClick={handleClick}
               id="chessboard"
               ref={chessboardRef}
@@ -310,6 +325,17 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
                 </defs>
                 {arrowElements}
               </svg>
+            )}
+            {draggedPiece && (
+              <div
+                ref={dragPreviewRef}
+                className={[
+                  "chess-piece",
+                  "chess-piece-drag-preview",
+                  draggedPiece.team === "w" ? "chess-piece-white" : "chess-piece-black",
+                ].join(" ")}
+                style={{ backgroundImage: `url(${draggedPiece.image})` }}
+              />
             )}
           </div>
         </div>

@@ -24,6 +24,18 @@
   z-index: 4;
 }
 
+.chess-piece-drag-preview {
+  position: absolute;
+  z-index: 12;
+  pointer-events: none;
+  cursor: grabbing;
+  width: var(--tile-size, 75px);
+  height: var(--tile-size, 75px);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: var(--tile-size, 75px);
+}
+
 .chessboard-axis-rank {
   display: flex;
   flex-direction: column;
