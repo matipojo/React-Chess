@@ -21,6 +21,7 @@ import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 import { logLessonDebug } from "../../lessons/debugLog";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
+import BoardThemePicker from "../BoardThemePicker/BoardThemePicker";
 import "./Referee.css";
 
 const moveSound = new Howl({
@@ -303,6 +304,7 @@ export default function Referee() {
           </button>
         </nav>
         <div className="app-header-actions">
+          <BoardThemePicker />
           {!lessons.learnMode && (
             <p className="referee-status">Turns: {board.totalTurns}</p>
           )}

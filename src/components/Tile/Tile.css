@@ -2,13 +2,8 @@
   display: grid;
   place-content: center;
   position: relative;
-  isolation: isolate;
   width: var(--tile-size, 75px);
   height: var(--tile-size, 75px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  outline: 1px solid rgba(255, 255, 255, 0.12);
-  outline-offset: -1px;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .tile .chess-piece {
@@ -21,30 +16,6 @@
   background-size: var(--tile-size, 75px);
 }
 
-.chess-piece-white {
-  filter:
-    drop-shadow(2px 0 0 #1a1028)
-    drop-shadow(-2px 0 0 #1a1028)
-    drop-shadow(0 2px 0 #1a1028)
-    drop-shadow(0 -2px 0 #1a1028)
-    drop-shadow(2px 2px 0 #1a1028)
-    drop-shadow(-2px 2px 0 #1a1028)
-    drop-shadow(2px -2px 0 #1a1028)
-    drop-shadow(-2px -2px 0 #1a1028);
-}
-
-.chess-piece-black {
-  filter:
-    drop-shadow(2px 0 0 #ffffff)
-    drop-shadow(-2px 0 0 #ffffff)
-    drop-shadow(0 2px 0 #ffffff)
-    drop-shadow(0 -2px 0 #ffffff)
-    drop-shadow(2px 2px 0 #ffffff)
-    drop-shadow(-2px 2px 0 #ffffff)
-    drop-shadow(2px -2px 0 #ffffff)
-    drop-shadow(-2px -2px 0 #ffffff);
-}
-
 .tile .chess-piece:hover {
   cursor: grab;
 }
@@ -54,63 +25,11 @@
 }
 
 .black-tile {
-  background-color: #9b74d8;
-  background-image:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.16) 0%,
-      transparent 42%
-    ),
-    linear-gradient(
-      160deg,
-      #b08ae4 0%,
-      #8a5fc8 100%
-    );
+  background-color: #779556;
 }
 
 .white-tile {
-  background-color: #e6def6;
-  background-image:
-    linear-gradient(
-      135deg,
-      #eee8f8 0%,
-      #d9d0ee 100%
-    );
-}
-
-.black-tile:hover {
-  background-image:
-    linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.22) 0%,
-      transparent 42%
-    ),
-    linear-gradient(
-      160deg,
-      #bb97ea 0%,
-      #9668d2 100%
-    );
-}
-
-.white-tile:hover {
-  background-image:
-    linear-gradient(
-      135deg,
-      #f3eefc 0%,
-      #d2c8ea 100%
-    );
-}
-
-.black-tile:hover:not(.tile-highlight):not(.tile-peek):not([class*="tile-mark"]) {
-  box-shadow:
-    inset 0 0 0 2px rgba(34, 211, 238, 0.7),
-    inset 0 0 18px rgba(34, 211, 238, 0.18);
-}
-
-.white-tile:hover:not(.tile-highlight):not(.tile-peek):not([class*="tile-mark"]) {
-  box-shadow:
-    inset 0 0 0 2px rgba(232, 121, 249, 0.55),
-    inset 0 0 16px rgba(192, 132, 252, 0.18);
+  background-color: #ebecd0;
 }
 
 .tile img {
@@ -122,11 +41,7 @@
   width: calc(var(--tile-size, 75px) * 0.27);
   height: calc(var(--tile-size, 75px) * 0.27);
   border-radius: 50%;
-  background-color: #111018;
-  box-shadow:
-    0 0 0 3px #ffffff,
-    0 0 10px rgba(34, 211, 238, 0.7);
-  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 .tile-highlight.chess-piece-tile::before {
@@ -134,9 +49,8 @@
   content: " ";
   width: calc(var(--tile-size, 75px) * 0.87);
   height: calc(var(--tile-size, 75px) * 0.87);
-  border: 5px solid rgba(34, 211, 238, 0.95);
+  border: 5px solid rgba(0, 0, 0, 0.4);
   border-radius: 50%;
-  box-shadow: 0 0 16px rgba(34, 211, 238, 0.55);
 }
 
 .tile-mark-move:not(.chess-piece-tile)::after,
@@ -145,17 +59,11 @@
   width: calc(var(--tile-size, 75px) * 0.29);
   height: calc(var(--tile-size, 75px) * 0.29);
   border-radius: 50%;
-  background-color: rgba(34, 211, 238, 0.95);
-  box-shadow:
-    0 0 8px #22d3ee,
-    0 0 18px rgba(34, 211, 238, 0.55);
+  background-color: rgba(66, 165, 245, 0.75);
 }
 
 .tile-mark-key:not(.chess-piece-tile)::after {
-  background-color: rgba(253, 224, 71, 0.98);
-  box-shadow:
-    0 0 10px rgba(253, 224, 71, 0.85),
-    0 0 18px rgba(253, 224, 71, 0.35);
+  background-color: rgba(255, 193, 7, 0.9);
 }
 
 .tile-mark-move.chess-piece-tile,
@@ -163,52 +71,32 @@
 .tile-mark-capture,
 .tile-mark-wrong,
 .tile-mark-correct {
-  box-shadow:
-    inset 0 0 0 5px rgba(34, 211, 238, 0.95),
-    inset 0 0 22px rgba(34, 211, 238, 0.28);
+  box-shadow: inset 0 0 0 5px rgba(66, 165, 245, 0.85);
 }
 
 .tile-mark-key.chess-piece-tile,
 .tile-mark-key {
-  box-shadow:
-    inset 0 0 0 5px rgba(253, 224, 71, 0.98),
-    inset 0 0 22px rgba(253, 224, 71, 0.3);
+  box-shadow: inset 0 0 0 5px rgba(255, 193, 7, 0.95);
 }
 
 .tile-mark-capture {
-  box-shadow:
-    inset 0 0 0 5px rgba(251, 113, 133, 0.95),
-    inset 0 0 20px rgba(251, 113, 133, 0.32);
+  box-shadow: inset 0 0 0 5px rgba(229, 57, 53, 0.9);
 }
 
 .tile-mark-wrong {
-  box-shadow:
-    inset 0 0 0 5px rgba(244, 63, 94, 1),
-    inset 0 0 20px rgba(244, 63, 94, 0.32);
+  box-shadow: inset 0 0 0 5px rgba(229, 57, 53, 1);
 }
 
 .tile-mark-correct {
-  box-shadow:
-    inset 0 0 0 5px rgba(52, 211, 153, 1),
-    inset 0 0 20px rgba(52, 211, 153, 0.3);
+  box-shadow: inset 0 0 0 5px rgba(76, 175, 80, 1);
 }
 
 .tile.tile-peek.black-tile {
-  background-image:
-    linear-gradient(
-      135deg,
-      #67e8f9,
-      #22d3ee
-    );
+  background-color: #4fc3f7;
 }
 
 .tile.tile-peek.white-tile {
-  background-image:
-    linear-gradient(
-      135deg,
-      #e0faff,
-      #a5f3fc
-    );
+  background-color: #b3e5fc;
 }
 
 .tile-peek-overlay {
@@ -219,14 +107,8 @@
   height: 100%;
   z-index: 6;
   pointer-events: none;
-  background: rgba(34, 211, 238, 0.32);
-  box-shadow: inset 0 0 0 3px #155e75;
-  outline: 2px dashed #ecfeff;
+  background: rgba(3, 155, 229, 0.38);
+  box-shadow: inset 0 0 0 3px #01579b;
+  outline: 2px dashed #e3f2fd;
   outline-offset: -5px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tile {
-    transition: none;
-  }
 }
