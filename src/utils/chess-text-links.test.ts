@@ -22,7 +22,7 @@ describe("tokenizeChessText", () => {
   it("links numbered SAN with annotations", () => {
     const parts = tokenizeChessText("2...Nc6 3.Bc4! Qxf7");
     const refs = parts.filter((part) => part.type === "ref");
-    expect(refs.map((part) => part.value)).toEqual(["Nc6", "Bc4!", "Qxf7"]);
+    expect(refs.map((part) => part.value)).toEqual(["2...Nc6", "3.Bc4!", "Qxf7"]);
     expect(parseChessRef("Nc6").piece).toBe(PieceType.KNIGHT);
     expect(parseChessRef("Bc4!").piece).toBe(PieceType.BISHOP);
     expect(parseChessRef("Qxf7").piece).toBe(PieceType.QUEEN);

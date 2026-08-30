@@ -27,4 +27,15 @@ describe("detectTextDirection", () => {
       lang: "he",
     });
   });
+
+  it("keeps a Hebrew sentence rtl even when it starts with a move number", () => {
+    expect(
+      detectTextDirection(
+        "3...Nf6?? - שחור מפתח עוד כלי ואפילו תוקף את המלכה הלבנה"
+      )
+    ).toEqual({
+      dir: "rtl",
+      lang: "he",
+    });
+  });
 });
