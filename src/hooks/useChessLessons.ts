@@ -42,7 +42,7 @@ import {
   parseMoveNotation,
 } from "../utils/chess-notation-utils";
 import { logLessonDebug } from "../lessons/debugLog";
-import { overlaySnapshot, piecesForDebug } from "../lessons/debugSnapshot";
+import { fenForDebug, overlaySnapshot } from "../lessons/debugSnapshot";
 
 type LessonSnapshot = {
   board: Board;
@@ -209,7 +209,7 @@ export function useChessLessons({
     (snap: LessonSnapshot) => {
       logLessonDebug("visual", "restore-snapshot", {
         ply: snap.ply,
-        pieces: piecesForDebug(snap.board),
+        fen: fenForDebug(snap.board),
         ...overlaySnapshot({
           highlights: snap.highlights,
           arrows: snap.arrows,
@@ -303,7 +303,7 @@ export function useChessLessons({
       const snap = parked.history[index];
       logLessonDebug("visual", "enter-learn-mode", {
         resumed: true,
-        pieces: piecesForDebug(snap.board),
+        fen: fenForDebug(snap.board),
       });
       parkedRef.current = null;
       loadedLineRef.current = parked.loadedLine;
@@ -314,7 +314,7 @@ export function useChessLessons({
       setLearnMode(true);
       return;
     }
-    logLessonDebug("visual", "enter-learn-mode", { pieces: piecesForDebug(boardRef.current) });
+    logLessonDebug("visual", "enter-learn-mode", { fen: fenForDebug(boardRef.current) });
     learnModeRef.current = true;
     setLearnMode(true);
     cancelQuiz();
@@ -360,7 +360,12 @@ export function useChessLessons({
   const setCoach = useCallback((next: CoachState) => {
     const copy = normalizeCoachCopy(next);
     const resolved: CoachState = { ...next, body: copy.body, paragraphs: copy.paragraphs };
-    logLessonDebug("visual", "set-coach", { title: resolved.title, body: resolved.body, paragraphs: resolved.paragraphs, step: resolved.step, totalSteps: resolved.totalSteps });
+    logLessonDebug("visual", "set-coach", {
+      title: resolved.title,
+      body: resolved.body,
+      step: resolved.step,
+      totalSteps: resolved.totalSteps,
+    });
     enterLearnMode();
     coachRef.current = resolved;
     setCoachState(resolved);
@@ -397,14 +402,11 @@ export function useChessLessons({
         nextArrows !== undefined
           ? nextArrows
           : arrowsRef.current.map((item) => ({ ...item }));
-      logLessonDebug("visual", "annotate-board", {
-        pieces: piecesForDebug(boardRef.current),
-        ...overlaySnapshot({
-          highlights: resolvedHighlights,
-          arrows: resolvedArrows,
-          coachTitle: coachRef.current ? coachRef.current.title : null,
-        }),
-      });
+      logLessonDebug("visual", "annotate-board", overlaySnapshot({
+        highlights: resolvedHighlights,
+        arrows: resolvedArrows,
+        coachTitle: coachRef.current ? coachRef.current.title : null,
+      }));
       enterLearnMode();
       highlightsRef.current = resolvedHighlights;
       arrowsRef.current = resolvedArrows;
@@ -469,10 +471,9 @@ export function useChessLessons({
         }
         applyBoard(next);
         logLessonDebug("visual", "set-position", {
-          fen: args.fen || null,
-          piecesArg: args.pieces || null,
+          fen: args.fen || fenForDebug(next),
           turn: args.turn || null,
-          boardPieces: piecesForDebug(next),
+          pieceArgCount: args.pieces ? args.pieces.length : 0,
         });
         pushSnapshot();
         const coach = coachRef.current;
@@ -683,7 +684,7 @@ export function useChessLessons({
             from: parsed.from,
             to: parsed.to,
             success: ok,
-            pieces: piecesForDebug(boardRef.current),
+            fen: fenForDebug(boardRef.current),
           });
           clearAnnotations();
           if (!ok) {
@@ -1006,7 +1007,7 @@ export function useChessLessons({
 
   const recordLearnMove = useCallback(() => {
     logLessonDebug("visual", "record-learn-move", {
-      pieces: piecesForDebug(boardRef.current),
+      fen: fenForDebug(boardRef.current),
     });
     clearAnnotations();
     pushSnapshot();

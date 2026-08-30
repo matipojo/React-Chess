@@ -4,14 +4,13 @@ import Tile from "../Tile/Tile";
 import {
   VERTICAL_AXIS,
   HORIZONTAL_AXIS,
-  GRID_SIZE,
 } from "../../Constants";
 import { Piece, Position } from "../../models";
 import SimpleHandAnimation, { SimpleHandAnimationRef } from "./HandAnimation/SimpleHandAnimation";
 import { BoardArrow, BoardHighlight } from "../../lessons/types";
 import { chessNotationToCoordinates, coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { logLessonDebug } from "../../lessons/debugLog";
-import { arrowGeometry, rectSnapshot } from "../../lessons/debugSnapshot";
+import { compactPaintDetail, paintFingerprint } from "../../lessons/debugSnapshot";
 
 export type ChessboardHandle = {
   animateMove: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => void;
@@ -43,44 +42,38 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
   const chessboardRef = useRef<HTMLDivElement>(null);
   const simpleHandAnimationRef = useRef<SimpleHandAnimationRef>(null);
   const pendingAnimationCallbackRef = useRef<(() => void) | null>(null);
+  const lastPaintFingerprintRef = useRef("");
 
   useLayoutEffect(() => {
     const boardEl = chessboardRef.current;
     if (!boardEl || !arrows || arrows.length === 0) {
+      lastPaintFingerprintRef.current = "";
       return;
     }
-
-    const logPaint = () => {
-      const wrap = boardEl.parentElement;
-      const svg = wrap?.querySelector("svg.board-arrows") as SVGSVGElement | null;
-      const boardRect = boardEl.getBoundingClientRect();
-      const svgRect = svg ? svg.getBoundingClientRect() : null;
-      logLessonDebug("visual", "arrows-painted", {
-        arrowCount: arrows.length,
-        arrows: arrows.map((arrow) => arrowGeometry(arrow)),
-        boardRect: rectSnapshot(boardEl),
-        wrapRect: rectSnapshot(wrap),
-        svgRect: rectSnapshot(svg),
-        tileSizePx: boardRect.width / 8,
-        cssTileSize: wrap ? getComputedStyle(wrap).getPropertyValue("--tile-size").trim() : "",
-        gridSizeConstant: GRID_SIZE,
-        viewBox: svg ? svg.getAttribute("viewBox") : "0 0 600 600",
-        boardOffsetVsSvg: svgRect
-          ? {
-              dx: boardRect.left - svgRect.left,
-              dy: boardRect.top - svgRect.top,
-              dw: boardRect.width - svgRect.width,
-              dh: boardRect.height - svgRect.height,
-            }
-          : null,
-      });
-    };
-
-    logPaint();
+    const fingerprint = paintFingerprint(arrows);
+    if (!fingerprint || fingerprint === lastPaintFingerprintRef.current) {
+      return;
+    }
+    lastPaintFingerprintRef.current = fingerprint;
+    const wrap = boardEl.parentElement;
+    const svg = wrap?.querySelector("svg.board-arrows") as SVGSVGElement | null;
+    const boardRect = boardEl.getBoundingClientRect();
+    const svgRect = svg ? svg.getBoundingClientRect() : null;
+    logLessonDebug("visual", "arrows-painted", compactPaintDetail({
+      arrows,
+      tileSizePx: boardRect.width / 8,
+      boardOffsetVsSvg: svgRect
+        ? {
+            dx: boardRect.left - svgRect.left,
+            dy: boardRect.top - svgRect.top,
+            dw: boardRect.width - svgRect.width,
+            dh: boardRect.height - svgRect.height,
+          }
+        : null,
+    }));
   }, [arrows]);
 
   const handleAnimationComplete = () => {
-    logLessonDebug("visual", "hand-animate-complete", {});
     const callback = pendingAnimationCallbackRef.current;
     pendingAnimationCallbackRef.current = null;
     callback?.();

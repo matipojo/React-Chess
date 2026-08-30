@@ -1,43 +1,19 @@
-import { GRID_SIZE } from "../Constants";
 import { Board } from "../models/Board";
-import { chessNotationToCoordinates, coordinatesToNotation } from "../utils/chess-notation-utils";
+import { boardToFen } from "../utils/board-setup";
 import { BoardArrow, BoardHighlight } from "./types";
 
-export function piecesForDebug(board: Board) {
-  return board.pieces.map((piece) => ({
-    type: piece.type,
-    team: piece.team,
-    square: coordinatesToNotation(piece.position.x, piece.position.y),
-    x: piece.position.x,
-    y: piece.position.y,
-  }));
+const PEEK_ARROW_COLOR = "#81d4fa";
+
+export function fenForDebug(board: Board): string {
+  return boardToFen(board);
 }
 
-export function arrowGeometry(arrow: BoardArrow) {
-  try {
-    const from = chessNotationToCoordinates(arrow.from.toLowerCase());
-    const to = chessNotationToCoordinates(arrow.to.toLowerCase());
-    return {
-      from: arrow.from,
-      to: arrow.to,
-      color: arrow.color || "#ffc107",
-      coords: { from, to },
-      svg: {
-        x1: from.x * GRID_SIZE + GRID_SIZE / 2,
-        y1: (7 - from.y) * GRID_SIZE + GRID_SIZE / 2,
-        x2: to.x * GRID_SIZE + GRID_SIZE / 2,
-        y2: (7 - to.y) * GRID_SIZE + GRID_SIZE / 2,
-      },
-      gridSizeConstant: GRID_SIZE,
-      viewBox: "0 0 600 600",
-    };
-  } catch (error) {
-    return {
-      from: arrow.from,
-      to: arrow.to,
-      error: `${error}`,
-    };
-  }
+export function compactArrows(arrows: BoardArrow[]) {
+  return arrows.map((arrow) => ({
+    from: arrow.from,
+    to: arrow.to,
+    color: arrow.color || "#ffc107",
+  }));
 }
 
 export function overlaySnapshot(args: {
@@ -46,23 +22,85 @@ export function overlaySnapshot(args: {
   coachTitle?: string | null;
 }) {
   return {
-    highlights: args.highlights.map((item) => ({ ...item })),
-    arrows: args.arrows.map((arrow) => arrowGeometry(arrow)),
+    highlights: args.highlights.map((item) => ({ kind: item.kind, square: item.square })),
+    arrows: compactArrows(args.arrows),
     coachTitle: args.coachTitle || null,
   };
 }
 
-export function rectSnapshot(el: Element | null) {
-  if (!el) {
-    return null;
-  }
-  const rect = el.getBoundingClientRect();
+export function lessonArrowsForPaintLog(arrows: BoardArrow[]) {
+  return arrows.filter((arrow) => arrow.color !== PEEK_ARROW_COLOR);
+}
+
+export function paintFingerprint(arrows: BoardArrow[]): string {
+  return lessonArrowsForPaintLog(arrows)
+    .map((arrow) => `${arrow.from}:${arrow.to}:${arrow.color || ""}`)
+    .join("|");
+}
+
+export function compactPaintDetail(args: {
+  arrows: BoardArrow[];
+  tileSizePx: number;
+  boardOffsetVsSvg: { dx: number; dy: number; dw: number; dh: number } | null;
+}) {
+  const lessonArrows = lessonArrowsForPaintLog(args.arrows);
+  const offset = args.boardOffsetVsSvg;
+  const misaligned = !!(
+    offset &&
+    (Math.abs(offset.dx) > 4 ||
+      Math.abs(offset.dy) > 4 ||
+      Math.abs(offset.dw) > 4 ||
+      Math.abs(offset.dh) > 4)
+  );
   return {
-    x: rect.x,
-    y: rect.y,
-    width: rect.width,
-    height: rect.height,
-    top: rect.top,
-    left: rect.left,
+    arrowCount: lessonArrows.length,
+    arrows: compactArrows(lessonArrows),
+    tileSizePx: Math.round(args.tileSizePx * 10) / 10,
+    ...(misaligned && offset ? { misaligned: true as const, boardOffsetVsSvg: offset } : {}),
   };
+}
+
+export function compactToolResult(result: {
+  success: boolean;
+  message: string;
+  data: unknown;
+}): Record<string, unknown> {
+  return {
+    success: result.success,
+    message: result.message,
+    data: compactLoggedValue(result.data),
+  };
+}
+
+function compactLoggedValue(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    if (value.length > 0 && isPieceDump(value[0])) {
+      return { omitted: "pieces", count: value.length };
+    }
+    return value.map(compactLoggedValue);
+  }
+  const record = value as Record<string, unknown>;
+  const next: Record<string, unknown> = {};
+  for (const key of Object.keys(record)) {
+    if (key === "pieces" && Array.isArray(record.pieces)) {
+      next.pieceCount = record.pieces.length;
+      continue;
+    }
+    if (key === "possibleMoves") {
+      continue;
+    }
+    next[key] = compactLoggedValue(record[key]);
+  }
+  return next;
+}
+
+function isPieceDump(value: unknown): boolean {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const item = value as Record<string, unknown>;
+  return typeof item.type === "string" && ("position" in item || "square" in item || "x" in item);
 }

@@ -7,6 +7,7 @@ import { chessNotationToCoordinates, parseMoveNotation } from '../utils/chess-no
 import { getModelContext } from '../model-context-types';
 import { normalizeCoachCopy, splitCoachParagraphs } from '../lessons/coachParagraphs';
 import { logLessonDebug } from '../lessons/debugLog';
+import { compactToolResult } from '../lessons/debugSnapshot';
 import { BoardArrow, BoardHighlight, CoachState, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE } from '../lessons/coachNotation';
@@ -480,18 +481,20 @@ export function useModelContextTools(actions: ChessActions) {
     ];
 
     const toolNames = tools.map(t => t.name);
+    const longRunning = new Set(["ask-quiz", "play-line"]);
     const wrappedTools = tools.map((tool) => ({
       ...tool,
       execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
         const started = Date.now();
-        logLessonDebug("tool", tool.name, { phase: "start", params: params || {} });
+        if (longRunning.has(tool.name)) {
+          logLessonDebug("tool", tool.name, { phase: "start", params: params || {} });
+        }
         try {
           const result = await tool.execute(params);
           logLessonDebug("tool", tool.name, {
-            phase: "end",
             durationMs: Date.now() - started,
             params: params || {},
-            result,
+            ...compactToolResult(result),
           });
           return result;
         } catch (error) {
