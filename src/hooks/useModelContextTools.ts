@@ -8,10 +8,11 @@ import { getModelContext } from '../model-context-types';
 import { normalizeCoachCopy, splitCoachParagraphs } from '../lessons/coachParagraphs';
 import { logLessonDebug } from '../lessons/debugLog';
 import { compactToolResult } from '../lessons/debugSnapshot';
-import { BoardArrow, BoardHighlight, CoachState, QuizState } from '../lessons/types';
+import { BoardHighlight, BoardArrow, CoachState, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
 import { buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, readBoardChatAccent } from '../lessons/howToAskTheUser';
+import { parseStepDrafts, parseSummaryDraft } from '../lessons/lessonCopy';
 
 type ToolResponse = {
   success: boolean;
@@ -23,7 +24,50 @@ type LessonActions = {
   learnMode: boolean;
   enterLearnMode: () => void;
   exitLearnMode: () => void;
-  setCoach: (coach: CoachState) => void;
+  setCoach: (coach: CoachState) => { lesson: number; step: number; totalSteps: number };
+  createLesson: (args: { title: string; paragraphs?: string[] }) => {
+    success: boolean;
+    message: string;
+    lesson: number;
+    title: string;
+  };
+  addLessonStep: (args: {
+    lesson?: number;
+    title: string;
+    why: string;
+    what: string;
+    paragraphs?: string[];
+    moves?: string[];
+  }) => {
+    success: boolean;
+    message: string;
+    lesson: number;
+    step: number;
+    totalSteps: number;
+    screen: "step";
+    nextTools: string[];
+    recapWritten: boolean;
+    recapExpected: boolean;
+  };
+  applyLessonRecap: (args: { lesson?: number; title?: string; paragraphs: string[] }) => {
+    success: boolean;
+    message: string;
+    lesson: number;
+  };
+  addLessonSteps: (args: {
+    lesson?: number;
+    steps: { title: string; what: string; why: string; paragraphs?: string[]; moves?: string[] }[];
+    summary?: { title?: string; paragraphs: string[] };
+  }) => Promise<{
+    success: boolean;
+    message: string;
+    lesson: number;
+    step: number;
+    totalSteps: number;
+    nextTools?: string[];
+    recapWritten?: boolean;
+    recapExpected?: boolean;
+  }>;
   annotateBoard: (highlights?: BoardHighlight[], arrows?: BoardArrow[]) => void;
   clearLesson: () => void;
   setPosition: (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => { success: boolean; message: string };
@@ -31,7 +75,7 @@ type LessonActions = {
   gotoMove: (ply: number) => { success: boolean; message: string; data: unknown };
   playLine: (moves?: string[], count?: number) => Promise<{ success: boolean; message: string; data: unknown }>;
   demonstratePiece: (piece: string, square?: string, color?: string) => { success: boolean; message: string; data: unknown };
-  askQuiz: (quiz: QuizState) => Promise<{ correct: boolean; square: string }>;
+  askQuiz: (quiz: QuizState, options?: { signal?: AbortSignal }) => Promise<{ correct: boolean; square: string; timedOut?: boolean }>;
   listLessons: () => unknown;
 };
 
@@ -49,6 +93,19 @@ function asStringArray(value: unknown): string[] {
     return [];
   }
   return value.filter((item) => typeof item === 'string') as string[];
+}
+
+function asPositiveInt(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const parsed = Number(value);
+    if (parsed > 0) {
+      return parsed;
+    }
+  }
+  return undefined;
 }
 
 export function useModelContextTools(actions: ChessActions) {
@@ -237,7 +294,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'list-lessons',
-        description: 'Lists famous games, piece tutorials, saved user-catalog lessons, and quiz types. ' + COACH_NOTATION_RULE,
+        description: 'Lists famous games, piece tutorials, and saved catalog lessons. Lesson screens: Goal (create-lesson), teaching Steps (add-lesson-step), Recap (set-lesson-recap, not a step, skip for one-step exams). After two or more steps, add another step or write the recap. ' + COACH_NOTATION_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => ({
           success: true,
@@ -277,42 +334,205 @@ export function useModelContextTools(actions: ChessActions) {
         },
       },
       {
-        name: 'set-coach',
-        description: 'Show a lesson title and explanation in the coach panel next to the board. Pass paragraphs as an array of short strings — each item is its own paragraph on screen. Never put the whole lesson in one string. Do not rely on the tool return text — users only see this panel. Squares and moves written in English (e4, e2:e4, Nf3, Qh5) become hoverable links that highlight the board. Then call how_to_ask_the_user. ' + COACH_NOTATION_RULE,
+        name: 'create-lesson',
+        description:
+          'Create a new catalog lesson and wipe the previous live session (board, coach, quiz, recap, history). Goal screen only: lasting title + what we will learn. Not a numbered step and not a recap. Call once per topic. Next: add-lesson-step. Do not call create-lesson again for the same topic. ' +
+          COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
-            title: { type: 'string' },
+            title: {
+              type: 'string',
+              description: 'Lesson topic shown for the whole lesson, e.g. "Italian Opening". Not the name of a single move.',
+            },
             paragraphs: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Short paragraphs, one idea each. Typical: (1) what happened, (2) the move sequence by itself, (3) the takeaway or how to defend. 2–4 items. ' + COACH_NOTATION_RULE,
+              description: 'Optional intro. What this lesson will teach, in 1–3 short paragraphs.',
+            },
+          },
+          required: ['title'],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const title = String(params.title || '').trim();
+          if (!title) {
+            return { success: false, message: 'Provide a lesson title.', data: null };
+          }
+          const result = actionsRef.current.lessons.createLesson({
+            title,
+            paragraphs: asStringArray(params.paragraphs),
+          });
+          return {
+            success: result.success,
+            message: result.message,
+            data: {
+              lesson: result.lesson,
+              title: result.title,
+              screen: 'goal',
+              nextTools: ['add-lesson-step'],
+            },
+          };
+        },
+      },
+      {
+        name: 'add-lesson-step',
+        description:
+          'Add ONE teaching Step (not a recap). Fast: no board playback. Why first, then the move; student taps Play. A one-step lesson (quiz/exam) has no recap and no Back/Next. After two or more steps, Next shows Generating... until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
+          COACH_NOTATION_RULE,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            lesson: {
+              type: 'number',
+              description: 'Catalog number from create-lesson.',
+            },
+            title: { type: 'string', description: 'Beat heading, not the lesson title.' },
+            why: { type: 'string', description: 'Situation and goal before the move.' },
+            what: { type: 'string', description: 'Concrete move(s), English from:to such as e2:e4.' },
+            paragraphs: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Optional extra detail.',
+            },
+            moves: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Optional from:to for Play buttons, e.g. ["e2:e4", "e7:e5"].',
+            },
+          },
+          required: ['lesson', 'title', 'why', 'what'],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const result = actionsRef.current.lessons.addLessonStep({
+            lesson: asPositiveInt(params.lesson),
+            title: String(params.title || ''),
+            why: String(params.why || ''),
+            what: String(params.what || ''),
+            paragraphs: asStringArray(params.paragraphs),
+            moves: asStringArray(params.moves),
+          });
+          return {
+            success: result.success,
+            message: result.message,
+            data: {
+              lesson: result.lesson,
+              step: result.step,
+              totalSteps: result.totalSteps,
+              screen: result.screen,
+              recapWritten: result.recapWritten,
+              recapExpected: result.recapExpected,
+              nextTools: result.nextTools,
+            },
+          };
+        },
+      },
+      {
+        name: 'set-lesson-recap',
+        description:
+          'Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons such as a chess exam — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
+          COACH_NOTATION_RULE +
+          ' ' +
+          WAIT_TURN_RULE,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            lesson: {
+              type: 'number',
+              description: 'Catalog lesson number.',
+            },
+            title: { type: 'string', description: 'Optional recap heading. Default Recap.' },
+            paragraphs: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Takeaway after the beats so far. Rewrite freely when the student asked something new.',
+            },
+            body: {
+              type: 'string',
+              description: 'Fallback if you cannot send paragraphs.',
+            },
+          },
+          required: ['lesson', 'paragraphs'],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const summary = parseSummaryDraft(
+            Array.isArray(params.paragraphs)
+              ? { title: params.title, paragraphs: params.paragraphs }
+              : params.body || params
+          );
+          if (!summary) {
+            return {
+              success: false,
+              message: 'Provide recap paragraphs (or body) for set-lesson-recap.',
+              data: null,
+            };
+          }
+          const result = actionsRef.current.lessons.applyLessonRecap({
+            lesson: asPositiveInt(params.lesson),
+            title: summary.title || (typeof params.title === 'string' ? params.title : undefined),
+            paragraphs: summary.paragraphs,
+          });
+          return {
+            success: result.success,
+            message: result.message,
+            data: { lesson: result.lesson, screen: 'recap' },
+          };
+        },
+      },
+      {
+        name: 'set-coach',
+        description:
+          'Update the currently visible coach text only. Prefer create-lesson, add-lesson-step, and set-lesson-recap. ' +
+          COACH_NOTATION_RULE,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            lesson: {
+              type: 'number',
+              description: 'Catalog lesson number. Reuse it; do not invent a new lesson per move.',
+            },
+            title: { type: 'string', description: 'Beat heading, not the whole lesson topic.' },
+            what: { type: 'string', description: 'What happens now, with English moves.' },
+            why: { type: 'string', description: 'Why this belongs here.' },
+            paragraphs: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Optional extra paragraphs after what/why. ' + COACH_NOTATION_RULE,
             },
             body: {
               type: 'string',
               description: 'Fallback only if you cannot send paragraphs. Prefer paragraphs.',
             },
-            step: { type: 'number' },
+            step: {
+              type: 'number',
+              description: '1-based teaching step index. Omit to append.',
+            },
             totalSteps: { type: 'number' },
           },
-          required: ['title', 'paragraphs'],
+          required: ['title', 'lesson'],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const what = typeof params.what === 'string' ? params.what.trim() : '';
+          const why = typeof params.why === 'string' ? params.why.trim() : '';
+          const extra = asStringArray(params.paragraphs);
           const copy = normalizeCoachCopy({
             body: typeof params.body === 'string' ? params.body : '',
-            paragraphs:
-              typeof params.paragraphs === 'string'
-                ? splitCoachParagraphs(params.paragraphs)
-                : asStringArray(params.paragraphs),
+            paragraphs: extra.length ? extra : what || why ? [] : asStringArray(params.paragraphs),
           });
-          actionsRef.current.lessons.setCoach({
+          const result = actionsRef.current.lessons.setCoach({
             title: String(params.title || ''),
             body: copy.body,
             paragraphs: copy.paragraphs,
-            step: typeof params.step === 'number' ? params.step : undefined,
-            totalSteps: typeof params.totalSteps === 'number' ? params.totalSteps : undefined,
+            what: what || undefined,
+            why: why || undefined,
+            lesson: asPositiveInt(params.lesson),
+            step: asPositiveInt(params.step),
+            totalSteps: asPositiveInt(params.totalSteps),
           });
-          return { success: true, message: 'Coach panel updated', data: null };
+          return {
+            success: true,
+            message: `Coach panel updated. Lesson ${result.lesson}, step ${result.step} of ${result.totalSteps}. Prefer add-lesson-step then set-lesson-recap.`,
+            data: result,
+          };
         },
       },
       {
@@ -390,7 +610,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'play-line',
-        description: 'Play moves on the board with the hand animation. Omit moves to continue the loaded famous game. count limits how many half-moves to play. Then call how_to_ask_the_user so the student can choose in chat.',
+        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -437,7 +657,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'ask-quiz',
-        description: 'Show a question in the coach panel and wait until the user clicks a square on the board. Returns whether they clicked a correct square. This tool waits for the click. ' + COACH_NOTATION_RULE,
+        description: 'Show a question in the coach panel and wait until the user clicks a square on the board. Returns whether they clicked a correct square. This tool waits for the click, then times out shortly before the host aborts. After timeout the quiz stays on the board and the student pastes their click in chat — stop and wait. ' + COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
@@ -461,7 +681,7 @@ export function useModelContextTools(actions: ChessActions) {
           },
           required: ['question', 'correct'],
         },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+        execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {
           const correct = asStringArray(params.correct);
           if (!correct.length) {
             return { success: false, message: 'Provide at least one correct square', data: null };
@@ -471,7 +691,15 @@ export function useModelContextTools(actions: ChessActions) {
             type: (params.type as QuizState['type']) || 'click-square',
             correct,
             hint: typeof params.hint === 'string' ? params.hint : undefined,
-          });
+          }, options);
+          if (result.timedOut) {
+            return {
+              success: false,
+              message:
+                'Timed out waiting for a click. The quiz is still on the board. The student will copy their square into chat. Do not call more tools. Stop and wait.',
+              data: result,
+            };
+          }
           return {
             success: result.correct,
             message: result.correct ? `Correct: ${result.square}` : `Clicked ${result.square || '(cancelled)'}`,

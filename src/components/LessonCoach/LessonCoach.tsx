@@ -1,11 +1,31 @@
 import { useState } from "react";
 import { CoachState, WaitChoice } from "../../lessons/types";
+import { CoachPlayMove } from "../../lessons/stepPlay";
 import { normalizeCoachCopy } from "../../lessons/coachParagraphs";
 import { copyWaitChoice } from "../../lessons/waitForUser";
+import { copyQuizClick, QuizCopyPayload } from "../../lessons/quizCopy";
 import { detectTextDirection } from "../../utils/text-direction";
 import ChessLinkedText from "./ChessLinkedText";
 import { ChessRefPart } from "../../utils/chess-text-links";
 import "./LessonCoach.css";
+
+function uncoveredMoveText(
+  what: string | undefined,
+  playMoves?: CoachPlayMove[]
+): string {
+  if (!playMoves || playMoves.length === 0) {
+    return "";
+  }
+  const lower = (what || "").toLowerCase();
+  const missing = playMoves.filter((move) => {
+    const dest = move.notation.split(":")[1];
+    return (
+      lower.indexOf(move.notation.toLowerCase()) < 0 &&
+      (!dest || lower.indexOf(dest.toLowerCase()) < 0)
+    );
+  });
+  return missing.map((move) => move.notation).join(" ");
+}
 
 function ResetIcon() {
   return (
@@ -39,6 +59,9 @@ type Props = {
   quizQuestion?: string;
   quizHint?: string;
   quizFeedback?: string;
+  quizTimedOut?: boolean;
+  quizCopy?: QuizCopyPayload | null;
+  onQuizCopied?: () => void;
   waitPrompt?: string;
   waitChoices?: WaitChoice[];
   waitTimedOut?: boolean;
@@ -55,6 +78,10 @@ type Props = {
   canFirst?: boolean;
   canLast?: boolean;
   canReset?: boolean;
+  playMoves?: CoachPlayMove[];
+  onPlayMove?: (notation: string) => void;
+  playBusy?: boolean;
+  nextGenerating?: boolean;
 };
 
 export default function LessonCoach({
@@ -62,6 +89,9 @@ export default function LessonCoach({
   quizQuestion,
   quizHint,
   quizFeedback,
+  quizTimedOut,
+  quizCopy,
+  onQuizCopied,
   waitPrompt,
   waitChoices,
   waitTimedOut,
@@ -78,6 +108,10 @@ export default function LessonCoach({
   canFirst,
   canLast,
   canReset,
+  playMoves,
+  onPlayMove,
+  playBusy,
+  nextGenerating,
 }: Props) {
   const [copiedId, setCopiedId] = useState<string>("");
   const waiting = Boolean(waitPrompt && waitChoices && waitChoices.length > 0);
@@ -98,17 +132,26 @@ export default function LessonCoach({
     );
   }
 
-  const paragraphs = coach
-    ? normalizeCoachCopy({
-        body: coach.body,
-        paragraphs: coach.paragraphs,
-      }).paragraphs
+  const extraParagraphs = coach
+    ? coach.what || coach.why
+      ? (coach.paragraphs || []).map((part) => part.trim()).filter((part) => {
+          return part && part !== coach.what && part !== coach.why;
+        })
+      : normalizeCoachCopy({
+          body: coach.body,
+          paragraphs: coach.paragraphs,
+        }).paragraphs
     : [];
+
+  const leftoverMoves = coach ? uncoveredMoveText(coach.what, playMoves) : "";
 
   const { dir, lang } = detectTextDirection(
     [
+      coach?.lessonTitle,
       coach?.title,
-      ...paragraphs,
+      coach?.what,
+      coach?.why,
+      ...extraParagraphs,
       quizQuestion,
       quizHint,
       quizFeedback,
@@ -129,6 +172,20 @@ export default function LessonCoach({
     }
   }
 
+  async function copyQuizAnswer() {
+    if (!quizCopy) {
+      return;
+    }
+    const ok = await copyQuizClick(quizCopy);
+    if (ok) {
+      setCopiedId("quiz");
+      window.setTimeout(() => {
+        onQuizCopied?.();
+        setCopiedId((current) => (current === "quiz" ? "" : current));
+      }, 1500);
+    }
+  }
+
   return (
     <aside className="lesson-coach" dir={dir} lang={lang}>
       <div className="lesson-coach-handle" aria-hidden="true" />
@@ -136,6 +193,15 @@ export default function LessonCoach({
         <div className="lesson-coach-heading">
           <div className="lesson-coach-heading-text">
             <p className="lesson-coach-kicker">Learn</p>
+            {coach?.lessonTitle && coach.phase !== "goal" && (
+              <p className="lesson-coach-topic">
+                <ChessLinkedText
+                  text={coach.lessonTitle}
+                  onHoverSquares={onHoverSquares}
+                  resolvePeekSquares={resolvePeekSquares}
+                />
+              </p>
+            )}
             {coach && (
               <h2>
                 <ChessLinkedText
@@ -161,8 +227,52 @@ export default function LessonCoach({
         </div>
         {coach && (
           <>
+            {coach.phase === "goal" && (
+              <p className="lesson-coach-recap-label">Goal</p>
+            )}
+            {coach.phase === "step" && (
+              <p className="lesson-coach-recap-label">Step</p>
+            )}
+            {coach.phase === "recap" && (
+              <p className="lesson-coach-recap-label">Recap</p>
+            )}
             <div className="lesson-coach-body">
-              {paragraphs.map((paragraph, index) => {
+              {coach.why && (
+                <p className="lesson-coach-why">
+                  <span className="lesson-coach-field-label">Why</span>
+                  <ChessLinkedText
+                    text={coach.why}
+                    onHoverSquares={onHoverSquares}
+                    resolvePeekSquares={resolvePeekSquares}
+                  />
+                </p>
+              )}
+              {(coach.what || leftoverMoves) && (
+                <p className="lesson-coach-what">
+                  <span className="lesson-coach-field-label">Move</span>
+                  {coach.what && (
+                    <ChessLinkedText
+                      text={coach.what}
+                      onHoverSquares={onHoverSquares}
+                      resolvePeekSquares={resolvePeekSquares}
+                      playMoves={playMoves}
+                      onPlayMove={onPlayMove}
+                      playBusy={playBusy}
+                    />
+                  )}
+                  {leftoverMoves ? (
+                    <ChessLinkedText
+                      text={leftoverMoves}
+                      onHoverSquares={onHoverSquares}
+                      resolvePeekSquares={resolvePeekSquares}
+                      playMoves={playMoves}
+                      onPlayMove={onPlayMove}
+                      playBusy={playBusy}
+                    />
+                  ) : null}
+                </p>
+              )}
+              {extraParagraphs.map((paragraph, index) => {
                 const { dir: paragraphDir } = detectTextDirection(paragraph);
                 return (
                   <p key={index} dir={paragraphDir}>
@@ -175,10 +285,14 @@ export default function LessonCoach({
                 );
               })}
             </div>
-            {coach.step !== undefined && coach.totalSteps !== undefined && (
+            {coach.phase === "step" &&
+              coach.step !== undefined &&
+              (coach.totalSteps === undefined || coach.totalSteps > 1) && (
               <p className="lesson-coach-step">
                 <span dir="ltr">
-                  Step {coach.step} of {coach.totalSteps}
+                  {nextGenerating || coach.totalSteps === undefined
+                    ? `Step ${coach.step}`
+                    : `Step ${coach.step} of ${coach.totalSteps}`}
                 </span>
               </p>
             )}
@@ -202,6 +316,27 @@ export default function LessonCoach({
                   resolvePeekSquares={resolvePeekSquares}
                 />
               </p>
+            )}
+            {quizTimedOut && (
+              <p className="lesson-coach-hint">
+                {quizCopy
+                  ? "Copy this answer once and paste it in chat."
+                  : "The assistant stopped waiting. Click a square, then copy and paste in chat."}
+              </p>
+            )}
+            {quizCopy && (
+              <div className="lesson-coach-choice-row">
+                <div className="lesson-coach-choice" dir="ltr">
+                  Clicked {quizCopy.square}
+                </div>
+                <button
+                  type="button"
+                  className="lesson-coach-copy"
+                  onClick={() => void copyQuizAnswer()}
+                >
+                  {copiedId === "quiz" ? "Copied" : "Copy"}
+                </button>
+              </div>
             )}
             {quizFeedback && (
               <p className="lesson-coach-feedback">
@@ -278,7 +413,7 @@ export default function LessonCoach({
           </div>
         )}
       </div>
-      {(onBack || onNext) && (
+      {(onBack || onNext || nextGenerating) && (
         <div className="lesson-coach-nav" dir="ltr">
           {onFirst && (
             <button
@@ -295,8 +430,22 @@ export default function LessonCoach({
           <button type="button" onClick={onBack} disabled={!canBack}>
             Back
           </button>
-          <button type="button" onClick={onNext} disabled={!canNext}>
-            Next
+          <button
+            type="button"
+            className={nextGenerating ? "lesson-coach-next-generating" : undefined}
+            onClick={onNext}
+            disabled={!canNext || nextGenerating}
+            aria-busy={nextGenerating ? true : undefined}
+            aria-label={nextGenerating ? "Generating next screen" : "Next"}
+          >
+            {nextGenerating ? (
+              <span className="lesson-generating-label">
+                Generating
+                <span className="lesson-generating-dots" aria-hidden="true" />
+              </span>
+            ) : (
+              "Next"
+            )}
           </button>
           {onLast && (
             <button

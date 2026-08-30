@@ -19,6 +19,7 @@ import { useModelContextTools } from "../../hooks/useModelContextTools";
 import { useChessLessons } from "../../hooks/useChessLessons";
 import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 import { logLessonDebug } from "../../lessons/debugLog";
+import { shouldShowLessonNav } from "../../lessons/lessonCopy";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import BoardThemePicker from "../BoardThemePicker/BoardThemePicker";
@@ -272,21 +273,25 @@ export default function Referee() {
 
   const loaded = lessons.loadedLine.current;
   const waitingOnUser = Boolean(lessons.wait && !lessons.wait.timedOut);
+  const generatingNext = Boolean(lessons.awaitingContinuation && !waitingOnUser);
   const canStep = !lessons.animating && !lessons.quiz;
-  const showStepNav =
-    lessons.historyLength > 1 ||
-    (!!loaded && loaded.moves.length > 0) ||
-    waitingOnUser;
+  const showStepNav = shouldShowLessonNav({
+    expectsRecap: lessons.expectsRecap,
+    generatingNext,
+    hasLineMoves: Boolean(loaded && loaded.moves.length > 0),
+  });
   const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
   const canFirst = canBack;
   const canNext =
     canStep &&
+    !generatingNext &&
     (lessons.historyIndex < lessons.historyLength - 1 ||
       (!!loaded && loaded.ply < loaded.moves.length) ||
       waitingOnUser);
   const canLast =
     canStep &&
     !waitingOnUser &&
+    !generatingNext &&
     (lessons.historyIndex < lessons.historyLength - 1 ||
       (!!loaded && loaded.ply < loaded.moves.length));
 
@@ -382,6 +387,9 @@ export default function Referee() {
               quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
               quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
               quizFeedback={lessons.quizFeedback}
+              quizTimedOut={Boolean(lessons.quiz?.timedOut)}
+              quizCopy={lessons.quizCopy}
+              onQuizCopied={lessons.dismissQuizCopy}
               waitPrompt={lessons.wait ? lessons.wait.prompt : undefined}
               waitChoices={lessons.wait ? lessons.wait.choices : undefined}
               waitTimedOut={Boolean(lessons.wait?.timedOut)}
@@ -398,6 +406,12 @@ export default function Referee() {
               canFirst={canFirst}
               canLast={canLast}
               canReset={canFirst}
+              nextGenerating={generatingNext}
+              playMoves={lessons.coachPlayMoves}
+              onPlayMove={(notation) => {
+                void lessons.playCoachMove(notation);
+              }}
+              playBusy={lessons.animating}
             />
           )}
         </div>
