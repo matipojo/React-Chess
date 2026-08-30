@@ -274,12 +274,15 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'set-coach',
-        description: 'Show a lesson title and explanation in the coach panel next to the board. Do not rely on the tool return text — users only see this panel.',
+        description: 'Show a lesson title and explanation in the coach panel next to the board. Put real newline characters in body between moves and ideas so each line shows separately. Do not rely on the tool return text — users only see this panel.',
         inputSchema: {
           type: 'object',
           properties: {
             title: { type: 'string' },
-            body: { type: 'string', description: 'Short explanation for the student' },
+            body: {
+              type: 'string',
+              description: 'Explanation for the student. Use newline characters between sentences, numbered moves, and key points so each appears on its own line. Do not write one long paragraph.',
+            },
             step: { type: 'number' },
             totalSteps: { type: 'number' },
           },
