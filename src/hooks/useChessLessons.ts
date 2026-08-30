@@ -8,6 +8,8 @@ import {
   getPieceLesson,
   PIECE_LESSONS,
 } from "../lessons/catalog";
+import { COACH_NOTATION_RULE } from "../lessons/coachNotation";
+import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
   BoardArrow,
   BoardHighlight,
@@ -356,10 +358,12 @@ export function useChessLessons({
   }, [boardRef, persistCurrentLesson, resetHistory, setBoard, updateCurrentSnapshot]);
 
   const setCoach = useCallback((next: CoachState) => {
-    logLessonDebug("visual", "set-coach", { title: next.title, body: next.body, step: next.step, totalSteps: next.totalSteps });
+    const copy = normalizeCoachCopy(next);
+    const resolved: CoachState = { ...next, body: copy.body, paragraphs: copy.paragraphs };
+    logLessonDebug("visual", "set-coach", { title: resolved.title, body: resolved.body, paragraphs: resolved.paragraphs, step: resolved.step, totalSteps: resolved.totalSteps });
     enterLearnMode();
-    coachRef.current = next;
-    setCoachState(next);
+    coachRef.current = resolved;
+    setCoachState(resolved);
     updateCurrentSnapshot();
     const extras = overlayPersistFields();
     const line = loadedLineRef.current;
@@ -367,18 +371,18 @@ export function useChessLessons({
       persistLesson({
         id: `game:${line.id}`,
         kind: "game",
-        title: next.title,
-        body: next.body,
+        title: resolved.title,
+        body: resolved.body,
         gameId: line.id,
         ...extras,
       });
       return;
     }
     persistLesson({
-      id: `custom:${lessonSlug(next.title)}`,
+      id: `custom:${lessonSlug(resolved.title)}`,
       kind: "custom",
-      title: next.title,
-      body: next.body,
+      title: resolved.title,
+      body: resolved.body,
       ...extras,
     });
   }, [enterLearnMode, overlayPersistFields, persistLesson, updateCurrentSnapshot]);
@@ -1065,6 +1069,7 @@ export function useChessLessons({
         "click-square — user clicks a square on the board",
         "click-piece — user clicks a piece",
       ],
+      notation: COACH_NOTATION_RULE,
     };
   }, [userLessons]);
 

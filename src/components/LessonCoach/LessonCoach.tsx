@@ -1,6 +1,8 @@
 import { CoachState } from "../../lessons/types";
+import { normalizeCoachCopy } from "../../lessons/coachParagraphs";
 import { detectTextDirection } from "../../utils/text-direction";
 import ChessLinkedText from "./ChessLinkedText";
+import { ChessRefPart } from "../../utils/chess-text-links";
 import "./LessonCoach.css";
 
 type Props = {
@@ -8,6 +10,8 @@ type Props = {
   quizQuestion?: string;
   quizHint?: string;
   quizFeedback?: string;
+  onHoverSquares?: (squares: string[]) => void;
+  resolvePeekSquares?: (ref: ChessRefPart) => string[];
   onBack?: () => void;
   onNext?: () => void;
   canBack?: boolean;
@@ -19,6 +23,8 @@ export default function LessonCoach({
   quizQuestion,
   quizHint,
   quizFeedback,
+  onHoverSquares,
+  resolvePeekSquares,
   onBack,
   onNext,
   canBack,
@@ -40,8 +46,15 @@ export default function LessonCoach({
     );
   }
 
+  const paragraphs = coach
+    ? normalizeCoachCopy({
+        body: coach.body,
+        paragraphs: coach.paragraphs,
+      }).paragraphs
+    : [];
+
   const { dir, lang } = detectTextDirection(
-    [coach?.title, coach?.body, quizQuestion, quizHint, quizFeedback]
+    [coach?.title, ...paragraphs, quizQuestion, quizHint, quizFeedback]
       .filter(Boolean)
       .join("\n")
   );
@@ -54,11 +67,26 @@ export default function LessonCoach({
         {coach && (
           <>
             <h2>
-              <ChessLinkedText text={coach.title} />
+              <ChessLinkedText
+                text={coach.title}
+                onHoverSquares={onHoverSquares}
+                resolvePeekSquares={resolvePeekSquares}
+              />
             </h2>
-            <p className="lesson-coach-body">
-              <ChessLinkedText text={coach.body} />
-            </p>
+            <div className="lesson-coach-body">
+              {paragraphs.map((paragraph, index) => {
+                const { dir: paragraphDir } = detectTextDirection(paragraph);
+                return (
+                  <p key={index} dir={paragraphDir}>
+                    <ChessLinkedText
+                      text={paragraph}
+                      onHoverSquares={onHoverSquares}
+                      resolvePeekSquares={resolvePeekSquares}
+                    />
+                  </p>
+                );
+              })}
+            </div>
             {coach.step !== undefined && coach.totalSteps !== undefined && (
               <p className="lesson-coach-step">
                 <span dir="ltr">
@@ -72,16 +100,28 @@ export default function LessonCoach({
           <div className="lesson-coach-quiz">
             <p className="lesson-coach-quiz-label">Your turn</p>
             <p>
-              <ChessLinkedText text={quizQuestion} />
+              <ChessLinkedText
+                text={quizQuestion}
+                onHoverSquares={onHoverSquares}
+                resolvePeekSquares={resolvePeekSquares}
+              />
             </p>
             {quizHint && (
               <p className="lesson-coach-hint">
-                <ChessLinkedText text={quizHint} />
+                <ChessLinkedText
+                  text={quizHint}
+                  onHoverSquares={onHoverSquares}
+                  resolvePeekSquares={resolvePeekSquares}
+                />
               </p>
             )}
             {quizFeedback && (
               <p className="lesson-coach-feedback">
-                <ChessLinkedText text={quizFeedback} />
+                <ChessLinkedText
+                  text={quizFeedback}
+                  onHoverSquares={onHoverSquares}
+                  resolvePeekSquares={resolvePeekSquares}
+                />
               </p>
             )}
           </div>

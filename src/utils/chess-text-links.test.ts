@@ -1,4 +1,5 @@
-import { splitTextLines, squaresFromChessRef, tokenizeChessText, groupLtrRuns } from "./chess-text-links";
+import { splitTextLines, squaresFromChessRef, tokenizeChessText, groupLtrRuns, parseChessRef, peekSquaresFromRef } from "./chess-text-links";
+import { PieceType } from "../Types";
 
 describe("tokenizeChessText", () => {
   it("links squares and coordinate moves", () => {
@@ -16,6 +17,16 @@ describe("tokenizeChessText", () => {
     expect(squaresFromChessRef("Nf3")).toEqual(["f3"]);
     expect(squaresFromChessRef("Bxc6")).toEqual(["c6"]);
     expect(squaresFromChessRef("exd5")).toEqual(["d5"]);
+  });
+
+  it("links numbered SAN with annotations", () => {
+    const parts = tokenizeChessText("2...Nc6 3.Bc4! Qxf7");
+    const refs = parts.filter((part) => part.type === "ref");
+    expect(refs.map((part) => part.value)).toEqual(["Nc6", "Bc4!", "Qxf7"]);
+    expect(parseChessRef("Nc6").piece).toBe(PieceType.KNIGHT);
+    expect(parseChessRef("Bc4!").piece).toBe(PieceType.BISHOP);
+    expect(parseChessRef("Qxf7").piece).toBe(PieceType.QUEEN);
+    expect(parseChessRef("Qxf7").dest).toBe("f7");
   });
 
   it("keeps Hebrew around Latin notation", () => {
@@ -53,5 +64,38 @@ describe("groupLtrRuns", () => {
     expect(rtl.some((group) => group.type === "text" && group.value.includes("עכשיו"))).toBe(
       true
     );
+    expect(
+      rtl.some((group) => group.type === "text" && group.value.trim().startsWith("-"))
+    ).toBe(true);
+  });
+});
+
+describe("peekSquaresFromRef", () => {
+  it("highlights the queen that can capture f7, not only f7", () => {
+    const ref = { type: "ref" as const, value: "Qxf7", ...parseChessRef("Qxf7") };
+    expect(
+      peekSquaresFromRef(ref, [
+        { type: PieceType.QUEEN, square: "h5", destinations: ["f7", "h4"] },
+        { type: PieceType.KING, square: "e8", destinations: ["d8", "e7"] },
+      ])
+    ).toEqual(["h5", "f7"]);
+  });
+
+  it("highlights the knight that can go to c6", () => {
+    const ref = { type: "ref" as const, value: "Nc6", ...parseChessRef("Nc6") };
+    expect(
+      peekSquaresFromRef(ref, [
+        { type: PieceType.KNIGHT, square: "b8", destinations: ["a6", "c6"] },
+      ])
+    ).toEqual(["b8", "c6"]);
+  });
+
+  it("highlights only the destination when the piece already sits there", () => {
+    const ref = { type: "ref" as const, value: "Bc4", ...parseChessRef("Bc4") };
+    expect(
+      peekSquaresFromRef(ref, [
+        { type: PieceType.BISHOP, square: "c4", destinations: ["b3", "d5"] },
+      ])
+    ).toEqual(["c4"]);
   });
 });

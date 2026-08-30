@@ -20,6 +20,7 @@ import { useChessLessons } from "../../hooks/useChessLessons";
 import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 import { logLessonDebug } from "../../lessons/debugLog";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
+import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import "./Referee.css";
 
 const moveSound = new Howl({
@@ -37,6 +38,7 @@ const checkmateSound = new Howl({
 export default function Referee() {
   const [board, setBoard] = useState<Board>(initialBoard.clone());
   const [promotionPawn, setPromotionPawn] = useState<Piece>();
+  const [peekSquares, setPeekSquares] = useState<string[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
   const checkmateModalRef = useRef<HTMLDivElement>(null);
   const chessboardHandleRef = useRef<ChessboardHandle>(null);
@@ -242,6 +244,31 @@ export default function Referee() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const peekArrows =
+    peekSquares.length >= 2
+      ? peekSquares.slice(0, -1).map((from) => ({
+          from,
+          to: peekSquares[peekSquares.length - 1],
+          color: "#81d4fa",
+        }))
+      : [];
+
+  const resolvePeekSquares = useCallback(
+    (ref: ChessRefPart) => {
+      return peekSquaresFromRef(
+        ref,
+        board.pieces.map((piece) => ({
+          type: piece.type,
+          square: coordinatesToNotation(piece.position.x, piece.position.y),
+          destinations: (piece.possibleMoves || []).map((move) =>
+            coordinatesToNotation(move.x, move.y)
+          ),
+        }))
+      );
+    },
+    [board]
+  );
+
   const loaded = lessons.loadedLine.current;
   const canStep = !lessons.animating && !lessons.quiz;
   const showStepNav =
@@ -330,7 +357,8 @@ export default function Referee() {
               playMove={playMove}
               pieces={board.pieces}
               highlights={lessons.highlights}
-              arrows={lessons.arrows}
+              peekSquares={peekSquares}
+              arrows={[...lessons.arrows, ...peekArrows]}
               interaction={lessons.quiz ? "quiz" : "play"}
               locked={lessons.animating}
               onSquareClick={lessons.onSquareClick}
@@ -342,6 +370,8 @@ export default function Referee() {
               quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
               quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
               quizFeedback={lessons.quizFeedback}
+              onHoverSquares={setPeekSquares}
+              resolvePeekSquares={resolvePeekSquares}
               onBack={showStepNav ? lessons.stepBack : undefined}
               onNext={showStepNav ? lessons.stepNext : undefined}
               canBack={canBack}

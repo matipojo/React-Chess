@@ -1,4 +1,10 @@
-export type HighlightKind = "move" | "capture" | "key" | "wrong" | "correct";
+export type HighlightKind =
+  | "move"
+  | "capture"
+  | "key"
+  | "wrong"
+  | "correct"
+  | "peek";
 
 export type BoardHighlight = {
   square: string;
@@ -14,6 +20,7 @@ export type BoardArrow = {
 export type CoachState = {
   title: string;
   body: string;
+  paragraphs?: string[];
   step?: number;
   totalSteps?: number;
 };

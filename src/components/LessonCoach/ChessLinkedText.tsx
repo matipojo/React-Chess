@@ -1,91 +1,116 @@
 import { Fragment } from "react";
 import {
+  ChessRefPart,
   ChessTextPart,
   groupLtrRuns,
   splitTextLines,
   tokenizeChessText,
 } from "../../utils/chess-text-links";
+import { detectTextDirection } from "../../utils/text-direction";
 
 type Props = {
   text: string;
   onHoverSquares?: (squares: string[]) => void;
+  resolvePeekSquares?: (ref: ChessRefPart) => string[];
 };
-
-function TextWithBreaks({ text }: { text: string }) {
-  const lines = splitTextLines(text);
-  return (
-    <>
-      {lines.map((line, lineIndex) => (
-        <Fragment key={lineIndex}>
-          {lineIndex > 0 ? <br /> : null}
-          {line}
-        </Fragment>
-      ))}
-    </>
-  );
-}
 
 function ChessParts({
   parts,
   onHoverSquares,
+  resolvePeekSquares,
 }: {
   parts: ChessTextPart[];
   onHoverSquares?: (squares: string[]) => void;
+  resolvePeekSquares?: (ref: ChessRefPart) => string[];
 }) {
   return (
     <>
       {parts.map((part, index) => {
         if (part.type === "text") {
-          return (
-            <span key={index}>
-              <TextWithBreaks text={part.value} />
-            </span>
-          );
+          return <Fragment key={index}>{part.value}</Fragment>;
         }
 
+        const squares = resolvePeekSquares
+          ? resolvePeekSquares(part)
+          : part.squares;
+
         return (
-          <a
+          <button
             key={index}
-            href={`#${part.squares.join("-")}`}
+            type="button"
             className="chess-ref"
             dir="ltr"
-            onClick={(event) => event.preventDefault()}
-            onMouseEnter={() => onHoverSquares?.(part.squares)}
-            onMouseLeave={() => onHoverSquares?.([])}
-            onFocus={() => onHoverSquares?.(part.squares)}
+            onPointerEnter={() => onHoverSquares?.(squares)}
+            onPointerLeave={(event) => {
+              if (event.currentTarget !== document.activeElement) {
+                onHoverSquares?.([]);
+              }
+            }}
+            onFocus={() => onHoverSquares?.(squares)}
             onBlur={() => onHoverSquares?.([])}
           >
             {part.value}
-          </a>
+          </button>
         );
       })}
     </>
   );
 }
 
-export default function ChessLinkedText({ text, onHoverSquares }: Props) {
-  const groups = groupLtrRuns(tokenizeChessText(text));
-  if (groups.length === 0) {
+function CoachLine({
+  line,
+  onHoverSquares,
+  resolvePeekSquares,
+}: {
+  line: string;
+  onHoverSquares?: (squares: string[]) => void;
+  resolvePeekSquares?: (ref: ChessRefPart) => string[];
+}) {
+  const { dir } = detectTextDirection(line);
+  const groups = groupLtrRuns(tokenizeChessText(line));
+
+  return (
+    <span className="coach-line" dir={dir}>
+      {dir === "rtl" ? "\u200F" : null}
+      {groups.map((group, index) => {
+        if (group.type === "text") {
+          return <Fragment key={index}>{group.value}</Fragment>;
+        }
+
+        return (
+          <bdi key={index} className="ltr-run">
+            <ChessParts
+              parts={group.parts}
+              onHoverSquares={onHoverSquares}
+              resolvePeekSquares={resolvePeekSquares}
+            />
+          </bdi>
+        );
+      })}
+    </span>
+  );
+}
+
+export default function ChessLinkedText({
+  text,
+  onHoverSquares,
+  resolvePeekSquares,
+}: Props) {
+  const lines = splitTextLines(text);
+  if (lines.length === 0) {
     return null;
   }
 
   return (
     <>
-      {groups.map((group, index) => {
-        if (group.type === "text") {
-          return (
-            <span key={index}>
-              <TextWithBreaks text={group.value} />
-            </span>
-          );
-        }
-
-        return (
-          <span key={index} className="ltr-run" dir="ltr">
-            <ChessParts parts={group.parts} onHoverSquares={onHoverSquares} />
-          </span>
-        );
-      })}
+      {lines.map((line, index) => (
+        <CoachLine
+          key={index}
+          line={line}
+          onHoverSquares={onHoverSquares}
+          resolvePeekSquares={resolvePeekSquares}
+        />
+      ))}
     </>
   );
 }

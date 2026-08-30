@@ -21,6 +21,7 @@ interface Props {
   playMove: (piece: Piece, position: Position) => boolean;
   pieces: Piece[];
   highlights?: BoardHighlight[];
+  peekSquares?: string[];
   arrows?: BoardArrow[];
   interaction?: "play" | "quiz";
   locked?: boolean;
@@ -31,6 +32,7 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
   playMove,
   pieces,
   highlights,
+  peekSquares,
   arrows,
   interaction,
   locked,
@@ -216,6 +218,12 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
       highlightMap[highlights[h].square.toLowerCase()] = highlights[h].kind;
     }
   }
+  const peekSet: { [square: string]: boolean } = {};
+  if (peekSquares) {
+    for (let p = 0; p < peekSquares.length; p++) {
+      peekSet[peekSquares[p].toLowerCase()] = true;
+    }
+  }
 
   for (let j = VERTICAL_AXIS.length - 1; j >= 0; j--) {
     for (let i = 0; i < HORIZONTAL_AXIS.length; i++) {
@@ -228,15 +236,18 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
       let currentPiece = activePiece != null ? pieces.find(p => p.samePosition(grabPosition)) : undefined;
       let highlight = currentPiece?.possibleMoves ?
       currentPiece.possibleMoves.some(p => p.samePosition(new Position(i, j))) : false;
-      const mark = highlightMap[coordinatesToNotation(i, j)];
+      const squareName = coordinatesToNotation(i, j);
+      const mark = highlightMap[squareName];
 
       board.push(
         <Tile
           key={`${j},${i}`}
           image={image}
+          pieceColor={piece ? (piece.team === "w" ? "white" : "black") : undefined}
           number={number}
           highlight={highlight}
           highlightKind={mark}
+          peek={!!peekSet[squareName]}
         />
       );
     }
@@ -246,10 +257,10 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     try {
       const from = chessNotationToCoordinates(arrow.from.toLowerCase());
       const to = chessNotationToCoordinates(arrow.to.toLowerCase());
-      const x1 = from.x * GRID_SIZE + GRID_SIZE / 2;
-      const y1 = (7 - from.y) * GRID_SIZE + GRID_SIZE / 2;
-      const x2 = to.x * GRID_SIZE + GRID_SIZE / 2;
-      const y2 = (7 - to.y) * GRID_SIZE + GRID_SIZE / 2;
+      const x1 = from.x + 0.5;
+      const y1 = 7.5 - from.y;
+      const x2 = to.x + 0.5;
+      const y2 = 7.5 - to.y;
       return (
         <line
           key={`${arrow.from}-${arrow.to}-${index}`}
@@ -258,7 +269,7 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
           x2={x2}
           y2={y2}
           stroke={arrow.color || "#ffc107"}
-          strokeWidth={6}
+          strokeWidth={0.08}
           markerEnd="url(#lesson-arrowhead)"
           opacity={0.9}
         />
@@ -291,17 +302,17 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
               {board}
             </div>
             {arrowElements.length > 0 && (
-              <svg className="board-arrows" viewBox="0 0 600 600">
+              <svg className="board-arrows" viewBox="0 0 8 8">
                 <defs>
                   <marker
                     id="lesson-arrowhead"
-                    markerWidth="8"
-                    markerHeight="8"
-                    refX="6"
-                    refY="3"
+                    markerWidth="5"
+                    markerHeight="5"
+                    refX="4"
+                    refY="2.5"
                     orient="auto"
                   >
-                    <polygon points="0 0, 8 3, 0 6" fill="#ffc107" />
+                    <polygon points="0 0, 5 2.5, 0 5" fill="#29b6f6" />
                   </marker>
                 </defs>
                 {arrowElements}

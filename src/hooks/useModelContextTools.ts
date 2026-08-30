@@ -5,9 +5,11 @@ import { Position } from '../models/Position';
 import { PieceType } from '../Types';
 import { chessNotationToCoordinates, parseMoveNotation } from '../utils/chess-notation-utils';
 import { getModelContext } from '../model-context-types';
+import { normalizeCoachCopy, splitCoachParagraphs } from '../lessons/coachParagraphs';
 import { logLessonDebug } from '../lessons/debugLog';
 import { BoardArrow, BoardHighlight, CoachState, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
+import { COACH_NOTATION_RULE } from '../lessons/coachNotation';
 
 type ToolResponse = {
   success: boolean;
@@ -215,11 +217,11 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'enter-learn-mode',
-        description: 'Switch the app into interactive learning mode, or resume the previous lesson if one was saved by exit-learn-mode. Use before teaching, famous games, piece demos, or quizzes. Disables checkmate so teaching positions can omit kings.',
+        description: 'Switch the app into interactive learning mode, or resume the previous lesson if one was saved by exit-learn-mode. Use before teaching, famous games, piece demos, or quizzes. Disables checkmate so teaching positions can omit kings. ' + COACH_NOTATION_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           actionsRef.current.lessons.enterLearnMode();
-          return { success: true, message: 'Learn mode on. Coach panel is visible.', data: null };
+          return { success: true, message: 'Learn mode on. Coach panel is visible. ' + COACH_NOTATION_RULE, data: null };
         },
       },
       {
@@ -233,7 +235,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'list-lessons',
-        description: 'Lists famous games, piece tutorials, saved user-catalog lessons, and quiz types.',
+        description: 'Lists famous games, piece tutorials, saved user-catalog lessons, and quiz types. ' + COACH_NOTATION_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => ({
           success: true,
@@ -274,24 +276,37 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'set-coach',
-        description: 'Show a lesson title and explanation in the coach panel next to the board. Put real newline characters in body between moves and ideas so each line shows separately. Do not rely on the tool return text — users only see this panel.',
+        description: 'Show a lesson title and explanation in the coach panel next to the board. Pass paragraphs as an array of short strings — each item is its own paragraph on screen. Never put the whole lesson in one string. Do not rely on the tool return text — users only see this panel. Squares and moves written in English (e4, e2:e4, Nf3, Qh5) become hoverable links that highlight the board. ' + COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
             title: { type: 'string' },
+            paragraphs: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Short paragraphs, one idea each. Typical: (1) what happened, (2) the move sequence by itself, (3) the takeaway or how to defend. 2–4 items. ' + COACH_NOTATION_RULE,
+            },
             body: {
               type: 'string',
-              description: 'Explanation for the student. Use newline characters between sentences, numbered moves, and key points so each appears on its own line. Do not write one long paragraph.',
+              description: 'Fallback only if you cannot send paragraphs. Prefer paragraphs.',
             },
             step: { type: 'number' },
             totalSteps: { type: 'number' },
           },
-          required: ['title', 'body'],
+          required: ['title', 'paragraphs'],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const copy = normalizeCoachCopy({
+            body: typeof params.body === 'string' ? params.body : '',
+            paragraphs:
+              typeof params.paragraphs === 'string'
+                ? splitCoachParagraphs(params.paragraphs)
+                : asStringArray(params.paragraphs),
+          });
           actionsRef.current.lessons.setCoach({
             title: String(params.title || ''),
-            body: String(params.body || ''),
+            body: copy.body,
+            paragraphs: copy.paragraphs,
             step: typeof params.step === 'number' ? params.step : undefined,
             totalSteps: typeof params.totalSteps === 'number' ? params.totalSteps : undefined,
           });
@@ -300,7 +315,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'annotate-board',
-        description: 'Highlight squares and draw arrows on the board. kinds: move, capture, key, wrong, correct. Omit highlights or arrows to leave the current ones in place; pass an empty array to clear that overlay.',
+        description: 'Highlight squares and draw arrows on the board. kinds: move, capture, key, wrong, correct. Omit highlights or arrows to leave the current ones in place; pass an empty array to clear that overlay. Square names must be English algebraic (e4, f7), never Hebrew letters.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -420,11 +435,14 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'ask-quiz',
-        description: 'Show a question in the coach panel and wait until the user clicks a square on the board. Returns whether they clicked a correct square. This tool waits for the click.',
+        description: 'Show a question in the coach panel and wait until the user clicks a square on the board. Returns whether they clicked a correct square. This tool waits for the click. ' + COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
-            question: { type: 'string' },
+            question: {
+              type: 'string',
+              description: 'Quiz prompt shown to the student. ' + COACH_NOTATION_RULE,
+            },
             type: {
               type: 'string',
               enum: ['click-square', 'click-piece', 'choose-move'],
@@ -434,7 +452,10 @@ export function useModelContextTools(actions: ChessActions) {
               items: { type: 'string' },
               description: 'Acceptable squares such as ["e5", "e4"]',
             },
-            hint: { type: 'string' },
+            hint: {
+              type: 'string',
+              description: 'Optional hint. ' + COACH_NOTATION_RULE,
+            },
           },
           required: ['question', 'correct'],
         },
