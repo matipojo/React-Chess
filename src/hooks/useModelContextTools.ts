@@ -10,7 +10,8 @@ import { logLessonDebug } from '../lessons/debugLog';
 import { compactToolResult } from '../lessons/debugSnapshot';
 import { BoardArrow, BoardHighlight, CoachState, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
-import { COACH_NOTATION_RULE } from '../lessons/coachNotation';
+import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
+import { buildHowToAskTheUserPrompt, readBoardChatAccent } from '../lessons/howToAskTheUser';
 
 type ToolResponse = {
   success: boolean;
@@ -218,7 +219,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'enter-learn-mode',
-        description: 'Switch the app into interactive learning mode, or resume the previous lesson if one was saved by exit-learn-mode. Use before teaching, famous games, piece demos, or quizzes. Disables checkmate so teaching positions can omit kings. ' + COACH_NOTATION_RULE,
+        description: 'Switch the app into interactive learning mode, or resume the previous lesson if one was saved by exit-learn-mode. Use before teaching, famous games, piece demos, or quizzes. Disables checkmate so teaching positions can omit kings. ' + COACH_NOTATION_RULE + ' ' + WAIT_TURN_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           actionsRef.current.lessons.enterLearnMode();
@@ -277,7 +278,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'set-coach',
-        description: 'Show a lesson title and explanation in the coach panel next to the board. Pass paragraphs as an array of short strings — each item is its own paragraph on screen. Never put the whole lesson in one string. Do not rely on the tool return text — users only see this panel. Squares and moves written in English (e4, e2:e4, Nf3, Qh5) become hoverable links that highlight the board. ' + COACH_NOTATION_RULE,
+        description: 'Show a lesson title and explanation in the coach panel next to the board. Pass paragraphs as an array of short strings — each item is its own paragraph on screen. Never put the whole lesson in one string. Do not rely on the tool return text — users only see this panel. Squares and moves written in English (e4, e2:e4, Nf3, Qh5) become hoverable links that highlight the board. Then call how_to_ask_the_user. ' + COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
@@ -389,7 +390,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'play-line',
-        description: 'Play moves on the board with the hand animation. Omit moves to continue the loaded famous game. count limits how many half-moves to play.',
+        description: 'Play moves on the board with the hand animation. Omit moves to continue the loaded famous game. count limits how many half-moves to play. Then call how_to_ask_the_user so the student can choose in chat.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -409,7 +410,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'demonstrate-piece',
-        description: 'Empty-ish board with one piece, legal-move highlights, and a coach explanation of how that piece moves.',
+        description: 'Empty-ish board with one piece, legal-move highlights, and a coach explanation of how that piece moves. Then call how_to_ask_the_user.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -478,19 +479,35 @@ export function useModelContextTools(actions: ChessActions) {
           };
         },
       },
+      {
+        name: 'how_to_ask_the_user',
+        description:
+          'Returns instructions for asking the student in this chat with clickable visualization buttons, not a numbered list and not on the chess page. Takes no arguments. Call this whenever you need them to choose what happens next, then follow the returned prompt exactly and stop. Includes the current board-theme accent color. ' +
+          WAIT_TURN_RULE,
+        inputSchema: { type: 'object', properties: {} },
+        execute: async (): Promise<ToolResponse> => {
+          const accent = readBoardChatAccent();
+          const prompt = buildHowToAskTheUserPrompt(accent);
+          return {
+            success: true,
+            message: prompt,
+            data: { accent },
+          };
+        },
+      },
     ];
 
     const toolNames = tools.map(t => t.name);
     const longRunning = new Set(["ask-quiz", "play-line"]);
     const wrappedTools = tools.map((tool) => ({
       ...tool,
-      execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+      execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {
         const started = Date.now();
         if (longRunning.has(tool.name)) {
           logLessonDebug("tool", tool.name, { phase: "start", params: params || {} });
         }
         try {
-          const result = await tool.execute(params);
+          const result = await tool.execute(params, options);
           logLessonDebug("tool", tool.name, {
             durationMs: Date.now() - started,
             params: params || {},

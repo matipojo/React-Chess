@@ -40,6 +40,7 @@ function ChessParts({
             type="button"
             className="chess-ref"
             dir="ltr"
+            onClick={(event) => event.stopPropagation()}
             onPointerEnter={() => onHoverSquares?.(squares)}
             onPointerLeave={(event) => {
               if (event.currentTarget !== document.activeElement) {

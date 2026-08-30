@@ -24,7 +24,8 @@
 .lesson-coach[dir="rtl"] .lesson-coach-content,
 .lesson-coach[dir="rtl"] h2,
 .lesson-coach[dir="rtl"] .lesson-coach-body,
-.lesson-coach[dir="rtl"] .lesson-coach-quiz p {
+.lesson-coach[dir="rtl"] .lesson-coach-quiz p,
+.lesson-coach[dir="rtl"] .lesson-coach-wait p {
   direction: rtl;
   text-align: right;
   unicode-bidi: isolate;
@@ -102,7 +103,8 @@
   color: #ececec;
 }
 
-.lesson-coach-quiz {
+.lesson-coach-quiz,
+.lesson-coach-wait {
   margin-top: 8px;
   padding: 12px;
   border-radius: 8px;
@@ -128,6 +130,61 @@
 .lesson-coach-feedback {
   font-weight: 600;
   color: #fff;
+}
+
+.lesson-coach-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.lesson-coach-choice-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.lesson-coach-choice {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lesson-coach-choice .chess-ref {
+  color: #e3f2fd;
+}
+
+.lesson-coach-choice:hover {
+  background: var(--accent-hover);
+}
+
+.lesson-coach-copy {
+  flex: 0 0 auto;
+  background: #3d3d3d;
+  color: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lesson-coach-copy:hover {
+  background: #4a4a4a;
 }
 
 .lesson-coach-nav {
@@ -217,7 +274,8 @@
     margin: 0 0 8px;
   }
 
-  .lesson-coach-quiz {
+  .lesson-coach-quiz,
+  .lesson-coach-wait {
     margin-top: 4px;
     padding: 8px 10px;
   }
