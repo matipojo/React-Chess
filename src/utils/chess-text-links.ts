@@ -70,3 +70,54 @@ export function tokenizeChessText(text: string): ChessTextPart[] {
 
   return parts;
 }
+
+export type ChessDisplayPart =
+  | { type: "text"; value: string }
+  | { type: "ltr"; parts: ChessTextPart[] };
+
+const RTL_SCRIPT = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+
+export function splitLtrPrefix(
+  text: string
+): { prefix: string; rest: string } {
+  if (!RTL_SCRIPT.test(text)) {
+    return { prefix: text, rest: "" };
+  }
+  const match = text.match(/^[0-9A-Za-z.,:;!?…'"“”\-–—+#/=*\s]+/);
+  if (!match) {
+    return { prefix: "", rest: text };
+  }
+  return { prefix: match[0], rest: text.slice(match[0].length) };
+}
+
+/** Keep Latin chess notation as one LTR unit so it does not scramble RTL wrapping. */
+export function groupLtrRuns(parts: ChessTextPart[]): ChessDisplayPart[] {
+  const grouped: ChessDisplayPart[] = [];
+  let ltrParts: ChessTextPart[] = [];
+
+  const flushLtr = () => {
+    if (ltrParts.length === 0) {
+      return;
+    }
+    grouped.push({ type: "ltr", parts: ltrParts });
+    ltrParts = [];
+  };
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.type === "ref") {
+      ltrParts.push(part);
+      continue;
+    }
+    const { prefix, rest } = splitLtrPrefix(part.value);
+    if (prefix) {
+      ltrParts.push({ type: "text", value: prefix });
+    }
+    if (rest) {
+      flushLtr();
+      grouped.push({ type: "text", value: rest });
+    }
+  }
+  flushLtr();
+  return grouped;
+}

@@ -1,4 +1,4 @@
-import { splitTextLines, squaresFromChessRef, tokenizeChessText } from "./chess-text-links";
+import { splitTextLines, squaresFromChessRef, tokenizeChessText, groupLtrRuns } from "./chess-text-links";
 
 describe("tokenizeChessText", () => {
   it("links squares and coordinate moves", () => {
@@ -34,5 +34,24 @@ describe("tokenizeChessText", () => {
   it("does not treat letters inside words as squares", () => {
     const parts = tokenizeChessText("The idea is simple.");
     expect(parts.filter((part) => part.type === "ref")).toEqual([]);
+  });
+});
+
+describe("groupLtrRuns", () => {
+  it("isolates a leading move sequence in a Hebrew paragraph", () => {
+    const text =
+      "2...Nc6 3.Bc4! - עכשיו יש שני תוקפים על f7 (מלכה + רץ) מול מגן יחיד. זהו איום אמיתי: Qxf7 יהיה מט.";
+    const groups = groupLtrRuns(tokenizeChessText(text));
+    expect(groups[0].type).toBe("ltr");
+    if (groups[0].type === "ltr") {
+      const joined = groups[0].parts.map((part) => part.value).join("");
+      expect(joined).toContain("Nc6");
+      expect(joined).toContain("Bc4");
+      expect(joined.startsWith("2...")).toBe(true);
+    }
+    const rtl = groups.filter((group) => group.type === "text");
+    expect(rtl.some((group) => group.type === "text" && group.value.includes("עכשיו"))).toBe(
+      true
+    );
   });
 });

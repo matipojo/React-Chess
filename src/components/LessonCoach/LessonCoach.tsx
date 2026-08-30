@@ -1,4 +1,6 @@
 import { CoachState } from "../../lessons/types";
+import { detectTextDirection } from "../../utils/text-direction";
+import ChessLinkedText from "./ChessLinkedText";
 import "./LessonCoach.css";
 
 type Props = {
@@ -38,18 +40,30 @@ export default function LessonCoach({
     );
   }
 
+  const { dir, lang } = detectTextDirection(
+    [coach?.title, coach?.body, quizQuestion, quizHint, quizFeedback]
+      .filter(Boolean)
+      .join("\n")
+  );
+
   return (
-    <aside className="lesson-coach">
+    <aside className="lesson-coach" dir={dir} lang={lang}>
       <div className="lesson-coach-handle" aria-hidden="true" />
       <div className="lesson-coach-content">
         <p className="lesson-coach-kicker">Learn</p>
         {coach && (
           <>
-            <h2>{coach.title}</h2>
-            <p className="lesson-coach-body">{coach.body}</p>
+            <h2>
+              <ChessLinkedText text={coach.title} />
+            </h2>
+            <p className="lesson-coach-body">
+              <ChessLinkedText text={coach.body} />
+            </p>
             {coach.step !== undefined && coach.totalSteps !== undefined && (
               <p className="lesson-coach-step">
-                Step {coach.step} of {coach.totalSteps}
+                <span dir="ltr">
+                  Step {coach.step} of {coach.totalSteps}
+                </span>
               </p>
             )}
           </>
@@ -57,16 +71,24 @@ export default function LessonCoach({
         {quizQuestion && (
           <div className="lesson-coach-quiz">
             <p className="lesson-coach-quiz-label">Your turn</p>
-            <p>{quizQuestion}</p>
-            {quizHint && <p className="lesson-coach-hint">{quizHint}</p>}
+            <p>
+              <ChessLinkedText text={quizQuestion} />
+            </p>
+            {quizHint && (
+              <p className="lesson-coach-hint">
+                <ChessLinkedText text={quizHint} />
+              </p>
+            )}
             {quizFeedback && (
-              <p className="lesson-coach-feedback">{quizFeedback}</p>
+              <p className="lesson-coach-feedback">
+                <ChessLinkedText text={quizFeedback} />
+              </p>
             )}
           </div>
         )}
       </div>
       {(onBack || onNext) && (
-        <div className="lesson-coach-nav">
+        <div className="lesson-coach-nav" dir="ltr">
           <button type="button" onClick={onBack} disabled={!canBack}>
             Back
           </button>

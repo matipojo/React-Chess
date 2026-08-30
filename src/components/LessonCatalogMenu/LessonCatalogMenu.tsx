@@ -1,4 +1,5 @@
 import { SavedLesson } from "../../lessons/types";
+import { detectTextDirection } from "../../utils/text-direction";
 import "./LessonCatalogMenu.css";
 
 type Props = {
@@ -24,6 +25,7 @@ export default function LessonCatalogMenu({ lessons, onOpen, onRemove }: Props) 
               <button
                 type="button"
                 className="lesson-catalog-open"
+                dir={detectTextDirection(lesson.title).dir}
                 onClick={(event) => {
                   const details = event.currentTarget.closest("details");
                   if (details) {
@@ -33,7 +35,9 @@ export default function LessonCatalogMenu({ lessons, onOpen, onRemove }: Props) 
                 }}
               >
                 <span className="lesson-catalog-title">{lesson.title}</span>
-                <span className="lesson-catalog-kind">{lesson.kind}</span>
+                <span className="lesson-catalog-kind" dir="ltr">
+                  {lesson.kind}
+                </span>
               </button>
               <button
                 type="button"

@@ -91,12 +91,16 @@
   border: none;
   border-radius: 6px;
   padding: 8px 10px;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
 .lesson-catalog-open:hover {
   background: #353535;
+}
+
+.lesson-catalog-open[dir="rtl"] {
+  align-items: flex-end;
 }
 
 .lesson-catalog-title {

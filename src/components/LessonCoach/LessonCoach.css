@@ -18,6 +18,23 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  text-align: start;
+}
+
+.lesson-coach[dir="rtl"] .lesson-coach-content {
+  line-height: 1.6;
+}
+
+.lesson-coach[dir="rtl"] h2,
+.lesson-coach[dir="rtl"] .lesson-coach-body,
+.lesson-coach[dir="rtl"] .lesson-coach-quiz p {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.ltr-run {
+  unicode-bidi: isolate;
+  direction: ltr;
 }
 
 .lesson-coach-handle {
@@ -109,6 +126,13 @@
 
 .lesson-coach-nav button:not(:disabled):hover {
   background: #6a854c;
+}
+
+.chess-ref {
+  display: inline;
+  unicode-bidi: isolate;
+  direction: ltr;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
