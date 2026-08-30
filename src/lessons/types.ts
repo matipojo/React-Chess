@@ -32,6 +32,23 @@ export type QuizState = {
   hint?: string;
 };
 
+export type WaitChoice = {
+  id: string;
+  label: string;
+};
+
+export type WaitForUserState = {
+  prompt: string;
+  choices: WaitChoice[];
+  timedOut?: boolean;
+};
+
+export type WaitForUserResult = {
+  action: string;
+  source: "choice" | "catalog" | "cancelled" | "timeout";
+  label?: string;
+};
+
 export type FamousGame = {
   id: string;
   name: string;

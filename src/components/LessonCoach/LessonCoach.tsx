@@ -1,5 +1,7 @@
-import { CoachState } from "../../lessons/types";
+import { useState } from "react";
+import { CoachState, WaitChoice } from "../../lessons/types";
 import { normalizeCoachCopy } from "../../lessons/coachParagraphs";
+import { copyWaitChoice } from "../../lessons/waitForUser";
 import { detectTextDirection } from "../../utils/text-direction";
 import ChessLinkedText from "./ChessLinkedText";
 import { ChessRefPart } from "../../utils/chess-text-links";
@@ -10,6 +12,10 @@ type Props = {
   quizQuestion?: string;
   quizHint?: string;
   quizFeedback?: string;
+  waitPrompt?: string;
+  waitChoices?: WaitChoice[];
+  waitTimedOut?: boolean;
+  onWaitChoice?: (action: string, label: string) => void;
   onHoverSquares?: (squares: string[]) => void;
   resolvePeekSquares?: (ref: ChessRefPart) => string[];
   onBack?: () => void;
@@ -23,6 +29,10 @@ export default function LessonCoach({
   quizQuestion,
   quizHint,
   quizFeedback,
+  waitPrompt,
+  waitChoices,
+  waitTimedOut,
+  onWaitChoice,
   onHoverSquares,
   resolvePeekSquares,
   onBack,
@@ -30,7 +40,10 @@ export default function LessonCoach({
   canBack,
   canNext,
 }: Props) {
-  if (!coach && !quizQuestion) {
+  const [copiedId, setCopiedId] = useState<string>("");
+  const waiting = Boolean(waitPrompt && waitChoices && waitChoices.length > 0);
+
+  if (!coach && !quizQuestion && !waiting) {
     return (
       <aside className="lesson-coach">
         <div className="lesson-coach-handle" aria-hidden="true" />
@@ -54,10 +67,28 @@ export default function LessonCoach({
     : [];
 
   const { dir, lang } = detectTextDirection(
-    [coach?.title, ...paragraphs, quizQuestion, quizHint, quizFeedback]
+    [
+      coach?.title,
+      ...paragraphs,
+      quizQuestion,
+      quizHint,
+      quizFeedback,
+      waitPrompt,
+      ...(waitChoices || []).map((choice) => choice.label),
+    ]
       .filter(Boolean)
       .join("\n")
   );
+
+  async function copyChoice(choice: WaitChoice) {
+    const ok = await copyWaitChoice(waitPrompt || "", choice);
+    if (ok) {
+      setCopiedId(choice.id);
+      window.setTimeout(() => {
+        setCopiedId((current) => (current === choice.id ? "" : current));
+      }, 1500);
+    }
+  }
 
   return (
     <aside className="lesson-coach" dir={dir} lang={lang}>
@@ -124,6 +155,69 @@ export default function LessonCoach({
                 />
               </p>
             )}
+          </div>
+        )}
+        {waiting && (
+          <div className="lesson-coach-wait">
+            <p className="lesson-coach-quiz-label">Your turn</p>
+            <p>
+              <ChessLinkedText
+                text={waitPrompt || ""}
+                onHoverSquares={onHoverSquares}
+                resolvePeekSquares={resolvePeekSquares}
+              />
+            </p>
+            {waitTimedOut && (
+              <p className="lesson-coach-hint">
+                The assistant stopped waiting. Copy an answer and paste it in chat.
+              </p>
+            )}
+            <div className="lesson-coach-choices">
+              {waitChoices!.map((choice) => {
+                const { dir: choiceDir } = detectTextDirection(choice.label);
+                return (
+                  <div key={choice.id} className="lesson-coach-choice-row">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="lesson-coach-choice"
+                      dir={choiceDir}
+                      onClick={() => {
+                        if (waitTimedOut) {
+                          void copyChoice(choice);
+                          return;
+                        }
+                        onWaitChoice?.(choice.id, choice.label);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter" && event.key !== " ") {
+                          return;
+                        }
+                        event.preventDefault();
+                        if (waitTimedOut) {
+                          void copyChoice(choice);
+                          return;
+                        }
+                        onWaitChoice?.(choice.id, choice.label);
+                      }}
+                    >
+                      <ChessLinkedText
+                        text={choice.label}
+                        onHoverSquares={onHoverSquares}
+                        resolvePeekSquares={resolvePeekSquares}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="lesson-coach-copy"
+                      onClick={() => void copyChoice(choice)}
+                    >
+                      {copiedId === choice.id ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

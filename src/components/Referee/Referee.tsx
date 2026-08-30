@@ -271,14 +271,18 @@ export default function Referee() {
   );
 
   const loaded = lessons.loadedLine.current;
+  const waitingOnUser = Boolean(lessons.wait && !lessons.wait.timedOut);
   const canStep = !lessons.animating && !lessons.quiz;
   const showStepNav =
-    lessons.historyLength > 1 || (!!loaded && loaded.moves.length > 0);
-  const canBack = canStep && lessons.historyIndex > 0;
+    lessons.historyLength > 1 ||
+    (!!loaded && loaded.moves.length > 0) ||
+    waitingOnUser;
+  const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
   const canNext =
     canStep &&
     (lessons.historyIndex < lessons.historyLength - 1 ||
-      (!!loaded && loaded.ply < loaded.moves.length));
+      (!!loaded && loaded.ply < loaded.moves.length) ||
+      waitingOnUser);
 
   return (
     <>
@@ -372,6 +376,10 @@ export default function Referee() {
               quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
               quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
               quizFeedback={lessons.quizFeedback}
+              waitPrompt={lessons.wait ? lessons.wait.prompt : undefined}
+              waitChoices={lessons.wait ? lessons.wait.choices : undefined}
+              waitTimedOut={Boolean(lessons.wait?.timedOut)}
+              onWaitChoice={lessons.onWaitChoice}
               onHoverSquares={setPeekSquares}
               resolvePeekSquares={resolvePeekSquares}
               onBack={showStepNav ? lessons.stepBack : undefined}

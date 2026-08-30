@@ -17,6 +17,8 @@ import {
   LoadedLine,
   QuizState,
   SavedLesson,
+  WaitForUserResult,
+  WaitForUserState,
 } from "../lessons/types";
 import {
   findUserLesson,
@@ -43,6 +45,7 @@ import {
 } from "../utils/chess-notation-utils";
 import { logLessonDebug } from "../lessons/debugLog";
 import { fenForDebug, overlaySnapshot } from "../lessons/debugSnapshot";
+import { continueWaitChoice, WAIT_TIMEOUT_MS } from "../lessons/waitForUser";
 
 type LessonSnapshot = {
   board: Board;
@@ -71,6 +74,9 @@ type Args = {
   hideCheckmate: () => void;
 };
 
+/** Survives host CDP timeouts that remount the React tree. */
+let persistedWait: WaitForUserState | null = null;
+
 export function useChessLessons({
   boardRef,
   setBoard,
@@ -78,18 +84,23 @@ export function useChessLessons({
   animateMove,
   hideCheckmate,
 }: Args) {
-  const [learnMode, setLearnMode] = useState(false);
+  const [learnMode, setLearnMode] = useState(() => Boolean(persistedWait));
   const [coach, setCoachState] = useState<CoachState | null>(null);
   const [highlights, setHighlights] = useState<BoardHighlight[]>([]);
   const [arrows, setArrows] = useState<BoardArrow[]>([]);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
   const [quizFeedback, setQuizFeedback] = useState<string>("");
+  const [wait, setWaitState] = useState<WaitForUserState | null>(() => persistedWait);
   const [animating, setAnimating] = useState(false);
 
-  const learnModeRef = useRef(false);
+  const learnModeRef = useRef(Boolean(persistedWait));
   const parkedRef = useRef<ParkedLearnSession | null>(null);
   const loadedLineRef = useRef<LoadedLine | null>(null);
   const quizResolverRef = useRef<((result: { correct: boolean; square: string }) => void) | null>(null);
+  const waitResolverRef = useRef<((result: WaitForUserResult) => void) | null>(null);
+  const waitTimerRef = useRef<number | null>(null);
+  const waitAbortCleanupRef = useRef<(() => void) | null>(null);
+  const waitRef = useRef<WaitForUserState | null>(persistedWait);
   const lastQuizRef = useRef<QuizState | null>(null);
   const playChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const highlightsRef = useRef<BoardHighlight[]>([]);
@@ -155,6 +166,52 @@ export function useChessLessons({
     logLessonDebug("visual", "clear-annotations", {});
   }, []);
 
+  const clearWaitWatchers = useCallback(() => {
+    if (waitTimerRef.current !== null) {
+      window.clearTimeout(waitTimerRef.current);
+      waitTimerRef.current = null;
+    }
+    if (waitAbortCleanupRef.current) {
+      waitAbortCleanupRef.current();
+      waitAbortCleanupRef.current = null;
+    }
+  }, []);
+
+  const setWait = useCallback((next: WaitForUserState | null) => {
+    persistedWait = next;
+    waitRef.current = next;
+    setWaitState(next);
+    if (next) {
+      learnModeRef.current = true;
+      setLearnMode(true);
+    }
+  }, []);
+
+  const resolveWait = useCallback((result: WaitForUserResult) => {
+    clearWaitWatchers();
+    const resolver = waitResolverRef.current;
+    waitResolverRef.current = null;
+    if (result.source !== "timeout") {
+      setWait(null);
+    }
+    if (resolver) {
+      resolver(result);
+    }
+  }, [clearWaitWatchers, setWait]);
+
+  const expireWait = useCallback(() => {
+    logLessonDebug("visual", "wait-timeout", {});
+    clearWaitWatchers();
+    const resolver = waitResolverRef.current;
+    waitResolverRef.current = null;
+    if (persistedWait) {
+      setWait({ ...persistedWait, timedOut: true });
+    }
+    if (resolver) {
+      resolver({ action: "", source: "timeout" });
+    }
+  }, [clearWaitWatchers, setWait]);
+
   const cancelQuiz = useCallback(() => {
     if (quizResolverRef.current) {
       quizResolverRef.current({ correct: false, square: "" });
@@ -162,7 +219,8 @@ export function useChessLessons({
     }
     setQuiz(null);
     setQuizFeedback("");
-  }, []);
+    resolveWait({ action: "", source: "cancelled" });
+  }, [resolveWait]);
 
   const publishHistory = useCallback((index: number, length: number) => {
     historyIndexRef.current = index;
@@ -339,6 +397,7 @@ export function useChessLessons({
       quizResolverRef.current({ correct: false, square: "" });
       quizResolverRef.current = null;
     }
+    resolveWait({ action: "", source: "cancelled" });
     loadedLineRef.current = null;
     resetHistory();
     highlightsRef.current = [];
@@ -352,10 +411,11 @@ export function useChessLessons({
     setArrows([]);
     setQuiz(null);
     setQuizFeedback("");
+    setWait(null);
     const reset = startingPlayBoard();
     boardRef.current = reset;
     setBoard(reset);
-  }, [boardRef, persistCurrentLesson, resetHistory, setBoard, updateCurrentSnapshot]);
+  }, [boardRef, persistCurrentLesson, resetHistory, resolveWait, setBoard, updateCurrentSnapshot]);
 
   const setCoach = useCallback((next: CoachState) => {
     const copy = normalizeCoachCopy(next);
@@ -448,8 +508,9 @@ export function useChessLessons({
       quizResolverRef.current({ correct: false, square: "" });
       quizResolverRef.current = null;
     }
+    resolveWait({ action: "", source: "cancelled" });
     updateCurrentSnapshot();
-  }, [updateCurrentSnapshot]);
+  }, [resolveWait, updateCurrentSnapshot]);
 
   const setPosition = useCallback(
     (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => {
@@ -890,6 +951,7 @@ export function useChessLessons({
           data: null,
         };
       }
+      resolveWait({ action: item.id, source: "catalog", label: item.title });
       restoringRef.current = true;
       try {
         if (item.kind === "game") {
@@ -910,7 +972,7 @@ export function useChessLessons({
         restoringRef.current = false;
       }
     },
-    [applyFamousGame, demonstratePiece, restoreCustomLesson]
+    [applyFamousGame, demonstratePiece, resolveWait, restoreCustomLesson]
   );
 
   const loadGame = useCallback(
@@ -943,6 +1005,7 @@ export function useChessLessons({
       correct: nextQuiz.correct,
     });
     enterLearnMode();
+    cancelQuiz();
     lastQuizRef.current = {
       ...nextQuiz,
       correct: [...nextQuiz.correct],
@@ -968,13 +1031,44 @@ export function useChessLessons({
         ...extras,
       });
     }
-    if (quizResolverRef.current) {
-      quizResolverRef.current({ correct: false, square: "" });
-    }
     return new Promise<{ correct: boolean; square: string }>((resolve) => {
       quizResolverRef.current = resolve;
     });
-  }, [enterLearnMode, overlayPersistFields, persistLesson]);
+  }, [cancelQuiz, enterLearnMode, overlayPersistFields, persistLesson]);
+
+  const waitForUser = useCallback((
+    next: WaitForUserState,
+    options?: { signal?: AbortSignal }
+  ) => {
+    logLessonDebug("visual", "wait-for-user", {
+      prompt: next.prompt,
+      choices: next.choices,
+    });
+    enterLearnMode();
+    cancelQuiz();
+    const prompt = next.prompt;
+    const choices = next.choices.map((choice) => ({ ...choice }));
+    setWait({
+      prompt,
+      choices,
+      timedOut: false,
+    });
+    return new Promise<WaitForUserResult>((resolve) => {
+      waitResolverRef.current = resolve;
+      waitTimerRef.current = window.setTimeout(expireWait, WAIT_TIMEOUT_MS);
+      const signal = options?.signal;
+      if (!signal) {
+        return;
+      }
+      const onAbort = () => expireWait();
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      signal.addEventListener("abort", onAbort);
+      waitAbortCleanupRef.current = () => signal.removeEventListener("abort", onAbort);
+    });
+  }, [cancelQuiz, enterLearnMode, expireWait]);
 
   const onSquareClick = useCallback(
     (square: string) => {
@@ -1042,11 +1136,22 @@ export function useChessLessons({
       return;
     }
     const line = loadedLineRef.current;
-    if (!line || line.ply >= line.moves.length) {
+    if (line && line.ply < line.moves.length) {
+      playLine(undefined, 1);
       return;
     }
-    playLine(undefined, 1);
-  }, [animating, playLine, publishHistory, restoreSnapshot]);
+    const currentWait = waitRef.current;
+    if (!currentWait || currentWait.timedOut) {
+      return;
+    }
+    const choice = continueWaitChoice(currentWait.choices);
+    logLessonDebug("user-move", "wait-choice", {
+      action: choice.id,
+      label: choice.label,
+      source: "next",
+    });
+    resolveWait({ action: choice.id, source: "choice", label: choice.label });
+  }, [animating, playLine, publishHistory, resolveWait, restoreSnapshot]);
 
   const listLessons = useCallback(() => {
     return {
@@ -1081,6 +1186,7 @@ export function useChessLessons({
     arrows,
     quiz,
     quizFeedback,
+    wait,
     animating,
     historyIndex,
     historyLength,
@@ -1097,6 +1203,14 @@ export function useChessLessons({
     playLine,
     demonstratePiece,
     askQuiz,
+    waitForUser,
+    onWaitChoice: (action: string, label?: string) => {
+      if (wait?.timedOut) {
+        return;
+      }
+      logLessonDebug("user-move", "wait-choice", { action, label: label || action });
+      resolveWait({ action, source: "choice", label: label || action });
+    },
     onSquareClick,
     recordLearnMove,
     stepBack,
