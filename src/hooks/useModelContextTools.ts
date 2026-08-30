@@ -11,7 +11,7 @@ import { compactToolResult } from '../lessons/debugSnapshot';
 import { BoardArrow, BoardHighlight, CoachState, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
-import { buildHowToAskTheUserPrompt, readBoardChatAccent } from '../lessons/howToAskTheUser';
+import { buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, readBoardChatAccent } from '../lessons/howToAskTheUser';
 
 type ToolResponse = {
   success: boolean;
@@ -482,16 +482,16 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'how_to_ask_the_user',
         description:
-          'Returns instructions for asking the student in this chat with clickable visualization buttons, not a numbered list and not on the chess page. Takes no arguments. Call this whenever you need them to choose what happens next, then follow the returned prompt exactly and stop. Includes the current board-theme accent color. ' +
+          'Returns instructions for asking the student in this chat with clickable visualization buttons, not a numbered list and not on the chess page. Takes no arguments. Call this whenever you need them to choose what happens next, then follow the returned prompt exactly and stop. Includes the current board-theme accent and a readable label color. ' +
           WAIT_TURN_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const accent = readBoardChatAccent();
-          const prompt = buildHowToAskTheUserPrompt(accent);
+          const prompt = buildHowToAskTheUserPrompt(accent, CHAT_BUTTON_TEXT);
           return {
             success: true,
             message: prompt,
-            data: { accent },
+            data: { accent, text: CHAT_BUTTON_TEXT },
           };
         },
       },

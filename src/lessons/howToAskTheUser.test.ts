@@ -11,6 +11,10 @@ describe("buildHowToAskTheUserPrompt", () => {
     expect(prompt).toContain("They must tap a button");
     expect(prompt).toContain("each button on its own new line");
     expect(prompt).toContain("not full row");
-    expect(prompt).toContain("Generous padding inside");
+    expect(prompt).toContain("airy and spacious");
+    expect(prompt).toContain("padding 14px 22px");
+    expect(prompt).toContain("16px vertical gap");
+    expect(prompt).toContain("background #8a5fc8");
+    expect(prompt).toContain("label text #ffffff");
   });
 });
