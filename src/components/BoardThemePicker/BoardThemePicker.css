@@ -1,4 +1,5 @@
 .board-theme-picker {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -8,12 +9,15 @@
 }
 
 .board-theme-picker-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   padding: 0;
-  color: #ccc;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .board-theme-picker-options {
@@ -44,10 +48,6 @@
 }
 
 @media (max-width: 640px) {
-  .board-theme-picker-label {
-    display: none;
-  }
-
   .board-theme-picker-options button {
     padding: 6px 7px;
     font-size: 12px;
@@ -62,14 +62,10 @@
   background: #4a3870;
 }
 
-[data-board-theme="neon"] .board-theme-picker-label {
-  color: #f0e8ff;
-}
-
 [data-board-theme="neon"] .board-theme-picker-options {
-  border-color: rgba(192, 132, 252, 0.4);
+  border-color: rgba(74, 42, 114, 0.55);
 }
 
 [data-board-theme="neon"] .board-theme-picker-options button.is-active {
-  background: #4a2a72;
+  background: var(--accent);
 }

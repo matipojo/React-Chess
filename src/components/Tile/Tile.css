@@ -88,7 +88,7 @@
 }
 
 .tile-mark-correct {
-  box-shadow: inset 0 0 0 5px rgba(76, 175, 80, 1);
+  box-shadow: inset 0 0 0 5px var(--mark-correct);
 }
 
 .tile.tile-peek.black-tile {

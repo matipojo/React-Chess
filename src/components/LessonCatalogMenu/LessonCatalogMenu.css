@@ -31,11 +31,11 @@
 }
 
 .lesson-catalog-toggle:hover {
-  border-color: #779556;
+  border-color: var(--accent);
 }
 
 .lesson-catalog[open] .lesson-catalog-toggle {
-  border-color: #779556;
+  border-color: var(--accent);
 }
 
 .lesson-catalog-count {
@@ -43,7 +43,7 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: #779556;
+  background: var(--accent);
   color: #fff;
   font-size: 11px;
   line-height: 18px;
@@ -112,7 +112,7 @@
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #9ccc65;
+  color: var(--accent-soft);
 }
 
 .lesson-catalog-remove {

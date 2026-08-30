@@ -115,7 +115,7 @@
 }
 
 .modal > .modal-body > .checkmate-body > button {
-  background-color: #779556;
+  background-color: var(--accent);
   border: none;
   border-radius: 8px;
   padding: 16px 32px;

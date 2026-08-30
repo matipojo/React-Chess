@@ -43,7 +43,7 @@
 
 .app-header-modes button.is-active {
   color: #fff;
-  border-bottom-color: #779556;
+  border-bottom-color: var(--accent);
 }
 
 .app-header-actions {

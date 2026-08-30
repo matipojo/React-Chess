@@ -1,4 +1,8 @@
 [data-board-theme="neon"] {
+  --accent: #4a2a72;
+  --accent-hover: #5c3488;
+  --accent-soft: #c4b0e8;
+  --mark-correct: #4a2a72;
   background-color: #140c1c;
   background-image:
     radial-gradient(ellipse at 18% 0%, rgba(192, 132, 252, 0.32), transparent 48%),
@@ -16,7 +20,7 @@
 }
 
 [data-board-theme="neon"] .app-header-modes button.is-active {
-  border-bottom-color: #c084fc;
+  border-bottom-color: var(--accent);
 }
 
 [data-board-theme="neon"] .referee-status {
@@ -206,11 +210,16 @@
 [data-board-theme="neon"] .tile-mark-move.chess-piece-tile,
 [data-board-theme="neon"] .tile-mark-key.chess-piece-tile,
 [data-board-theme="neon"] .tile-mark-capture,
-[data-board-theme="neon"] .tile-mark-wrong,
-[data-board-theme="neon"] .tile-mark-correct {
+[data-board-theme="neon"] .tile-mark-wrong {
   box-shadow:
     inset 0 0 0 5px rgba(34, 211, 238, 0.95),
     inset 0 0 22px rgba(34, 211, 238, 0.28);
+}
+
+[data-board-theme="neon"] .tile-mark-correct {
+  box-shadow:
+    inset 0 0 0 5px rgba(74, 42, 114, 0.98),
+    inset 0 0 22px rgba(74, 42, 114, 0.4);
 }
 
 [data-board-theme="neon"] .tile-mark-key.chess-piece-tile,
@@ -362,6 +371,10 @@
 }
 
 [data-board-theme="violet"] {
+  --accent: #9b74d8;
+  --accent-hover: #8a5fc8;
+  --accent-soft: #c4a8f0;
+  --mark-correct: #b08ae4;
   background-color: #1b1a1f;
 }
 
@@ -458,6 +471,10 @@
 
 [data-board-theme="violet"] .tile-highlight.chess-piece-tile::before {
   border-color: rgba(32, 24, 48, 0.55);
+}
+
+[data-board-theme="violet"] .tile-mark-correct {
+  box-shadow: inset 0 0 0 5px #b08ae4;
 }
 
 @media (prefers-reduced-motion: reduce) {

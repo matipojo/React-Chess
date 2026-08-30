@@ -99,7 +99,7 @@
 }
 
 .lesson-debug-item.kind-user-move {
-  border-left-color: #9ccc65;
+  border-left-color: var(--accent-soft);
 }
 
 .lesson-debug-item.kind-visual {
