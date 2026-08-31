@@ -1,4 +1,4 @@
-import { buildHowToAskTheUserPrompt } from "./howToAskTheUser";
+import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt } from "./howToAskTheUser";
 
 describe("buildHowToAskTheUserPrompt", () => {
   it("asks the host chat to visualize options with the current accent", () => {
@@ -17,5 +17,18 @@ describe("buildHowToAskTheUserPrompt", () => {
     expect(prompt).toContain("16px vertical gap");
     expect(prompt).toContain("background #8a5fc8");
     expect(prompt).toContain("label text #ffffff");
+  });
+});
+
+describe("buildGiveMeAHintPrompt", () => {
+  it("asks the host chat for one Give me a hint button without spoiling the puzzle", () => {
+    const prompt = buildGiveMeAHintPrompt("#8a5fc8");
+    expect(prompt).toContain("inline visualization");
+    expect(prompt).toContain("Give me a hint");
+    expect(prompt).toContain("Do not explain how to solve it");
+    expect(prompt).toContain("Do not add other buttons yet");
+    expect(prompt).toContain("background #8a5fc8");
+    expect(prompt).toContain("label text #ffffff");
+    expect(prompt).toContain("call ask-quiz");
   });
 });

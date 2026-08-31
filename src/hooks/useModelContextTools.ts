@@ -11,7 +11,7 @@ import { compactToolResult } from '../lessons/debugSnapshot';
 import { BoardHighlight, BoardArrow, CoachState, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
-import { buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, readBoardChatAccent } from '../lessons/howToAskTheUser';
+import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
 import { parseStepDrafts, parseSummaryDraft } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
@@ -387,7 +387,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE teaching Step (not a recap). Fast: no board playback. Why first, then the move; student taps Play. A one-step lesson (quiz/exam) has no recap and no Back/Next. After two or more steps, Next shows Generating... until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
+          'Add ONE teaching Step (not a recap). Fast: no board playback. Why first, then the move; student taps Play. A one-step lesson (quiz/exam) has no recap and no Back/Next — state the task only, never how to solve; then how_to_offer_a_hint and ask-quiz. After two or more steps, Next shows Generating... until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -668,7 +668,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'ask-quiz',
         description:
-          'Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
+          'Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -689,7 +689,11 @@ export function useModelContextTools(actions: ChessActions) {
             },
             hint: {
               type: 'string',
-              description: 'Optional hint. ' + COACH_NOTATION_RULE,
+              description:
+                'Optional private nudge to use only after they tap ' +
+                HINT_BUTTON_LABEL +
+                ' in chat. Never put this in question. Not shown on the chess page. ' +
+                COACH_NOTATION_RULE,
             },
           },
           required: ['question', 'correct'],
@@ -776,6 +780,21 @@ export function useModelContextTools(actions: ChessActions) {
               ? 'Page background updated from the image.'
               : 'Page background updated for this session, but it was too large to save in the browser.',
             data: { kind: prepared.kind, mimeType: prepared.mimeType || null, persisted },
+          };
+        },
+      },
+      {
+        name: 'how_to_offer_a_hint',
+        description:
+          'Returns instructions for offering an opt-in Give me a hint visualization button in this chat. Takes no arguments. Call this instead of how_to_ask_the_user while the student is solving, before ask-quiz. Do not spoil the solution in coach text or in this chat until they tap the button. Follow the returned prompt, then call ask-quiz.',
+        inputSchema: { type: 'object', properties: {} },
+        execute: async (): Promise<ToolResponse> => {
+          const accent = readBoardChatAccent();
+          const prompt = buildGiveMeAHintPrompt(accent, CHAT_BUTTON_TEXT);
+          return {
+            success: true,
+            message: prompt,
+            data: { accent, text: CHAT_BUTTON_TEXT, label: HINT_BUTTON_LABEL },
           };
         },
       },
