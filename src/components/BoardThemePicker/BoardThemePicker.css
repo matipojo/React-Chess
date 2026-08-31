@@ -88,11 +88,6 @@
   background: #4a5f38;
 }
 
-[data-board-theme="violet"] .board-theme-picker-options button.is-active,
-[data-board-theme="violet"] .board-theme-picker-photo.is-active {
-  background: #4a3870;
-}
-
 [data-board-theme="neon"] .board-theme-picker-options {
   border-color: rgba(74, 42, 114, 0.55);
 }

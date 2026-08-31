@@ -14,29 +14,11 @@ export default function BoardThemePicker() {
         <button
           type="button"
           role="radio"
-          aria-checked={theme === "classic"}
-          className={theme === "classic" ? "is-active" : undefined}
-          onClick={() => setTheme("classic")}
-        >
-          Classic
-        </button>
-        <button
-          type="button"
-          role="radio"
           aria-checked={theme === "modern"}
           className={theme === "modern" ? "is-active" : undefined}
           onClick={() => setTheme("modern")}
         >
           Modern
-        </button>
-        <button
-          type="button"
-          role="radio"
-          aria-checked={theme === "violet"}
-          className={theme === "violet" ? "is-active" : undefined}
-          onClick={() => setTheme("violet")}
-        >
-          Violet
         </button>
         <button
           type="button"

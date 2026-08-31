@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-export type BoardThemeId = "classic" | "modern" | "violet" | "neon";
+export type BoardThemeId = "modern" | "neon";
 
 const STORAGE_KEY = "board-theme";
 const BACKGROUND_STORAGE_KEY = "page-background";
@@ -18,9 +18,7 @@ function readStoredTheme(): BoardThemeId {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (
-      stored === "classic" ||
       stored === "modern" ||
-      stored === "violet" ||
       stored === "neon"
     ) {
       return stored;
