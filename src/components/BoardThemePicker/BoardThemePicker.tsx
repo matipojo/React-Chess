@@ -11,20 +11,20 @@ export default function BoardThemePicker() {
         <button
           type="button"
           role="radio"
-          aria-checked={theme === "modern"}
-          className={theme === "modern" ? "is-active" : undefined}
-          onClick={() => setTheme("modern")}
+          aria-checked={theme === "classic"}
+          className={theme === "classic" ? "is-active" : undefined}
+          onClick={() => setTheme("classic")}
         >
-          Modern
+          Classic
         </button>
         <button
           type="button"
           role="radio"
-          aria-checked={theme === "neon"}
-          className={theme === "neon" ? "is-active" : undefined}
-          onClick={() => setTheme("neon")}
+          aria-checked={theme === "purple"}
+          className={theme === "purple" ? "is-active" : undefined}
+          onClick={() => setTheme("purple")}
         >
-          Neon
+          Purple
         </button>
       </div>
     </fieldset>

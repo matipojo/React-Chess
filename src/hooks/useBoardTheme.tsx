@@ -22,13 +22,19 @@ const BoardThemeContext = createContext<BoardThemeContextValue | null>(null);
 function readStoredTheme(): BoardThemeId {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "modern" || stored === "neon") {
+    if (stored === "classic" || stored === "purple") {
       return stored;
+    }
+    if (stored === "modern") {
+      return "classic";
+    }
+    if (stored === "neon") {
+      return "purple";
     }
   } catch {
     /* ignore */
   }
-  return "neon";
+  return "purple";
 }
 
 export function BoardThemeProvider({ children }: { children: React.ReactNode }) {

@@ -1,11 +1,11 @@
 export const BACKGROUND_MAP_KEY = "page-background-by-theme";
 export const LEGACY_BACKGROUND_KEY = "page-background";
 
-export type BoardThemeId = "modern" | "neon";
+export type BoardThemeId = "classic" | "purple";
 export type ThemeBackgroundMap = Record<BoardThemeId, string | null>;
 
 export function emptyThemeBackgrounds(): ThemeBackgroundMap {
-  return { modern: null, neon: null };
+  return { classic: null, purple: null };
 }
 
 export function isStoredBackground(value: string): boolean {
@@ -29,6 +29,18 @@ export function parseThemeBackgrounds(raw: string | null): ThemeBackgroundMap {
         next[theme] = value;
       }
     });
+    if (!next.classic) {
+      const legacyModern = rec.modern;
+      if (typeof legacyModern === "string" && isStoredBackground(legacyModern)) {
+        next.classic = legacyModern;
+      }
+    }
+    if (!next.purple) {
+      const legacyNeon = rec.neon;
+      if (typeof legacyNeon === "string" && isStoredBackground(legacyNeon)) {
+        next.purple = legacyNeon;
+      }
+    }
   } catch {
     /* ignore */
   }

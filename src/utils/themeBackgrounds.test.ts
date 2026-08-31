@@ -8,7 +8,7 @@ import {
   LEGACY_BACKGROUND_KEY,
 } from "./themeBackgrounds";
 
-const SAMPLE = "https://example.com/neon.jpg";
+const SAMPLE = "https://example.com/purple.jpg";
 
 describe("themeBackgrounds", () => {
   beforeEach(() => {
@@ -24,31 +24,43 @@ describe("themeBackgrounds", () => {
   it("parses a stored map and ignores junk", () => {
     expect(
       parseThemeBackgrounds(
-        JSON.stringify({ neon: SAMPLE, modern: "not-an-image", extra: SAMPLE })
+        JSON.stringify({ purple: SAMPLE, classic: "not-an-image", extra: SAMPLE })
       )
-    ).toEqual({ neon: SAMPLE, modern: null });
+    ).toEqual({ purple: SAMPLE, classic: null });
+  });
+
+  it("maps a legacy modern background onto classic", () => {
+    expect(
+      parseThemeBackgrounds(JSON.stringify({ modern: SAMPLE }))
+    ).toEqual({ classic: SAMPLE, purple: null });
+  });
+
+  it("maps a legacy neon background onto purple", () => {
+    expect(
+      parseThemeBackgrounds(JSON.stringify({ neon: SAMPLE }))
+    ).toEqual({ classic: null, purple: SAMPLE });
   });
 
   it("omits empty themes when compacting", () => {
-    expect(compactThemeBackgrounds({ neon: SAMPLE, modern: null })).toEqual({
-      neon: SAMPLE,
+    expect(compactThemeBackgrounds({ purple: SAMPLE, classic: null })).toEqual({
+      purple: SAMPLE,
     });
   });
 
   it("migrates a legacy global background onto the current theme", () => {
     window.localStorage.setItem(LEGACY_BACKGROUND_KEY, SAMPLE);
-    const map = readThemeBackgrounds("modern");
-    expect(map).toEqual({ modern: SAMPLE, neon: null });
+    const map = readThemeBackgrounds("classic");
+    expect(map).toEqual({ classic: SAMPLE, purple: null });
     expect(window.localStorage.getItem(LEGACY_BACKGROUND_KEY)).toBeNull();
-    expect(window.localStorage.getItem(BACKGROUND_MAP_KEY)).toContain("modern");
+    expect(window.localStorage.getItem(BACKGROUND_MAP_KEY)).toContain("classic");
   });
 
   it("persists and clears the map", () => {
-    expect(persistThemeBackgrounds({ neon: SAMPLE, modern: null })).toBe(true);
+    expect(persistThemeBackgrounds({ purple: SAMPLE, classic: null })).toBe(true);
     expect(JSON.parse(window.localStorage.getItem(BACKGROUND_MAP_KEY) || "{}")).toEqual({
-      neon: SAMPLE,
+      purple: SAMPLE,
     });
-    expect(persistThemeBackgrounds({ neon: null, modern: null })).toBe(true);
+    expect(persistThemeBackgrounds({ purple: null, classic: null })).toBe(true);
     expect(window.localStorage.getItem(BACKGROUND_MAP_KEY)).toBeNull();
   });
 });

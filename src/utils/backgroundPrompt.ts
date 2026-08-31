@@ -11,8 +11,8 @@ export type ThemePalette = {
 };
 
 const FALLBACK: Record<BoardThemeId, ThemePalette> = {
-  neon: {
-    theme: "neon",
+  purple: {
+    theme: "purple",
     page: "#140c1c",
     accent: "#4a2a72",
     accentHover: "#5c3488",
@@ -20,8 +20,8 @@ const FALLBACK: Record<BoardThemeId, ThemePalette> = {
     darkSquare: "#9b74d8",
     lightSquare: "#e6def6",
   },
-  modern: {
-    theme: "modern",
+  classic: {
+    theme: "classic",
     page: "#202020",
     accent: "#779556",
     accentHover: "#6a854c",

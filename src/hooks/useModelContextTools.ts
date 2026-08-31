@@ -736,7 +736,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-page-background',
         description:
-          'Saves a custom page background for the currently selected board theme only (Modern or Neon). Switching themes shows that theme’s image, or the default theme background if none was set. WebMCP tool arguments are JSON only — there is no native File transfer — so pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. If the user attached an image in this chat, encode it as base64/data URL and pass it here. Use clear: true to remove the image for the current theme only.',
+          'Saves a custom page background for the currently selected board theme only (Classic or Purple). Switching themes shows that theme’s image, or the default theme background if none was set. WebMCP tool arguments are JSON only — there is no native File transfer — so pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. If the user attached an image in this chat, encode it as base64/data URL and pass it here. Use clear: true to remove the image for the current theme only.',
         inputSchema: {
           type: 'object',
           properties: {

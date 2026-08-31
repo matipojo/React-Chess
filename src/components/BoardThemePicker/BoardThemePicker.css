@@ -54,14 +54,14 @@
   }
 }
 
-[data-board-theme="modern"] .board-theme-picker-options button.is-active {
+[data-board-theme="classic"] .board-theme-picker-options button.is-active {
   background: #4a5f38;
 }
 
-[data-board-theme="neon"] .board-theme-picker-options {
+[data-board-theme="purple"] .board-theme-picker-options {
   border-color: rgba(74, 42, 114, 0.55);
 }
 
-[data-board-theme="neon"] .board-theme-picker-options button.is-active {
+[data-board-theme="purple"] .board-theme-picker-options button.is-active {
   background: var(--accent);
 }
