@@ -59,6 +59,19 @@ function SkipEndIcon() {
   );
 }
 
+function CopiedCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M9.2 16.2 5.8 12.8l-1.4 1.4 4.8 4.8 10-10-1.4-1.4z"
+      />
+    </svg>
+  );
+}
+
+const COPIED_PROMPT_TIP = "Copied. Paste this in the agent chat.";
+
 type Props = {
   coach: CoachState | null;
   quizQuestion?: string;
@@ -140,29 +153,53 @@ export default function LessonCoach({
                   {prompt}
                 </a>
               ) : (
-                <button
-                  key={prompt}
-                  type="button"
-                  className="lesson-coach-example"
-                  onClick={async () => {
-                    const ok = await copyPlainText(prompt);
-                    if (!ok) {
-                      return;
+                <span key={prompt} className="lesson-coach-example-wrap">
+                  <button
+                    type="button"
+                    className={
+                      copiedId === prompt
+                        ? "lesson-coach-example is-copied"
+                        : "lesson-coach-example"
                     }
-                    setCopiedId(prompt);
-                    window.setTimeout(() => setCopiedId(""), 2000);
-                  }}
-                >
-                  {copiedId === prompt ? "Copied" : prompt}
-                </button>
+                    aria-describedby={
+                      copiedId === prompt ? "lesson-coach-copied-tip" : undefined
+                    }
+                    onClick={async () => {
+                      const ok = await copyPlainText(prompt);
+                      if (!ok) {
+                        return;
+                      }
+                      setCopiedId(prompt);
+                      window.setTimeout(() => setCopiedId(""), 5500);
+                    }}
+                  >
+                    {prompt}
+                  </button>
+                  {copiedId === prompt ? (
+                    <>
+                      <span className="lesson-coach-example-mark" aria-hidden="true">
+                        <CopiedCheckIcon />
+                      </span>
+                      <span
+                        id="lesson-coach-copied-tip"
+                        className="lesson-coach-example-tip"
+                        role="status"
+                      >
+                        {COPIED_PROMPT_TIP}
+                      </span>
+                    </>
+                  ) : null}
+                </span>
               )
             )}
           </div>
+          <h2 className="lesson-coach-empty-section">Learn in the chat</h2>
           <p>
             Everything you learn here is created in the chat. Tell the agent
             what you want to study, and it builds a lesson with steps that match
             your request.
           </p>
+          <h2 className="lesson-coach-empty-section">Then take a quiz</h2>
           <p>
             When you are ready, it can also quiz you on any topic you have
             already covered.

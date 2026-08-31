@@ -6,17 +6,26 @@ describe("LessonCoach", () => {
     const { getByText, getByRole } = render(<LessonCoach coach={null} />);
     expect(getByText("Generative Learning")).toBeTruthy();
     expect(getByText("Your turn, generate your lesson")).toBeTruthy();
-    expect(
-      getByText(
-        /Everything you learn here is created in the chat/
-      )
-    ).toBeTruthy();
+    expect(getByRole("heading", { name: "Learn in the chat" })).toBeTruthy();
+    expect(getByRole("heading", { name: "Then take a quiz" })).toBeTruthy();
     expect(
       getByText(/it can also quiz you on any topic you have already covered/)
     ).toBeTruthy();
     expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
     expect(getByRole("button", { name: "show Scholar's Mate" })).toBeTruthy();
     expect(getByRole("button", { name: "quiz me on forks" })).toBeTruthy();
+  });
+
+  it("shows a copied mark and paste tooltip after copying a prompt", async () => {
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const { getByRole, getByText } = render(<LessonCoach coach={null} />);
+    getByRole("button", { name: "how does a knight move?" }).click();
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("how does a knight move?");
+      expect(getByText("Copied. Paste this in the agent chat.")).toBeTruthy();
+    });
+    expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
   });
 
   it("opens example prompts with codex:// when the host is Codex", () => {
