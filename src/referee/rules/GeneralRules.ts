@@ -1,6 +1,10 @@
 import { Piece, Position } from "../../models";
 import { TeamType } from "../../Types";
 
+export const isOnBoard = (position: Position): boolean => {
+    return position.x >= 0 && position.x <= 7 && position.y >= 0 && position.y <= 7;
+  }
+
 export const tileIsOccupied = (position: Position, boardState: Piece[]): boolean => {
     const piece = boardState.find((p) => p.samePosition(position));
 

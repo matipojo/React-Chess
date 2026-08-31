@@ -7,8 +7,9 @@ import {
 } from "./stepPlay";
 
 describe("step play buttons", () => {
-  it("extracts from:to moves from mixed What text", () => {
-    expect(extractFromToMoves("f1:c4, then g8:f6.")).toEqual(["f1:c4", "g8:f6"]);
+  it("plays SAN lines the same way as from:to", () => {
+    const board = startingLearnBoard();
+    expect(applyMovesToBoard(board, ["e4", "e5", "Nf3", "Nc6"])).toBe(true);
   });
 
   it("marks the first move ready and the second blocked before anything is played", () => {

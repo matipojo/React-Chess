@@ -1,6 +1,6 @@
 import { TeamType } from "../../Types";
 import { Piece, Position } from "../../models";
-import { tileIsOccupied, tileIsOccupiedByOpponent } from "./GeneralRules";
+import { isOnBoard, tileIsOccupied, tileIsOccupiedByOpponent } from "./GeneralRules";
 import { Pawn } from "../../models/Pawn";
 
 export const pawnMove = (initialPosition: Position, desiredPosition: Position, team: TeamType, boardState: Piece[]): boolean => {
@@ -65,27 +65,28 @@ export const getPossiblePawnMoves = (pawn: Piece, boardState: Piece[]): Position
   const leftPosition = new Position(pawn.position.x - 1, pawn.position.y);
   const rightPosition = new Position(pawn.position.x + 1, pawn.position.y);
 
-  if (!tileIsOccupied(normalMove, boardState)) {
+  if (isOnBoard(normalMove) && !tileIsOccupied(normalMove, boardState)) {
     possibleMoves.push(normalMove);
 
     if (pawn.position.y === specialRow &&
+      isOnBoard(specialMove) &&
       !tileIsOccupied(specialMove, boardState)) {
       possibleMoves.push(specialMove)
     }
   }
 
-  if (tileIsOccupiedByOpponent(upperLeftAttack, boardState, pawn.team)) {
+  if (isOnBoard(upperLeftAttack) && tileIsOccupiedByOpponent(upperLeftAttack, boardState, pawn.team)) {
     possibleMoves.push(upperLeftAttack);
-  } else if (!tileIsOccupied(upperLeftAttack, boardState)) {
+  } else if (isOnBoard(upperLeftAttack) && !tileIsOccupied(upperLeftAttack, boardState)) {
     const leftPiece = boardState.find(p => p.samePosition(leftPosition));
     if (leftPiece != null && (leftPiece as Pawn).enPassant) {
       possibleMoves.push(upperLeftAttack);
     }
   }
 
-  if (tileIsOccupiedByOpponent(upperRightAttack, boardState, pawn.team)) {
+  if (isOnBoard(upperRightAttack) && tileIsOccupiedByOpponent(upperRightAttack, boardState, pawn.team)) {
     possibleMoves.push(upperRightAttack);
-  } else if (!tileIsOccupied(upperRightAttack, boardState)) {
+  } else if (isOnBoard(upperRightAttack) && !tileIsOccupied(upperRightAttack, boardState)) {
     const rightPiece = boardState.find(p => p.samePosition(rightPosition));
     if (rightPiece != null && (rightPiece as Pawn).enPassant) {
       possibleMoves.push(upperRightAttack);

@@ -1,6 +1,6 @@
 import { Piece, Position } from "../../models";
 import { TeamType } from "../../Types";
-import { tileIsEmptyOrOccupiedByOpponent, tileIsOccupied, tileIsOccupiedByOpponent } from "./GeneralRules";
+import { isOnBoard, tileIsEmptyOrOccupiedByOpponent, tileIsOccupied, tileIsOccupiedByOpponent } from "./GeneralRules";
 
 export const bishopMove = (initialPosition: Position, desiredPosition: Position, team: TeamType, boardState: Piece[]): boolean => {
     for(let i = 1; i < 8; i++) {
@@ -78,6 +78,7 @@ export const bishopMove = (initialPosition: Position, desiredPosition: Position,
     // Upper right movement
     for(let i = 1; i < 8; i++) {
       const destination = new Position(bishop.position.x + i, bishop.position.y + i);
+      if(!isOnBoard(destination)) break;
 
       if(!tileIsOccupied(destination, boardstate)) {
         possibleMoves.push(destination);
@@ -92,6 +93,7 @@ export const bishopMove = (initialPosition: Position, desiredPosition: Position,
     // Bottom right movement
     for(let i = 1; i < 8; i++) {
       const destination = new Position(bishop.position.x + i, bishop.position.y - i);
+      if(!isOnBoard(destination)) break;
 
       if(!tileIsOccupied(destination, boardstate)) {
         possibleMoves.push(destination);
@@ -106,6 +108,7 @@ export const bishopMove = (initialPosition: Position, desiredPosition: Position,
     // Bottom left movement
     for(let i = 1; i < 8; i++) {
       const destination = new Position(bishop.position.x - i, bishop.position.y - i);
+      if(!isOnBoard(destination)) break;
 
       if(!tileIsOccupied(destination, boardstate)) {
         possibleMoves.push(destination);
@@ -120,6 +123,7 @@ export const bishopMove = (initialPosition: Position, desiredPosition: Position,
     // Top left movement
     for(let i = 1; i < 8; i++) {
       const destination = new Position(bishop.position.x - i, bishop.position.y + i);
+      if(!isOnBoard(destination)) break;
 
       if(!tileIsOccupied(destination, boardstate)) {
         possibleMoves.push(destination);

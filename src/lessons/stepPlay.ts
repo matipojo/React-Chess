@@ -2,7 +2,7 @@ import { Board } from "../models/Board";
 import { Position } from "../models/Position";
 import { tokenizeChessText } from "../utils/chess-text-links";
 import { boardFromFen, boardToFen } from "../utils/board-setup";
-import { chessNotationToCoordinates, parseMoveNotation } from "../utils/chess-notation-utils";
+import { chessNotationToCoordinates, moveNotationToPositions, parseMoveNotation } from "../utils/chess-notation-utils";
 
 export type MovePlayStatus = "ready" | "done" | "blocked";
 
@@ -46,16 +46,15 @@ export function fromToNotation(
 
 export function applyMovesToBoard(board: Board, moves: string[]): boolean {
   for (let i = 0; i < moves.length; i++) {
-    let parsed: { from: string; to: string };
+    let from: Position;
+    let to: Position;
     try {
-      parsed = parseMoveNotation(moves[i]);
+      const parsed = moveNotationToPositions(moves[i], board);
+      from = parsed.from;
+      to = parsed.to;
     } catch {
       return false;
     }
-    const fromCoords = chessNotationToCoordinates(parsed.from);
-    const toCoords = chessNotationToCoordinates(parsed.to);
-    const from = new Position(fromCoords.x, fromCoords.y);
-    const to = new Position(toCoords.x, toCoords.y);
     const ok =
       board.tryPlayMove(from, to, { ignoreTurn: true }) ||
       board.tryPlayMove(from, to, { ignoreTurn: true, ignoreLegality: true });
@@ -145,7 +144,7 @@ export function coachPlayMoves(args: {
   return unique.map((notation, index) => {
     let parsed: { from: string; to: string };
     try {
-      parsed = parseMoveNotation(notation);
+      parsed = parseMoveNotation(notation, args.board);
     } catch {
       return { notation, status: "blocked" as MovePlayStatus };
     }
@@ -164,7 +163,7 @@ export function coachPlayMoves(args: {
 
     const previousDone = unique.slice(0, index).every((prior) => {
       try {
-        const priorParsed = parseMoveNotation(prior);
+        const priorParsed = parseMoveNotation(prior, args.board);
         return !squareOccupied(args.board, priorParsed.from);
       } catch {
         return false;
@@ -203,7 +202,8 @@ export function matchPlayMove(
     try {
       return parseMoveNotation(item.notation).to === dest;
     } catch {
-      return false;
+      const match = item.notation.trim().match(/([a-h][1-8])[+#!?]*$/i);
+      return !!match && match[1].toLowerCase() === dest;
     }
   });
   if (hits.length === 1) {

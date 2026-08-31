@@ -37,7 +37,7 @@ import {
 import {
   chessNotationToCoordinates,
   coordinatesToNotation,
-  parseMoveNotation,
+  moveNotationToPositions,
 } from "../utils/chess-notation-utils";
 import { logLessonDebug } from "../lessons/debugLog";
 import { lastTeachingSlideIndex, projectLessonSession } from "../lessons/lessonDocument";
@@ -820,11 +820,15 @@ export function useChessLessons({
     }
     const next = startingLearnBoard();
     for (let i = 0; i < target; i++) {
-      const parsed = parseMoveNotation(line.moves[i]);
-      const fromCoords = chessNotationToCoordinates(parsed.from);
-      const toCoords = chessNotationToCoordinates(parsed.to);
-      const from = new Position(fromCoords.x, fromCoords.y);
-      const to = new Position(toCoords.x, toCoords.y);
+      let from: Position;
+      let to: Position;
+      try {
+        const parsed = moveNotationToPositions(line.moves[i], next);
+        from = parsed.from;
+        to = parsed.to;
+      } catch {
+        return false;
+      }
       const ok = next.tryPlayMove(from, to, { ignoreTurn: true });
       if (!ok) {
         const forced = next.tryPlayMove(from, to, {
@@ -943,16 +947,19 @@ export function useChessLessons({
     async (moves: string[]): Promise<{ played: string[]; stoppedAt?: string }> => {
       const played: string[] = [];
       for (const move of moves) {
-        const parsed = parseMoveNotation(move);
-        const fromCoords = chessNotationToCoordinates(parsed.from);
-        const toCoords = chessNotationToCoordinates(parsed.to);
-        const from = new Position(fromCoords.x, fromCoords.y);
-        const to = new Position(toCoords.x, toCoords.y);
+        let parsed: { from: Position; to: Position };
+        try {
+          parsed = moveNotationToPositions(move, boardRef.current);
+        } catch {
+          return { played, stoppedAt: move };
+        }
+        const from = parsed.from;
+        const to = parsed.to;
         const ok = await animateThenPlay(from, to);
         logLessonDebug("visual", "play-line-move", {
           move,
-          from: parsed.from,
-          to: parsed.to,
+          from: coordinatesToNotation(from.x, from.y),
+          to: coordinatesToNotation(to.x, to.y),
           success: ok,
           fen: fenForDebug(boardRef.current),
         });
@@ -1012,16 +1019,23 @@ export function useChessLessons({
 
         const played: string[] = [];
         for (let i = 0; i < sequence.length; i++) {
-          const parsed = parseMoveNotation(sequence[i]);
-          const fromCoords = chessNotationToCoordinates(parsed.from);
-          const toCoords = chessNotationToCoordinates(parsed.to);
-          const from = new Position(fromCoords.x, fromCoords.y);
-          const to = new Position(toCoords.x, toCoords.y);
+          let squares: { from: Position; to: Position };
+          try {
+            squares = moveNotationToPositions(sequence[i], boardRef.current);
+          } catch (error) {
+            return {
+              success: false,
+              message: error instanceof Error ? error.message : `${error}`,
+              data: { played },
+            };
+          }
+          const from = squares.from;
+          const to = squares.to;
           const ok = await animateThenPlay(from, to);
           logLessonDebug("visual", "play-line-move", {
             move: sequence[i],
-            from: parsed.from,
-            to: parsed.to,
+            from: coordinatesToNotation(from.x, from.y),
+            to: coordinatesToNotation(to.x, to.y),
             success: ok,
             fen: fenForDebug(boardRef.current),
           });

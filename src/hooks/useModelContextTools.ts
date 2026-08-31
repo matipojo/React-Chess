@@ -156,13 +156,13 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'make-move',
-        description: 'Makes a chess move. Provide the move as "from:to" (e.g., "e2:e4"). In learn mode, either side may move. Animates with the hand.',
+        description: 'Makes a chess move. Provide SAN (e4, Nf3) or from:to (e2:e4). In learn mode, either side may move. Animates with the hand.',
         inputSchema: {
           type: 'object',
           properties: {
             move: {
               type: 'string',
-              description: 'Move in format "from:to" (e.g., "e2:e4")',
+              description: 'SAN such as e4 or Nf3, or from:to such as e2:e4',
               default: 'e2:e4',
             },
           },
@@ -171,7 +171,7 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
           try {
             const board = actionsRef.current.getBoard();
-            const { from: fromNotation, to: toNotation } = parseMoveNotation(params.move as string);
+            const { from: fromNotation, to: toNotation } = parseMoveNotation(params.move as string, board);
             const fromCoords = chessNotationToCoordinates(fromNotation);
             const toCoords = chessNotationToCoordinates(toNotation);
 
@@ -226,34 +226,42 @@ export function useModelContextTools(actions: ChessActions) {
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const board = actionsRef.current.getBoard();
-          let x: number;
-          let y: number;
-          if (typeof params.square === 'string') {
-            const coords = chessNotationToCoordinates(params.square);
-            x = coords.x;
-            y = coords.y;
-          } else {
-            const pos = params.position as { x: number; y: number } | undefined;
-            if (!pos) {
-              return { success: false, message: 'Provide square or position', data: { possibleMoves: [] } };
+          try {
+            const board = actionsRef.current.getBoard();
+            let x: number;
+            let y: number;
+            if (typeof params.square === 'string') {
+              const coords = chessNotationToCoordinates(params.square);
+              x = coords.x;
+              y = coords.y;
+            } else {
+              const pos = params.position as { x: number; y: number } | undefined;
+              if (!pos) {
+                return { success: false, message: 'Provide square or position', data: { possibleMoves: [] } };
+              }
+              x = pos.x;
+              y = pos.y;
             }
-            x = pos.x;
-            y = pos.y;
-          }
-          const position = new Position(x, y);
-          const piece = board.pieces.find(p => p.samePosition(position));
+            const position = new Position(x, y);
+            const piece = board.pieces.find(p => p.samePosition(position));
 
-          if (!piece) {
-            return { success: false, message: `No piece at (${x}, ${y})`, data: { possibleMoves: [] } };
-          }
+            if (!piece) {
+              return { success: false, message: `No piece at (${x}, ${y})`, data: { possibleMoves: [] } };
+            }
 
-          const possibleMoves = piece.possibleMoves?.map(m => ({ x: m.x, y: m.y })) || [];
-          return {
-            success: true,
-            message: `${possibleMoves.length} moves for ${piece.type} at (${x}, ${y})`,
-            data: { piece: { type: piece.type, team: piece.team }, possibleMoves },
-          };
+            const possibleMoves = piece.possibleMoves?.map(m => ({ x: m.x, y: m.y })) || [];
+            return {
+              success: true,
+              message: `${possibleMoves.length} moves for ${piece.type} at (${x}, ${y})`,
+              data: { piece: { type: piece.type, team: piece.team }, possibleMoves },
+            };
+          } catch (error) {
+            return {
+              success: false,
+              message: error instanceof Error ? error.message : `${error}`,
+              data: { possibleMoves: [] },
+            };
+          }
         },
       },
       {
@@ -620,14 +628,14 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'play-line',
-        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
+        description: 'Play moves on the board with the hand animation. Accepts SAN (e4, Nf3) or from:to (e2:e4). During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
         inputSchema: {
           type: 'object',
           properties: {
             moves: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Moves as from:to, e.g. ["e2:e4", "e7:e5"]',
+              description: 'SAN or from:to, e.g. ["e4", "e5", "Nf3"] or ["e2:e4", "e7:e5"]',
             },
             count: { type: 'number', description: 'If continuing a loaded game, how many plies to play' },
           },
@@ -838,13 +846,14 @@ export function useModelContextTools(actions: ChessActions) {
           });
           return result;
         } catch (error) {
+          const message = error instanceof Error ? error.message : `${error}`;
           logLessonDebug("tool", tool.name, {
             phase: "error",
             durationMs: Date.now() - started,
             params: compactToolParams(params || {}),
-            error: `${error}`,
+            error: message,
           });
-          throw error;
+          return { success: false, message, data: null };
         }
       },
     }));

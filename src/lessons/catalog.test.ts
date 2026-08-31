@@ -9,7 +9,7 @@ import {
 
 function playLine(board: Board, moves: string[]): string | null {
   for (let i = 0; i < moves.length; i++) {
-    const parsed = parseMoveNotation(moves[i]);
+      const parsed = parseMoveNotation(moves[i], board);
     const fromCoords = chessNotationToCoordinates(parsed.from);
     const toCoords = chessNotationToCoordinates(parsed.to);
     const from = new Position(fromCoords.x, fromCoords.y);
