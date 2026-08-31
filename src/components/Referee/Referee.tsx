@@ -23,6 +23,7 @@ import { shouldShowLessonNav } from "../../lessons/lessonCopy";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import BoardThemePicker from "../BoardThemePicker/BoardThemePicker";
+import { useBoardTheme } from "../../hooks/useBoardTheme";
 import "./Referee.css";
 
 const moveSound = new Howl({
@@ -38,6 +39,7 @@ const checkmateSound = new Howl({
 });
 
 export default function Referee() {
+  const { setCustomBackground } = useBoardTheme();
   const [board, setBoard] = useState<Board>(initialBoard.clone());
   const [promotionPawn, setPromotionPawn] = useState<Piece>();
   const [peekSquares, setPeekSquares] = useState<string[]>([]);
@@ -227,6 +229,9 @@ export default function Referee() {
     promotePawn: promotePawnAction,
     animateMove,
     lessons,
+    setPageBackground: (cssUrl: string | null) => ({
+      persisted: setCustomBackground(cssUrl),
+    }),
   });
 
   useEffect(() => {

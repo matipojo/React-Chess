@@ -73,6 +73,9 @@ export function compactToolResult(result: {
 }
 
 function compactLoggedValue(value: unknown): unknown {
+  if (typeof value === "string" && (value.startsWith("data:image") || value.length > 400)) {
+    return { omitted: "long-string", length: value.length };
+  }
   if (!value || typeof value !== "object") {
     return value;
   }

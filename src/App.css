@@ -9,6 +9,13 @@
     --mark-correct: rgba(76, 175, 80, 1);
 }
 
+.page-root[data-custom-bg="true"] {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
 #app {
     flex: 1;
     display: flex;

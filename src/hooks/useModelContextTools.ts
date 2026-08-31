@@ -13,6 +13,7 @@ import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
 import { buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, readBoardChatAccent } from '../lessons/howToAskTheUser';
 import { parseStepDrafts, parseSummaryDraft } from '../lessons/lessonCopy';
+import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
 type ToolResponse = {
   success: boolean;
@@ -86,7 +87,16 @@ type ChessActions = {
   promotePawn: (pieceType: PieceType) => void;
   animateMove?: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => void;
   lessons: LessonActions;
+  setPageBackground: (cssUrl: string | null) => { persisted: boolean };
 };
+
+function compactToolParams(params: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  for (const key of Object.keys(params)) {
+    next[key] = compactImageParam(params[key]);
+  }
+  return next;
+}
 
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -708,6 +718,56 @@ export function useModelContextTools(actions: ChessActions) {
         },
       },
       {
+        name: 'set-page-background',
+        description:
+          'Sets the chess page background from an image. WebMCP tool arguments are JSON only — there is no native File transfer — so pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. If the user attached an image in this chat, encode it as base64/data URL and pass it here. Use clear: true to restore the theme background.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            image: {
+              type: 'string',
+              description:
+                'PNG, JPEG, WebP, GIF, or BMP as a data URL (data:image/png;base64,...) or raw base64. Prefer a data URL.',
+            },
+            mimeType: {
+              type: 'string',
+              description: 'Required when image is raw base64. Example: image/png or image/jpeg.',
+            },
+            url: {
+              type: 'string',
+              description: 'http(s) URL of an image, used as the page background instead of base64.',
+            },
+            clear: {
+              type: 'boolean',
+              description: 'If true, remove the custom background and use the selected board theme again.',
+            },
+          },
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const args = parseBackgroundToolArgs(params);
+          if (args.clear) {
+            actionsRef.current.setPageBackground(null);
+            return {
+              success: true,
+              message: 'Custom page background cleared.',
+              data: { cleared: true },
+            };
+          }
+          const prepared = await preparePageBackground(params);
+          if (!prepared.ok) {
+            return { success: false, message: prepared.message, data: null };
+          }
+          const { persisted } = actionsRef.current.setPageBackground(prepared.cssUrl);
+          return {
+            success: true,
+            message: persisted
+              ? 'Page background updated from the image.'
+              : 'Page background updated for this session, but it was too large to save in the browser.',
+            data: { kind: prepared.kind, mimeType: prepared.mimeType || null, persisted },
+          };
+        },
+      },
+      {
         name: 'how_to_ask_the_user',
         description:
           'Returns instructions for asking the student in this chat with clickable visualization buttons, not a numbered list and not on the chess page. Takes no arguments. Call this whenever you need them to choose what happens next, then follow the returned prompt exactly and stop. Includes the current board-theme accent and a readable label color. ' +
@@ -732,13 +792,13 @@ export function useModelContextTools(actions: ChessActions) {
       execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {
         const started = Date.now();
         if (longRunning.has(tool.name)) {
-          logLessonDebug("tool", tool.name, { phase: "start", params: params || {} });
+          logLessonDebug("tool", tool.name, { phase: "start", params: compactToolParams(params || {}) });
         }
         try {
           const result = await tool.execute(params, options);
           logLessonDebug("tool", tool.name, {
             durationMs: Date.now() - started,
-            params: params || {},
+            params: compactToolParams(params || {}),
             ...compactToolResult(result),
           });
           return result;
@@ -746,7 +806,7 @@ export function useModelContextTools(actions: ChessActions) {
           logLessonDebug("tool", tool.name, {
             phase: "error",
             durationMs: Date.now() - started,
-            params: params || {},
+            params: compactToolParams(params || {}),
             error: `${error}`,
           });
           throw error;

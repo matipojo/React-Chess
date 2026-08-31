@@ -3,12 +3,22 @@ import './board-themes.css';
 import ModelContextBanner from './components/ModelContextBanner/ModelContextBanner';
 import Referee from './components/Referee/Referee';
 import { BoardThemeProvider, useBoardTheme } from './hooks/useBoardTheme';
+import { cssBackgroundImage } from './utils/pageBackground';
 
 function AppShell() {
-  const { theme } = useBoardTheme();
+  const { theme, customBackground } = useBoardTheme();
 
   return (
-    <div className="page-root" data-board-theme={theme}>
+    <div
+      className="page-root"
+      data-board-theme={theme}
+      data-custom-bg={customBackground ? "true" : undefined}
+      style={
+        customBackground
+          ? { backgroundImage: cssBackgroundImage(customBackground) }
+          : undefined
+      }
+    >
       <ModelContextBanner />
       <Referee />
     </div>
