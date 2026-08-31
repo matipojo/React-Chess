@@ -667,13 +667,16 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'ask-quiz',
-        description: 'Show a question in the coach panel and wait until the user clicks a square on the board. Returns whether they clicked a correct square. This tool waits for the click, then times out shortly before the host aborts. After timeout the quiz stays on the board and the student pastes their click in chat — stop and wait. ' + COACH_NOTATION_RULE,
+        description:
+          'Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
+          COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
             question: {
               type: 'string',
-              description: 'Quiz prompt shown to the student. ' + COACH_NOTATION_RULE,
+              description:
+                'Puzzle prompt shown to the student. Task only, no spoiler. ' + COACH_NOTATION_RULE,
             },
             type: {
               type: 'string',
@@ -706,13 +709,22 @@ export function useModelContextTools(actions: ChessActions) {
             return {
               success: false,
               message:
-                'Timed out waiting for a click. The quiz is still on the board. The student will copy their square into chat. Do not call more tools. Stop and wait.',
+                'Time ran out. The coach panel and board already teach the correct square(s). Explain why that answer is right, then call how_to_ask_the_user.',
+              data: result,
+            };
+          }
+          if (!result.correct) {
+            return {
+              success: false,
+              message: result.square
+                ? `Clicked ${result.square}. The coach panel and board already teach the correct square(s). Explain why that answer is right, then call how_to_ask_the_user.`
+                : 'Quiz cancelled.',
               data: result,
             };
           }
           return {
-            success: result.correct,
-            message: result.correct ? `Correct: ${result.square}` : `Clicked ${result.square || '(cancelled)'}`,
+            success: true,
+            message: `Correct: ${result.square}. The coach already showed Correct! Do not mark the answer on the board.`,
             data: result,
           };
         },

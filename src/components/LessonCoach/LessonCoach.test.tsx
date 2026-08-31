@@ -170,38 +170,49 @@ describe("LessonCoach", () => {
     });
   });
 
-  it("offers a one-time copy of a timed-out quiz click", async () => {
-    const onQuizCopied = jest.fn();
-    const writeText = jest.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
-    const { getByRole, getByText } = render(
+  it("does not show a how-to-solve hint on the coach panel", () => {
+    const { queryByText } = render(
+      <LessonCoach
+        coach={null}
+        quizQuestion="Click the key square."
+        quizSecondsLeft={30}
+      />
+    );
+    expect(queryByText("Look for a fork")).toBeNull();
+    expect(queryByText("Need a nudge?")).toBeNull();
+  });
+
+  it("shows a 30s countdown and correct feedback in the coach panel", () => {
+    const { getByText, rerender, queryByText } = render(
       <LessonCoach
         coach={null}
         quizQuestion="Click the fork square."
-        quizTimedOut
-        quizCopy={{
-          question: "Click the fork square.",
-          square: "e5",
-          correct: true,
-        }}
-        onQuizCopied={onQuizCopied}
+        quizSecondsLeft={30}
       />
     );
-    expect(getByText("Copy this answer once and paste it in chat.")).toBeTruthy();
-    getByRole("button", { name: "Copy" }).click();
-    await waitFor(() => {
-      expect(writeText).toHaveBeenCalledWith(
-        [
-          "The student answered an ask-quiz by clicking a square. Continue from this click.",
-          "Q: Click the fork square.",
-          "square: e5",
-          "correct: yes",
-        ].join("\n")
-      );
-    });
-    await waitFor(() => {
-      expect(onQuizCopied).toHaveBeenCalled();
-    }, { timeout: 2500 });
+    expect(getByText("30s")).toBeTruthy();
+
+    rerender(
+      <LessonCoach
+        coach={null}
+        quizQuestion="Click the fork square."
+        quizFeedback="Correct!"
+      />
+    );
+    expect(getByText("Correct!")).toBeTruthy();
+    expect(queryByText("30s")).toBeNull();
+  });
+
+  it("teaches the correct square after a miss", () => {
+    const { container } = render(
+      <LessonCoach
+        coach={null}
+        quizQuestion="Click the fork square."
+        quizFeedback="Not quite. The correct square is e5."
+      />
+    );
+    const feedback = container.querySelector(".lesson-coach-feedback");
+    expect(feedback && feedback.textContent).toBe("Not quite. The correct square is e5.");
   });
 
   it("keeps Next enabled when the parent says the wait can continue", () => {

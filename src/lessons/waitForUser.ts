@@ -54,8 +54,7 @@ export function formatWaitChoiceCopy(prompt: string, choice: WaitChoice): string
   ].join("\n");
 }
 
-export async function copyWaitChoice(prompt: string, choice: WaitChoice): Promise<boolean> {
-  const text = formatWaitChoiceCopy(prompt, choice);
+export async function copyPlainText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -75,4 +74,8 @@ export async function copyWaitChoice(prompt: string, choice: WaitChoice): Promis
       return false;
     }
   }
+}
+
+export async function copyWaitChoice(prompt: string, choice: WaitChoice): Promise<boolean> {
+  return copyPlainText(formatWaitChoiceCopy(prompt, choice));
 }

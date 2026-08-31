@@ -41,7 +41,15 @@ import {
 } from "../utils/chess-notation-utils";
 import { logLessonDebug } from "../lessons/debugLog";
 import { fenForDebug, overlaySnapshot } from "../lessons/debugSnapshot";
-import { QuizCopyPayload } from "../lessons/quizCopy";
+import {
+  formatQuizCorrectFeedback,
+  formatQuizIncorrectFeedback,
+  formatQuizTimeoutFeedback,
+  isBoardSquare,
+  quizAnswerIsCorrect,
+  QUIZ_TIMEOUT_MS,
+  QUIZ_TIMEOUT_SECONDS,
+} from "../lessons/quizCopy";
 import { continueWaitChoice, WAIT_TIMEOUT_MS } from "../lessons/waitForUser";
 import {
   coachFromDraft,
@@ -89,6 +97,9 @@ type Args = {
 
 /** Survives host CDP timeouts that remount the React tree. */
 let persistedWait: WaitForUserState | null = null;
+let persistedQuiz: QuizState | null = null;
+let persistedQuizFeedback = "";
+let persistedQuizDeadline: number | null = null;
 
 export function useChessLessons({
   boardRef,
@@ -97,28 +108,34 @@ export function useChessLessons({
   animateMove,
   hideCheckmate,
 }: Args) {
-  const [learnMode, setLearnMode] = useState(() => Boolean(persistedWait));
+  const [learnMode, setLearnMode] = useState(() => Boolean(persistedWait || persistedQuiz));
   const [coach, setCoachState] = useState<CoachState | null>(null);
   const [highlights, setHighlights] = useState<BoardHighlight[]>([]);
   const [arrows, setArrows] = useState<BoardArrow[]>([]);
-  const [quiz, setQuiz] = useState<QuizState | null>(null);
-  const [quizFeedback, setQuizFeedback] = useState<string>("");
-  const [quizCopy, setQuizCopy] = useState<QuizCopyPayload | null>(null);
+  const [quiz, setQuizState] = useState<QuizState | null>(() => persistedQuiz);
+  const [quizFeedback, setQuizFeedbackState] = useState(() => persistedQuizFeedback);
+  const [quizSecondsLeft, setQuizSecondsLeft] = useState<number | null>(() => {
+    if (!persistedQuiz || persistedQuiz.answered || persistedQuizDeadline === null) {
+      return null;
+    }
+    return Math.max(0, Math.ceil((persistedQuizDeadline - Date.now()) / 1000));
+  });
   const [wait, setWaitState] = useState<WaitForUserState | null>(() => persistedWait);
   const [animating, setAnimating] = useState(false);
 
-  const learnModeRef = useRef(Boolean(persistedWait));
+  const learnModeRef = useRef(Boolean(persistedWait || persistedQuiz));
   const parkedRef = useRef<ParkedLearnSession | null>(null);
   const loadedLineRef = useRef<LoadedLine | null>(null);
   const quizResolverRef = useRef<((result: QuizResult) => void) | null>(null);
   const quizTimerRef = useRef<number | null>(null);
+  const quizTickRef = useRef<number | null>(null);
   const quizAbortCleanupRef = useRef<(() => void) | null>(null);
-  const quizRef = useRef<QuizState | null>(null);
+  const quizRef = useRef<QuizState | null>(persistedQuiz);
   const waitResolverRef = useRef<((result: WaitForUserResult) => void) | null>(null);
   const waitTimerRef = useRef<number | null>(null);
   const waitAbortCleanupRef = useRef<(() => void) | null>(null);
   const waitRef = useRef<WaitForUserState | null>(persistedWait);
-  const lastQuizRef = useRef<QuizState | null>(null);
+  const lastQuizRef = useRef<QuizState | null>(persistedQuiz);
   const playChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const highlightsRef = useRef<BoardHighlight[]>([]);
   const arrowsRef = useRef<BoardArrow[]>([]);
@@ -135,9 +152,25 @@ export function useChessLessons({
     setUserLessons(readUserCatalog());
   }, []);
 
-  useEffect(() => {
-    quizRef.current = quiz;
-  }, [quiz]);
+  const setQuiz = useCallback((next: QuizState | null) => {
+    persistedQuiz = next
+      ? {
+          ...next,
+          correct: [...next.correct],
+        }
+      : null;
+    if (!next) {
+      persistedQuizDeadline = null;
+      persistedQuizFeedback = "";
+    }
+    quizRef.current = next;
+    setQuizState(next);
+  }, []);
+
+  const setQuizFeedback = useCallback((text: string) => {
+    persistedQuizFeedback = text;
+    setQuizFeedbackState(text);
+  }, []);
 
   const persistLesson = useCallback((lesson: Omit<SavedLesson, "savedAt">) => {
     if (restoringRef.current) {
@@ -282,6 +315,10 @@ export function useChessLessons({
       window.clearTimeout(quizTimerRef.current);
       quizTimerRef.current = null;
     }
+    if (quizTickRef.current !== null) {
+      window.clearInterval(quizTickRef.current);
+      quizTickRef.current = null;
+    }
     if (quizAbortCleanupRef.current) {
       quizAbortCleanupRef.current();
       quizAbortCleanupRef.current = null;
@@ -324,15 +361,23 @@ export function useChessLessons({
   }, [clearWaitWatchers, setWait]);
 
   const expireQuiz = useCallback(() => {
+    const current = quizRef.current;
+    if (!current || current.answered) {
+      return;
+    }
     logLessonDebug("visual", "quiz-timeout", {});
     clearQuizWatchers();
-    const current = quizRef.current;
-    if (current && !current.timedOut) {
-      const next = { ...current, timedOut: true };
-      quizRef.current = next;
-      lastQuizRef.current = next;
-      setQuiz(next);
-    }
+    const next = { ...current, timedOut: true, answered: true };
+    quizRef.current = next;
+    lastQuizRef.current = next;
+    setQuiz(next);
+    setQuizFeedback(formatQuizTimeoutFeedback(current.correct));
+    setQuizSecondsLeft(null);
+    highlightsRef.current = current.correct.map((square) => ({
+      square: square.toLowerCase(),
+      kind: "correct" as const,
+    }));
+    setHighlights(highlightsRef.current);
     const resolver = quizResolverRef.current;
     quizResolverRef.current = null;
     if (resolver) {
@@ -340,17 +385,95 @@ export function useChessLessons({
     }
   }, [clearQuizWatchers]);
 
-  const cancelQuiz = useCallback(() => {
+  const cancelQuiz = useCallback((options?: { keepAnswered?: boolean }) => {
     clearQuizWatchers();
-    if (quizResolverRef.current) {
+    const keep = Boolean(options?.keepAnswered && quizRef.current?.answered);
+    if (quizResolverRef.current && !keep) {
       quizResolverRef.current({ correct: false, square: "" });
       quizResolverRef.current = null;
     }
-    setQuiz(null);
-    setQuizFeedback("");
-    setQuizCopy(null);
+    if (!keep) {
+      setQuiz(null);
+      setQuizFeedback("");
+    }
+    setQuizSecondsLeft(null);
     resolveWait({ action: "", source: "cancelled" });
-  }, [clearQuizWatchers, resolveWait]);
+  }, [clearQuizWatchers, resolveWait, setQuiz, setQuizFeedback]);
+
+  const answerQuiz = useCallback((square: string, from?: string) => {
+    const current = quizRef.current;
+    if (!current || current.answered) {
+      return;
+    }
+    const normalized = square.toLowerCase();
+    if (!isBoardSquare(normalized)) {
+      return;
+    }
+    const correct = quizAnswerIsCorrect(current.correct, normalized, from);
+    logLessonDebug("user-move", "quiz-click", {
+      square: normalized,
+      from: from || "",
+      correct,
+      expected: current.correct,
+      question: current.question,
+    });
+    const resolver = quizResolverRef.current;
+    quizResolverRef.current = null;
+    clearQuizWatchers();
+    persistedQuizDeadline = null;
+    const next = { ...current, answered: true };
+    lastQuizRef.current = next;
+    setQuiz(next);
+    setQuizSecondsLeft(null);
+    if (correct) {
+      setQuizFeedback(formatQuizCorrectFeedback());
+      const kept = highlightsRef.current.filter(
+        (mark) => mark.kind !== "wrong" && mark.kind !== "correct"
+      );
+      highlightsRef.current = kept;
+      setHighlights(kept);
+    } else {
+      setQuizFeedback(formatQuizIncorrectFeedback(current.correct));
+      const correctList = current.correct
+        .map((item) => item.toLowerCase())
+        .filter(isBoardSquare);
+      const marks: BoardHighlight[] = [
+        { square: normalized, kind: "wrong" },
+        ...correctList
+          .filter((item) => item !== normalized)
+          .map((item) => ({ square: item, kind: "correct" as const })),
+      ];
+      highlightsRef.current = marks;
+      setHighlights(marks);
+    }
+    if (resolver) {
+      resolver({ correct, square: normalized });
+    }
+  }, [clearQuizWatchers, setQuiz, setQuizFeedback]);
+
+  useEffect(() => {
+    if (!persistedQuiz || persistedQuiz.answered || persistedQuizDeadline === null) {
+      return;
+    }
+    const deadline = persistedQuizDeadline;
+    if (deadline <= Date.now()) {
+      expireQuiz();
+      return;
+    }
+    quizTimerRef.current = window.setTimeout(expireQuiz, deadline - Date.now());
+    quizTickRef.current = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setQuizSecondsLeft(left);
+      if (left <= 0) {
+        expireQuiz();
+      }
+    }, 250);
+    return () => {
+      clearQuizWatchers();
+    };
+    // Reattach the live quiz timer after a host remount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const publishHistory = useCallback((index: number, length: number) => {
     historyIndexRef.current = index;
@@ -524,7 +647,7 @@ export function useChessLessons({
     setArrows([]);
     setQuiz(null);
     setQuizFeedback("");
-    setQuizCopy(null);
+    setQuizSecondsLeft(null);
     setWait(null);
     const reset = startingPlayBoard();
     boardRef.current = reset;
@@ -650,7 +773,7 @@ export function useChessLessons({
     setArrows([]);
     setQuiz(null);
     setQuizFeedback("");
-    setQuizCopy(null);
+    setQuizSecondsLeft(null);
     clearQuizWatchers();
     if (quizResolverRef.current) {
       quizResolverRef.current({ correct: false, square: "" });
@@ -1222,12 +1345,12 @@ export function useChessLessons({
       ...nextQuiz,
       correct: [...nextQuiz.correct],
       timedOut: false,
+      answered: false,
     };
     lastQuizRef.current = liveQuiz;
-    quizRef.current = liveQuiz;
     setQuiz(liveQuiz);
     setQuizFeedback("");
-    setQuizCopy(null);
+    setQuizSecondsLeft(QUIZ_TIMEOUT_SECONDS);
     setHighlights((prev) =>
       prev.filter((mark) => mark.kind !== "wrong" && mark.kind !== "correct")
     );
@@ -1242,7 +1365,16 @@ export function useChessLessons({
     }
     return new Promise<QuizResult>((resolve) => {
       quizResolverRef.current = resolve;
-      quizTimerRef.current = window.setTimeout(expireQuiz, WAIT_TIMEOUT_MS);
+      const deadline = Date.now() + QUIZ_TIMEOUT_MS;
+      persistedQuizDeadline = deadline;
+      quizTimerRef.current = window.setTimeout(expireQuiz, QUIZ_TIMEOUT_MS);
+      quizTickRef.current = window.setInterval(() => {
+        const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        setQuizSecondsLeft(left);
+        if (left <= 0) {
+          expireQuiz();
+        }
+      }, 250);
       const signal = options?.signal;
       if (!signal) {
         return;
@@ -1266,7 +1398,7 @@ export function useChessLessons({
       choices: next.choices,
     });
     enterLearnMode();
-    cancelQuiz();
+    cancelQuiz({ keepAnswered: true });
     const prompt = next.prompt;
     const choices = next.choices.map((choice) => ({ ...choice }));
     setWait({
@@ -1293,46 +1425,9 @@ export function useChessLessons({
 
   const onSquareClick = useCallback(
     (square: string) => {
-      if (!quiz) {
-        return;
-      }
-      const normalized = square.toLowerCase();
-      const correctList = quiz.correct.map((item) => item.toLowerCase());
-      const correct = correctList.indexOf(normalized) !== -1;
-      logLessonDebug("user-move", "quiz-click", {
-        square: normalized,
-        correct,
-        expected: correctList,
-        question: quiz.question,
-      });
-      const resolver = quizResolverRef.current;
-      quizResolverRef.current = null;
-      clearQuizWatchers();
-      if (resolver) {
-        resolver({ correct, square: normalized });
-      }
-      if (quiz.timedOut) {
-        setQuizCopy({
-          question: quiz.question,
-          square: normalized,
-          correct,
-        });
-        setQuizFeedback("");
-        highlightsRef.current = [
-          { square: normalized, kind: correct ? "correct" : "wrong" },
-        ];
-        setHighlights(highlightsRef.current);
-        return;
-      }
-      setQuiz(null);
-      setQuizFeedback("");
-      setQuizCopy(null);
-      highlightsRef.current = [];
-      arrowsRef.current = [];
-      setHighlights([]);
-      setArrows([]);
+      answerQuiz(square);
     },
-    [clearQuizWatchers, quiz]
+    [answerQuiz]
   );
 
   const recordLearnMove = useCallback(() => {
@@ -1581,7 +1676,7 @@ export function useChessLessons({
         success: true,
         message: recapExpected
           ? `Added teaching step ${totalTeaching} of lesson ${lessonNumber} (not a recap). Next: add-lesson-step for another beat, OR set-lesson-recap if this was the last beat. The student sees Generating... on Next until you do one of those.`
-          : `Added the only teaching step of lesson ${lessonNumber}. No recap and no Back/Next. Use ask-quiz or how_to_ask_the_user, or add-lesson-step if this grows into more beats.`,
+          : `Added the only teaching step of lesson ${lessonNumber}. No recap and no Back/Next. For a puzzle, call how_to_offer_a_hint then ask-quiz (do not spoil how to solve). Or how_to_ask_the_user, or add-lesson-step if this grows into more beats.`,
         lesson: lessonNumber,
         step: totalTeaching,
         totalSteps: totalTeaching,
@@ -1790,7 +1885,7 @@ export function useChessLessons({
     arrows,
     quiz,
     quizFeedback,
-    quizCopy,
+    quizSecondsLeft,
     wait,
     animating,
     historyIndex,
@@ -1821,9 +1916,7 @@ export function useChessLessons({
       resolveWait({ action, source: "choice", label: label || action });
     },
     onSquareClick,
-    dismissQuizCopy: () => {
-      setQuizCopy(null);
-    },
+    answerQuiz,
     recordLearnMove,
     stepBack,
     stepNext,

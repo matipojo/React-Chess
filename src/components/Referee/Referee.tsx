@@ -279,7 +279,8 @@ export default function Referee() {
   const loaded = lessons.loadedLine.current;
   const waitingOnUser = Boolean(lessons.wait && !lessons.wait.timedOut);
   const generatingNext = Boolean(lessons.awaitingContinuation && !waitingOnUser);
-  const canStep = !lessons.animating && !lessons.quiz;
+  const quizPending = Boolean(lessons.quiz && !lessons.quiz.answered);
+  const canStep = !lessons.animating && !quizPending;
   const showStepNav = shouldShowLessonNav({
     expectsRecap: lessons.expectsRecap,
     generatingNext,
@@ -381,7 +382,7 @@ export default function Referee() {
               highlights={lessons.highlights}
               peekSquares={peekSquares}
               arrows={[...lessons.arrows, ...peekArrows]}
-              interaction={lessons.quiz ? "quiz" : "play"}
+              interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
               locked={lessons.animating}
               onSquareClick={lessons.onSquareClick}
             />
@@ -390,11 +391,8 @@ export default function Referee() {
             <LessonCoach
               coach={lessons.coach}
               quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
-              quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
               quizFeedback={lessons.quizFeedback}
-              quizTimedOut={Boolean(lessons.quiz?.timedOut)}
-              quizCopy={lessons.quizCopy}
-              onQuizCopied={lessons.dismissQuizCopy}
+              quizSecondsLeft={lessons.quizSecondsLeft}
               waitPrompt={lessons.wait ? lessons.wait.prompt : undefined}
               waitChoices={lessons.wait ? lessons.wait.choices : undefined}
               waitTimedOut={Boolean(lessons.wait?.timedOut)}

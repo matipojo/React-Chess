@@ -196,6 +196,26 @@
   font-weight: 700;
 }
 
+.lesson-coach-quiz-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.lesson-coach-quiz-head .lesson-coach-quiz-label {
+  margin: 0;
+}
+
+.lesson-coach-quiz-timer {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-soft);
+}
+
 .lesson-coach-hint {
   font-size: 14px;
   color: #f0f0f0;

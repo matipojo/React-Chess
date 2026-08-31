@@ -3,7 +3,6 @@ import { CoachState, WaitChoice } from "../../lessons/types";
 import { CoachPlayMove } from "../../lessons/stepPlay";
 import { normalizeCoachCopy } from "../../lessons/coachParagraphs";
 import { copyWaitChoice } from "../../lessons/waitForUser";
-import { copyQuizClick, QuizCopyPayload } from "../../lessons/quizCopy";
 import { detectTextDirection } from "../../utils/text-direction";
 import ChessLinkedText from "./ChessLinkedText";
 import { ChessRefPart } from "../../utils/chess-text-links";
@@ -57,11 +56,8 @@ function SkipEndIcon() {
 type Props = {
   coach: CoachState | null;
   quizQuestion?: string;
-  quizHint?: string;
   quizFeedback?: string;
-  quizTimedOut?: boolean;
-  quizCopy?: QuizCopyPayload | null;
-  onQuizCopied?: () => void;
+  quizSecondsLeft?: number | null;
   waitPrompt?: string;
   waitChoices?: WaitChoice[];
   waitTimedOut?: boolean;
@@ -87,11 +83,8 @@ type Props = {
 export default function LessonCoach({
   coach,
   quizQuestion,
-  quizHint,
   quizFeedback,
-  quizTimedOut,
-  quizCopy,
-  onQuizCopied,
+  quizSecondsLeft,
   waitPrompt,
   waitChoices,
   waitTimedOut,
@@ -153,7 +146,6 @@ export default function LessonCoach({
       coach?.why,
       ...extraParagraphs,
       quizQuestion,
-      quizHint,
       quizFeedback,
       waitPrompt,
       ...(waitChoices || []).map((choice) => choice.label),
@@ -168,20 +160,6 @@ export default function LessonCoach({
       setCopiedId(choice.id);
       window.setTimeout(() => {
         setCopiedId((current) => (current === choice.id ? "" : current));
-      }, 1500);
-    }
-  }
-
-  async function copyQuizAnswer() {
-    if (!quizCopy) {
-      return;
-    }
-    const ok = await copyQuizClick(quizCopy);
-    if (ok) {
-      setCopiedId("quiz");
-      window.setTimeout(() => {
-        onQuizCopied?.();
-        setCopiedId((current) => (current === "quiz" ? "" : current));
       }, 1500);
     }
   }
@@ -300,7 +278,14 @@ export default function LessonCoach({
         )}
         {quizQuestion && (
           <div className="lesson-coach-quiz">
-            <p className="lesson-coach-quiz-label">Your turn</p>
+            <div className="lesson-coach-quiz-head">
+              <p className="lesson-coach-quiz-label">Your turn</p>
+              {typeof quizSecondsLeft === "number" && (
+                <p className="lesson-coach-quiz-timer" dir="ltr">
+                  {quizSecondsLeft}s
+                </p>
+              )}
+            </div>
             <p>
               <ChessLinkedText
                 text={quizQuestion}
@@ -308,36 +293,6 @@ export default function LessonCoach({
                 resolvePeekSquares={resolvePeekSquares}
               />
             </p>
-            {quizHint && (
-              <p className="lesson-coach-hint">
-                <ChessLinkedText
-                  text={quizHint}
-                  onHoverSquares={onHoverSquares}
-                  resolvePeekSquares={resolvePeekSquares}
-                />
-              </p>
-            )}
-            {quizTimedOut && (
-              <p className="lesson-coach-hint">
-                {quizCopy
-                  ? "Copy this answer once and paste it in chat."
-                  : "The assistant stopped waiting. Click a square, then copy and paste in chat."}
-              </p>
-            )}
-            {quizCopy && (
-              <div className="lesson-coach-choice-row">
-                <div className="lesson-coach-choice" dir="ltr">
-                  Clicked {quizCopy.square}
-                </div>
-                <button
-                  type="button"
-                  className="lesson-coach-copy"
-                  onClick={() => void copyQuizAnswer()}
-                >
-                  {copiedId === "quiz" ? "Copied" : "Copy"}
-                </button>
-              </div>
-            )}
             {quizFeedback && (
               <p className="lesson-coach-feedback">
                 <ChessLinkedText
