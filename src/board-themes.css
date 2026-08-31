@@ -3,6 +3,8 @@
   --accent-hover: #5c3488;
   --accent-soft: #c4b0e8;
   --mark-correct: #4a2a72;
+  --play: #9b74d8;
+  --play-hover: #b08ae4;
   background-color: #140c1c;
   background-image:
     radial-gradient(ellipse at 18% 0%, rgba(192, 132, 252, 0.32), transparent 48%),
@@ -375,6 +377,8 @@
   --accent-hover: #8a5fc8;
   --accent-soft: #c4a8f0;
   --mark-correct: #b08ae4;
+  --play: #9b74d8;
+  --play-hover: #b08ae4;
   background-color: #1b1a1f;
 }
 
