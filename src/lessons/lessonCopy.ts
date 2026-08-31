@@ -44,6 +44,36 @@ export function shouldShowLessonNav(input: {
   return input.generatingNext || input.expectsRecap || input.hasLineMoves;
 }
 
+export function lessonSlideCounter(input: {
+  step?: number;
+  totalSteps?: number;
+  phase?: CoachState["phase"];
+  historyIndex?: number;
+  historyLength?: number;
+}): { current: number; total: number } | null {
+  const historyLength =
+    input.historyLength && input.historyLength > 0 ? input.historyLength : 0;
+  if (historyLength > 1 && typeof input.historyIndex === "number" && input.historyIndex >= 0) {
+    return {
+      current: Math.max(1, Math.min(input.historyIndex + 1, historyLength)),
+      total: historyLength,
+    };
+  }
+  const planned = input.totalSteps && input.totalSteps > 0 ? input.totalSteps : 0;
+  const recapExtra = input.phase === "recap" && planned > 0 ? 1 : 0;
+  const total = planned + recapExtra;
+  if (total <= 1) {
+    return null;
+  }
+  let current = 1;
+  if (typeof input.step === "number" && input.step > 0) {
+    current = input.step;
+  } else if (input.phase === "recap" && planned > 0) {
+    current = planned + recapExtra;
+  }
+  return { current: Math.max(1, Math.min(current, total)), total };
+}
+
 export function teachingStepIndex(steps: SavedLessonStep[], index: number): {
   step?: number;
   totalSteps?: number;

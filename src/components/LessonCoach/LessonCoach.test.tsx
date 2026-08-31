@@ -40,7 +40,6 @@ describe("LessonCoach", () => {
     const why = container.querySelector(".lesson-coach-why");
     const move = container.querySelector(".lesson-coach-what");
     expect(why && move && why.compareDocumentPosition(move) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(getByText("Step 2 of 3")).toBeTruthy();
 
     rerender(
       <LessonCoach
@@ -56,7 +55,7 @@ describe("LessonCoach", () => {
     );
     expect(getByText("Italian Opening")).toBeTruthy();
     expect(getByText("Recap")).toBeTruthy();
-    expect(container.querySelector(".lesson-coach-step")).toBeNull();
+    expect(container.querySelector(".lesson-coach-slide-count")).toBeNull();
   });
 
   it("labels a teaching beat as Step, not Recap", () => {
@@ -121,6 +120,7 @@ describe("LessonCoach", () => {
     expect(queryByRole("button", { name: "Next" })).toBeNull();
     expect(queryByRole("button", { name: "First step" })).toBeNull();
     expect(queryByRole("button", { name: "Last step" })).toBeNull();
+    expect(queryByText("1/1")).toBeNull();
   });
 
   it("renders wait-for-user choices and reports the clicked action", () => {
@@ -264,7 +264,7 @@ describe("LessonCoach", () => {
     expect(next).toBeDisabled();
     expect(next.className).toContain("lesson-coach-next-generating");
     expect(getByText("Generating")).toBeTruthy();
-    expect(getByText("Step 2")).toBeTruthy();
+    expect(getByText("2/3")).toBeTruthy();
     next.click();
     expect(onNext).not.toHaveBeenCalled();
   });
@@ -302,6 +302,7 @@ describe("LessonCoach", () => {
     expect(onReset).toHaveBeenCalled();
 
     const nav = container.querySelector(".lesson-coach-nav");
+    expect(container.querySelector(".lesson-coach-slide-count")?.textContent).toBe("2/3");
     const first = getByRole("button", { name: "First step" });
     const last = getByRole("button", { name: "Last step" });
     const back = getByRole("button", { name: "Back" });
@@ -312,6 +313,45 @@ describe("LessonCoach", () => {
     last.click();
     expect(onFirst).toHaveBeenCalled();
     expect(onLast).toHaveBeenCalled();
+  });
+
+  it("shows a slide fraction above Back/Next and updates it", () => {
+    const { getByText, rerender, queryByText } = render(
+      <LessonCoach
+        coach={{
+          lessonTitle: "Italian Opening",
+          title: "Develop the knight",
+          body: "Develop pieces.",
+          step: 1,
+          totalSteps: 3,
+          phase: "step",
+        }}
+        onBack={() => undefined}
+        onNext={() => undefined}
+        canBack={false}
+        canNext
+      />
+    );
+    expect(getByText("1/3")).toBeTruthy();
+
+    rerender(
+      <LessonCoach
+        coach={{
+          lessonTitle: "Italian Opening",
+          title: "Castle",
+          body: "King safety.",
+          step: 3,
+          totalSteps: 3,
+          phase: "step",
+        }}
+        onBack={() => undefined}
+        onNext={() => undefined}
+        canBack
+        canNext
+      />
+    );
+    expect(queryByText("1/3")).toBeNull();
+    expect(getByText("3/3")).toBeTruthy();
   });
 
   it("links moves in the wait prompt and choice labels", () => {

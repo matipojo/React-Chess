@@ -100,7 +100,7 @@ describe("user catalog", () => {
     expect(catalog[0].title).toBe("The fork");
     expect(catalog[0].steps).toHaveLength(2);
     expect(catalog[0].steps?.[1].body).toBe("Updated landing squares.");
-    expect(catalog[0].activeStep).toBe(2);
+    expect(catalog[0].activeStep).toBeUndefined();
     expect(nextLessonNumber()).toBe(2);
 
     upsertLessonStep({

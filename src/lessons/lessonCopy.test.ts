@@ -1,6 +1,7 @@
 import {
   buildStepParagraphs,
   lessonExpectsRecap,
+  lessonSlideCounter,
   parseStepDrafts,
   parseSummaryDraft,
   shouldShowLessonNav,
@@ -99,5 +100,31 @@ describe("lesson copy", () => {
         hasLineMoves: true,
       })
     ).toBe(true);
+  });
+
+  it("builds a compact slide fraction for multi-slide lessons", () => {
+    expect(lessonSlideCounter({ step: 1, totalSteps: 1, phase: "step" })).toBeNull();
+    expect(lessonSlideCounter({ step: 2, totalSteps: 3, phase: "step" })).toEqual({
+      current: 2,
+      total: 3,
+    });
+    expect(lessonSlideCounter({ phase: "recap", totalSteps: 3 })).toEqual({
+      current: 4,
+      total: 4,
+    });
+    expect(lessonSlideCounter({ historyIndex: 0, historyLength: 1 })).toBeNull();
+    expect(lessonSlideCounter({ historyIndex: 1, historyLength: 4 })).toEqual({
+      current: 2,
+      total: 4,
+    });
+    expect(
+      lessonSlideCounter({
+        step: 4,
+        totalSteps: 4,
+        phase: "step",
+        historyIndex: 3,
+        historyLength: 6,
+      })
+    ).toEqual({ current: 4, total: 6 });
   });
 });

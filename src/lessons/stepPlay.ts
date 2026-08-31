@@ -73,6 +73,24 @@ export function fenPlacement(fen: string): string {
   return fen.trim().split(/\s+/)[0] || "";
 }
 
+export function shouldApplySavedStepFen(input: {
+  stepFen?: string;
+  currentFen: string;
+  startingFen: string;
+  isFirst: boolean;
+}): boolean {
+  if (!input.stepFen) {
+    return false;
+  }
+  if (input.isFirst) {
+    return true;
+  }
+  const saved = fenPlacement(input.stepFen);
+  const start = fenPlacement(input.startingFen);
+  const current = fenPlacement(input.currentFen);
+  return !(saved === start && current !== start);
+}
+
 export function fenAfterMoves(fen: string, moves: string[]): string | null {
   try {
     const board = boardFromFen(fen, true);

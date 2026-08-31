@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CoachState, WaitChoice } from "../../lessons/types";
 import { CoachPlayMove } from "../../lessons/stepPlay";
+import { lessonSlideCounter } from "../../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../../lessons/coachParagraphs";
 import { copyWaitChoice } from "../../lessons/waitForUser";
 import { detectTextDirection } from "../../utils/text-direction";
@@ -78,6 +79,8 @@ type Props = {
   onPlayMove?: (notation: string) => void;
   playBusy?: boolean;
   nextGenerating?: boolean;
+  historyIndex?: number;
+  historyLength?: number;
 };
 
 export default function LessonCoach({
@@ -105,6 +108,8 @@ export default function LessonCoach({
   onPlayMove,
   playBusy,
   nextGenerating,
+  historyIndex,
+  historyLength,
 }: Props) {
   const [copiedId, setCopiedId] = useState<string>("");
   const waiting = Boolean(waitPrompt && waitChoices && waitChoices.length > 0);
@@ -137,6 +142,13 @@ export default function LessonCoach({
     : [];
 
   const leftoverMoves = coach ? uncoveredMoveText(coach.what, playMoves) : "";
+  const slideCount = lessonSlideCounter({
+    step: coach?.step,
+    totalSteps: coach?.totalSteps,
+    phase: coach?.phase,
+    historyIndex,
+    historyLength,
+  });
 
   const { dir, lang } = detectTextDirection(
     [
@@ -263,17 +275,6 @@ export default function LessonCoach({
                 );
               })}
             </div>
-            {coach.phase === "step" &&
-              coach.step !== undefined &&
-              (coach.totalSteps === undefined || coach.totalSteps > 1) && (
-              <p className="lesson-coach-step">
-                <span dir="ltr">
-                  {nextGenerating || coach.totalSteps === undefined
-                    ? `Step ${coach.step}`
-                    : `Step ${coach.step} of ${coach.totalSteps}`}
-                </span>
-              </p>
-            )}
           </>
         )}
         {quizQuestion && (
@@ -369,7 +370,18 @@ export default function LessonCoach({
         )}
       </div>
       {(onBack || onNext || nextGenerating) && (
-        <div className="lesson-coach-nav" dir="ltr">
+        <div className="lesson-coach-nav-wrap">
+          {slideCount && (
+            <p
+              className="lesson-coach-slide-count"
+              dir="ltr"
+              aria-live="polite"
+              aria-label={`Slide ${slideCount.current} of ${slideCount.total}`}
+            >
+              {slideCount.current}/{slideCount.total}
+            </p>
+          )}
+          <div className="lesson-coach-nav" dir="ltr">
           {onFirst && (
             <button
               type="button"
@@ -414,6 +426,7 @@ export default function LessonCoach({
               <SkipEndIcon />
             </button>
           )}
+          </div>
         </div>
       )}
     </aside>

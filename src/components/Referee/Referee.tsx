@@ -391,6 +391,8 @@ export default function Referee() {
                 void lessons.playCoachMove(notation);
               }}
               playBusy={lessons.animating}
+              historyIndex={lessons.historyIndex}
+              historyLength={lessons.historyLength}
             />
         </div>
       </div>

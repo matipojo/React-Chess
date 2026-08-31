@@ -1,5 +1,10 @@
 import { boardToFen, startingLearnBoard } from "../utils/board-setup";
-import { applyMovesToBoard, coachPlayMoves, extractFromToMoves } from "./stepPlay";
+import {
+  applyMovesToBoard,
+  coachPlayMoves,
+  extractFromToMoves,
+  shouldApplySavedStepFen,
+} from "./stepPlay";
 
 describe("step play buttons", () => {
   it("extracts from:to moves from mixed Hebrew What text", () => {
@@ -18,6 +23,28 @@ describe("step play buttons", () => {
         moves: ["f1:c4", "g8:f6"],
       }).map((item) => item.status)
     ).toEqual(["ready", "blocked"]);
+  });
+
+  it("does not rewind a later step to the starting fen", () => {
+    const start = startingLearnBoard();
+    const after = startingLearnBoard();
+    applyMovesToBoard(after, ["e2:e4"]);
+    expect(
+      shouldApplySavedStepFen({
+        stepFen: boardToFen(start),
+        currentFen: boardToFen(after),
+        startingFen: boardToFen(start),
+        isFirst: false,
+      })
+    ).toBe(false);
+    expect(
+      shouldApplySavedStepFen({
+        stepFen: boardToFen(start),
+        currentFen: boardToFen(start),
+        startingFen: boardToFen(start),
+        isFirst: true,
+      })
+    ).toBe(true);
   });
 
   it("marks the first move done and the second ready after Play", () => {

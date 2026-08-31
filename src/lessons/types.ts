@@ -113,6 +113,7 @@ export type SavedLesson = {
   number?: number;
   steps?: SavedLessonStep[];
   recap?: LessonRecap;
+  /** @deprecated Playhead belongs on the learner session, not the catalog. */
   activeStep?: number;
   paragraphs?: string[];
   gameId?: string;

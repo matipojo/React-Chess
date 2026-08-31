@@ -1,3 +1,5 @@
+import { isTeachingStep } from "./lessonCopy";
+import { contentLesson, contentStep } from "./lessonDocument";
 import { SavedLesson, SavedLessonStep } from "./types";
 
 export const USER_CATALOG_KEY = "webmcp-chess-user-lessons";
@@ -46,27 +48,8 @@ function isSavedLesson(value: unknown): value is SavedLesson {
   );
 }
 
-function cloneStep(step: SavedLessonStep): SavedLessonStep {
-  return {
-    title: step.title,
-    body: step.body,
-    paragraphs: step.paragraphs ? [...step.paragraphs] : undefined,
-    what: step.what,
-    why: step.why,
-    kind: step.kind,
-    moves: step.moves ? [...step.moves] : undefined,
-    fen: step.fen,
-    highlights: step.highlights ? step.highlights.map((item) => ({ ...item })) : undefined,
-    arrows: step.arrows ? step.arrows.map((item) => ({ ...item })) : undefined,
-    quiz: step.quiz
-      ? { ...step.quiz, correct: [...step.quiz.correct] }
-      : undefined,
-    ply: step.ply,
-  };
-}
-
 function legacyAsStep(item: SavedLesson): SavedLessonStep {
-  return cloneStep({
+  return contentStep({
     title: item.title,
     body: item.body,
     paragraphs: item.paragraphs,
@@ -74,27 +57,14 @@ function legacyAsStep(item: SavedLesson): SavedLessonStep {
     highlights: item.highlights,
     arrows: item.arrows,
     quiz: item.quiz,
-    ply: item.ply,
   });
 }
 
 export function lessonSteps(item: SavedLesson): SavedLessonStep[] {
   if (Array.isArray(item.steps)) {
-    return item.steps.filter(isSavedLessonStep).map(cloneStep);
+    return item.steps.filter(isSavedLessonStep).map(contentStep);
   }
   return [legacyAsStep(item)];
-}
-
-function flattenFromStep(
-  step: SavedLessonStep
-): Pick<SavedLesson, "fen" | "highlights" | "arrows" | "quiz" | "ply"> {
-  return {
-    fen: step.fen,
-    highlights: step.highlights,
-    arrows: step.arrows,
-    quiz: step.quiz,
-    ply: step.ply,
-  };
 }
 
 function writeCatalog(lessons: SavedLesson[]) {
@@ -147,10 +117,7 @@ export function readUserCatalog(): SavedLesson[] {
     }
     const lessons = parsed
       .filter(isSavedLesson)
-      .map((item) => ({
-        ...item,
-        steps: item.steps ? item.steps.filter(isSavedLessonStep) : undefined,
-      }))
+      .map((item) => ({ ...contentLesson(item), savedAt: item.savedAt }))
       .sort((a, b) => b.savedAt - a.savedAt);
     return assignLessonNumbers(lessons);
   } catch {
@@ -183,7 +150,6 @@ export function createCatalogLesson(args: {
     paragraphs: args.paragraphs,
     number,
     steps: [],
-    activeStep: 0,
   });
   return findUserLessonByNumber(number)!;
 }
@@ -191,7 +157,7 @@ export function createCatalogLesson(args: {
 export function upsertUserLesson(
   lesson: Omit<SavedLesson, "savedAt">
 ): SavedLesson[] {
-  const nextItem: SavedLesson = { ...lesson, savedAt: Date.now() };
+  const nextItem: SavedLesson = { ...contentLesson(lesson), savedAt: Date.now() };
   const current = readUserCatalog().filter((item) => item.id !== nextItem.id);
   current.unshift(nextItem);
   writeCatalog(current);
@@ -237,15 +203,17 @@ export type UpsertLessonStepInput = {
 export function upsertLessonStep(input: UpsertLessonStepInput): SavedLesson[] {
   const existing = findUserLessonByNumber(input.lessonNumber);
   const steps = existing ? lessonSteps(existing) : [];
-  const incoming = cloneStep(input.step);
+  const incoming = contentStep(input.step);
 
   let index: number;
   if (input.patch) {
-    const active =
-      existing && typeof existing.activeStep === "number"
-        ? existing.activeStep - 1
-        : steps.length - 1;
-    index = Math.max(0, active);
+    index = steps.length - 1;
+    for (let i = steps.length - 1; i >= 0; i--) {
+      if (isTeachingStep(steps[i])) {
+        index = i;
+        break;
+      }
+    }
     if (steps.length === 0) {
       steps.push(incoming);
       index = 0;
@@ -281,15 +249,13 @@ export function upsertLessonStep(input: UpsertLessonStepInput): SavedLesson[] {
     paragraphs: existing?.paragraphs,
     recap: existing?.recap,
     number: input.lessonNumber,
-    steps,
-    activeStep: index + 1,
+    steps: steps.map(contentStep),
     gameId: input.gameId !== undefined ? input.gameId : existing?.gameId,
     moves: input.moves !== undefined ? input.moves : existing?.moves,
     notes: input.notes !== undefined ? input.notes : existing?.notes,
     piece: input.piece !== undefined ? input.piece : existing?.piece,
     square: input.square !== undefined ? input.square : existing?.square,
     color: input.color !== undefined ? input.color : existing?.color,
-    ...flattenFromStep(currentStep),
   };
 
   return upsertUserLesson(nextItem);

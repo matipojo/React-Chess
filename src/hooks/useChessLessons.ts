@@ -40,6 +40,7 @@ import {
   parseMoveNotation,
 } from "../utils/chess-notation-utils";
 import { logLessonDebug } from "../lessons/debugLog";
+import { lastTeachingSlideIndex, projectLessonSession } from "../lessons/lessonDocument";
 import { fenForDebug, overlaySnapshot } from "../lessons/debugSnapshot";
 import {
   formatQuizCorrectFeedback,
@@ -53,7 +54,6 @@ import {
 import { continueWaitChoice, WAIT_TIMEOUT_MS } from "../lessons/waitForUser";
 import {
   coachFromDraft,
-  coachFromSavedStep,
   coachFromSummary,
   isRecapPhase,
   lessonExpectsRecap,
@@ -248,15 +248,7 @@ export function useChessLessons({
       const line = loadedLineRef.current;
       const extras = overlayPersistFields();
       const coach = coachRef.current;
-      if (line && line.id !== "custom") {
-        persistLesson({
-          id: `game:${line.id}`,
-          kind: "game",
-          title: coach && coach.lessonTitle ? coach.lessonTitle : coach ? coach.title : line.name,
-          body: coach ? coach.body : "",
-          gameId: line.id,
-          ...extras,
-        });
+      if (line && line.id !== "custom" && !activeLessonNumberRef.current) {
         return null;
       }
       const lessonNumber = options?.lessonNumber || activeLessonNumberRef.current;
@@ -277,7 +269,7 @@ export function useChessLessons({
       setUserLessons(catalog);
       return findUserLessonByNumber(lessonNumber);
     },
-    [currentStepPayload, overlayPersistFields, persistLesson]
+    [currentStepPayload, overlayPersistFields]
   );
 
   const applyBoard = useCallback(
@@ -570,13 +562,6 @@ export function useChessLessons({
     }
   }, [pushSnapshot]);
 
-  const persistCurrentLesson = useCallback(() => {
-    if (!coachRef.current && !loadedLineRef.current) {
-      return;
-    }
-    persistCustomLessonStep({ patch: true });
-  }, [persistCustomLessonStep]);
-
   const discardParkedLesson = useCallback(() => {
     parkedRef.current = null;
   }, []);
@@ -621,7 +606,6 @@ export function useChessLessons({
     }
     logLessonDebug("visual", "exit-learn-mode", {});
     updateCurrentSnapshot();
-    persistCurrentLesson();
     parkedRef.current = {
       history: historyRef.current,
       historyIndex: historyIndexRef.current,
@@ -652,7 +636,7 @@ export function useChessLessons({
     const reset = startingPlayBoard();
     boardRef.current = reset;
     setBoard(reset);
-  }, [boardRef, clearQuizWatchers, persistCurrentLesson, resetHistory, resolveWait, setBoard, updateCurrentSnapshot]);
+  }, [boardRef, clearQuizWatchers, resetHistory, resolveWait, setBoard, updateCurrentSnapshot]);
 
   const wipeLearnSession = useCallback(
     (options?: { resetBoard?: boolean }) => {
@@ -755,7 +739,7 @@ export function useChessLessons({
       setHighlights(resolvedHighlights);
       setArrows(resolvedArrows);
       updateCurrentSnapshot();
-      if (coachRef.current) {
+      if (activeLessonNumberRef.current) {
         persistCustomLessonStep({ patch: true });
       }
     },
@@ -858,7 +842,6 @@ export function useChessLessons({
     clearAnnotations();
     if (activeLessonNumberRef.current && coachRef.current) {
       pushSnapshot();
-      persistCustomLessonStep({ patch: true });
       return true;
     }
     const note = noteForPly(line, target);
@@ -872,7 +855,7 @@ export function useChessLessons({
     setCoachState(nextCoach);
     pushSnapshot();
     return true;
-  }, [applyBoard, cancelQuiz, clearAnnotations, persistCustomLessonStep, publishHistory, pushSnapshot, restoreSnapshot]);
+  }, [applyBoard, cancelQuiz, clearAnnotations, publishHistory, pushSnapshot, restoreSnapshot]);
 
   const applyFamousGame = useCallback(
     (game: { id: string; name: string; hook: string; moves: string[]; notes?: { ply: number; text: string }[] }) => {
@@ -1070,9 +1053,6 @@ export function useChessLessons({
 
         if (teaching) {
           updateCurrentSnapshot();
-          persistCustomLessonStep({ patch: true });
-        } else if (current) {
-          persistCustomLessonStep({ patch: true });
         }
 
         return {
@@ -1089,7 +1069,7 @@ export function useChessLessons({
       );
       return next;
     },
-    [animateThenPlay, boardRef, clearAnnotations, enterLearnMode, ensureStartingSnapshot, persistCustomLessonStep, pushSnapshot, updateCurrentSnapshot]
+    [animateThenPlay, boardRef, clearAnnotations, enterLearnMode, ensureStartingSnapshot, pushSnapshot, updateCurrentSnapshot]
   );
 
   const demonstratePiece = useCallback(
@@ -1140,115 +1120,44 @@ export function useChessLessons({
   );
 
   const restoreCustomLesson = useCallback(
-    (item: SavedLesson) => {
-      wipeLearnSession({ resetBoard: false });
+    (item: SavedLesson, options?: { fromStart?: boolean }) => {
+      wipeLearnSession();
       activeLessonNumberRef.current = item.number || null;
       const moves = item.moves || [];
-      const steps = lessonSteps(item);
       const lineId =
         item.kind === "game"
           ? item.gameId || item.id.replace(/^game:/, "")
           : item.id;
-      const applyStepBoard = (step: SavedLessonStep, isFirst: boolean) => {
-        if (step.fen) {
-          applyBoard(boardFromFen(step.fen, true));
-          return;
-        }
-        if (isFirst) {
-          applyBoard(startingLearnBoard());
-        }
-      };
-      if (moves.length > 0 && steps.length > 0) {
-        const last = steps[steps.length - 1];
-        const savedPly =
-          typeof last.ply === "number"
-            ? last.ply
-            : typeof item.ply === "number"
-              ? item.ply
-              : last.fen
-                ? moves.length
-                : 0;
+      if (moves.length > 0) {
         loadedLineRef.current = {
           id: lineId,
           name: item.title,
           moves,
           notes: item.notes || [],
-          ply: savedPly,
+          ply: 0,
         };
       } else {
         loadedLineRef.current = null;
       }
-      const teaching = teachingSteps(steps);
-      if (item.body || (item.paragraphs && item.paragraphs.length)) {
-        if (item.fen && teaching.length === 0) {
-          applyBoard(boardFromFen(item.fen, true));
-        } else if (teaching.length === 0) {
-          applyBoard(startingLearnBoard());
-        }
-        applyOverlays([], [], {
-          title: item.title,
-          lessonTitle: item.title,
-          body: item.body,
-          paragraphs: item.paragraphs,
-          lesson: item.number,
-          phase: "goal",
-        });
-        pushSnapshot();
-      }
-      if (teaching.length === 0 && !(item.body || (item.paragraphs && item.paragraphs.length))) {
-        if (item.fen) {
-          applyBoard(boardFromFen(item.fen, true));
-        } else {
-          applyBoard(startingLearnBoard());
-        }
-        applyOverlays([], [], {
-          title: item.title,
-          lessonTitle: item.title,
-          body: item.body,
-          paragraphs: item.paragraphs,
-          lesson: item.number,
-        });
-        pushSnapshot();
-      }
-      teaching.forEach((step, index) => {
-        applyStepBoard(step, index === 0);
-        const restoredQuiz = cloneQuiz(step.quiz || null) || null;
-        const restoredHighlights = (step.highlights || [])
-          .filter((mark) =>
-            restoredQuiz ? mark.kind !== "wrong" && mark.kind !== "correct" : true
-          )
-          .map((mark) => ({ ...mark }));
-        applyOverlays(
-          restoredHighlights,
-          (step.arrows || []).map((arrow) => ({ ...arrow })),
-          coachFromSavedStep(item, step, teaching)
-        );
+      restoringRef.current = true;
+      const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
+      slides.forEach((slide) => {
+        applyBoard(boardFromFen(slide.fen, true));
+        applyOverlays(slide.highlights, slide.arrows, slide.coach);
+        const restoredQuiz = slide.quiz
+          ? { ...slide.quiz, correct: [...slide.quiz.correct], answered: false, timedOut: false }
+          : null;
         lastQuizRef.current = restoredQuiz;
         setQuiz(restoredQuiz);
         setQuizFeedback("");
+        if (loadedLineRef.current) {
+          loadedLineRef.current.ply = slide.ply;
+        }
         pushSnapshot();
       });
-      if (item.recap && item.recap.paragraphs && item.recap.paragraphs.length) {
-        applyOverlays([], [], coachFromSummary(item.recap, {
-          lessonTitle: item.title,
-          lesson: item.number,
-          totalSteps: teaching.length,
-        }));
-        pushSnapshot();
-      }
-      const recapExtra =
-        item.recap && item.recap.paragraphs && item.recap.paragraphs.length ? 1 : 0;
-      const lastTeachingIndex = Math.max(0, historyRef.current.length - 1 - recapExtra);
-      const goalOffset =
-        item.body || (item.paragraphs && item.paragraphs.length) ? 1 : 0;
-      const teachingActive =
-        typeof item.activeStep === "number" && item.activeStep > 0
-          ? item.activeStep
-          : teaching.length;
-      const activeIndex = Math.max(
-        0,
-        Math.min(goalOffset + Math.max(teachingActive, 1) - 1, lastTeachingIndex)
-      );
+      restoringRef.current = false;
+      const lastTeaching = lastTeachingSlideIndex(slides);
+      const activeIndex = options?.fromStart ? 0 : lastTeaching;
       if (historyRef.current[activeIndex]) {
         restoreSnapshot(historyRef.current[activeIndex]);
         publishHistory(activeIndex, historyRef.current.length);
@@ -1256,10 +1165,10 @@ export function useChessLessons({
       return {
         success: true,
         message: `Opened ${item.title}`,
-        data: { id: item.id, lesson: item.number, steps: steps.length },
+        data: { id: item.id, lesson: item.number, steps: slides.length },
       };
     },
-    [applyBoard, applyOverlays, publishHistory, pushSnapshot, restoreSnapshot, wipeLearnSession]
+    [applyBoard, applyOverlays, publishHistory, pushSnapshot, restoreSnapshot, setQuiz, setQuizFeedback, wipeLearnSession]
   );
 
   const lessonHasTeaching = (item: SavedLesson) => {
@@ -1288,18 +1197,18 @@ export function useChessLessons({
       try {
         if (item.kind === "game") {
           if (lessonHasTeaching(item)) {
-            return restoreCustomLesson(item);
+            return restoreCustomLesson(item, { fromStart: true });
           }
           const game = getFamousGame(item.gameId || item.id.replace(/^game:/, ""));
           if (game) {
             return applyFamousGame(game);
           }
-          return restoreCustomLesson(item);
+          return restoreCustomLesson(item, { fromStart: true });
         }
         if (item.kind === "piece" && item.piece) {
           return demonstratePiece(item.piece, item.square, item.color);
         }
-        return restoreCustomLesson(item);
+        return restoreCustomLesson(item, { fromStart: true });
       } finally {
         restoringRef.current = false;
       }
@@ -1834,9 +1743,9 @@ export function useChessLessons({
     if (played.stoppedAt) {
       return { success: false, message: `Could not play ${notation}` };
     }
-    persistCustomLessonStep({ patch: true });
+    updateCurrentSnapshot();
     return { success: true, message: `Played ${notation}` };
-  }, [boardRef, persistCustomLessonStep, playMovesAnimated]);
+  }, [boardRef, playMovesAnimated, updateCurrentSnapshot]);
 
   const listLessons = useCallback(() => {
     return {
