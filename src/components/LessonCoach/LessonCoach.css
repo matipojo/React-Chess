@@ -37,7 +37,10 @@
   line-height: 1.65;
 }
 
-.lesson-coach[dir="rtl"] .lesson-coach-kicker {
+.lesson-coach[dir="rtl"] .lesson-coach-kicker,
+.lesson-coach[dir="rtl"] .lesson-coach-topic,
+.lesson-coach[dir="rtl"] .lesson-coach-recap-label,
+.lesson-coach[dir="rtl"] .lesson-coach-field-label {
   text-align: right;
 }
 
@@ -149,6 +152,30 @@
   text-transform: uppercase;
   color: var(--accent-soft);
   font-weight: 700;
+}
+
+.lesson-coach-topic {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-soft);
+  line-height: 1.4;
+}
+
+.lesson-coach-recap-label,
+.lesson-coach-field-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-soft);
+  font-weight: 700;
+}
+
+.lesson-coach-what,
+.lesson-coach-why {
+  margin: 0 0 12px;
 }
 
 .lesson-coach h2 {
@@ -318,6 +345,51 @@
 .lesson-coach-nav button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.lesson-coach-nav button.lesson-coach-next-generating:disabled {
+  opacity: 1;
+  cursor: wait;
+  animation: lesson-generating-pulse 1.4s ease-in-out infinite;
+}
+
+.lesson-generating-label {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.lesson-generating-dots::after {
+  content: "";
+  display: inline-block;
+  width: 1.15em;
+  text-align: start;
+  animation: lesson-generating-dots 1.2s steps(4, end) infinite;
+}
+
+@keyframes lesson-generating-dots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75% {
+    content: "...";
+  }
+}
+
+@keyframes lesson-generating-pulse {
+  0%,
+  100% {
+    filter: brightness(0.82);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
 }
 
 .lesson-coach-nav button:not(:disabled):hover {
