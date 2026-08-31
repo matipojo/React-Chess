@@ -28,4 +28,14 @@ describe("ChessLinkedText", () => {
     expect(line && line.getAttribute("dir")).toBe("rtl");
     expect(container.querySelector(".chess-ref")?.textContent).toBe("3...Nf6??");
   });
+
+  it("keeps the taught square on its own wrapping line", () => {
+    const { container } = render(
+      <ChessLinkedText text={"Not quite.\nThe correct square is e5."} />
+    );
+    const lines = container.querySelectorAll(".coach-line");
+    expect(lines).toHaveLength(2);
+    expect(lines[1].textContent).toContain("e5");
+    expect(container.querySelector(".chess-ref")?.textContent).toBe("e5");
+  });
 });

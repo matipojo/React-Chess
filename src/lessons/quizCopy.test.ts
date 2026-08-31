@@ -27,16 +27,16 @@ describe("formatQuizClickCopy", () => {
 describe("quiz teaching copy", () => {
   it("names the correct square after a miss", () => {
     expect(formatQuizIncorrectFeedback(["e5"])).toBe(
-      "Not quite. The correct square is e5."
+      "Not quite.\nThe correct square is e5."
     );
     expect(formatQuizIncorrectFeedback(["e5", "d4"])).toBe(
-      "Not quite. The correct squares are e5, d4."
+      "Not quite.\nThe correct squares are e5, d4."
     );
   });
 
   it("names the correct square after time runs out", () => {
     expect(formatQuizTimeoutFeedback(["f7"])).toBe(
-      "Time's up. The correct square is f7."
+      "Time's up.\nThe correct square is f7."
     );
   });
 });

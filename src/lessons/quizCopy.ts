@@ -58,17 +58,17 @@ export function quizAnswerIsCorrect(
 export function formatQuizIncorrectFeedback(correct: string[]): string {
   const squares = formatQuizSquares(correct);
   if (correct.length === 1) {
-    return `Not quite. The correct square is ${squares}.`;
+    return `Not quite.\nThe correct square is ${squares}.`;
   }
-  return `Not quite. The correct squares are ${squares}.`;
+  return `Not quite.\nThe correct squares are ${squares}.`;
 }
 
 export function formatQuizTimeoutFeedback(correct: string[]): string {
   const squares = formatQuizSquares(correct);
   if (correct.length === 1) {
-    return `Time's up. The correct square is ${squares}.`;
+    return `Time's up.\nThe correct square is ${squares}.`;
   }
-  return `Time's up. The correct squares are ${squares}.`;
+  return `Time's up.\nThe correct squares are ${squares}.`;
 }
 
 export function formatQuizClickCopy(payload: QuizCopyPayload): string {

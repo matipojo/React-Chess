@@ -208,11 +208,12 @@ describe("LessonCoach", () => {
       <LessonCoach
         coach={null}
         quizQuestion="Click the fork square."
-        quizFeedback="Not quite. The correct square is e5."
+        quizFeedback="Not quite.\nThe correct square is e5."
       />
     );
     const feedback = container.querySelector(".lesson-coach-feedback");
-    expect(feedback && feedback.textContent).toBe("Not quite. The correct square is e5.");
+    expect(feedback && feedback.textContent).toContain("Not quite");
+    expect(feedback && feedback.textContent).toContain("e5");
   });
 
   it("keeps Next enabled when the parent says the wait can continue", () => {

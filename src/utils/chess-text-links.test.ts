@@ -68,6 +68,29 @@ describe("groupLtrRuns", () => {
       rtl.some((group) => group.type === "text" && group.value.trim().startsWith("-"))
     ).toBe(true);
   });
+
+  it("does not pin a whole English sentence into one nowrap run", () => {
+    const groups = groupLtrRuns(
+      tokenizeChessText("Not quite. The correct square is e5.")
+    );
+    const prose = groups.find((group) => group.type === "text");
+    expect(prose && prose.type === "text" && prose.value).toContain(
+      "The correct square is"
+    );
+    expect(
+      groups.some(
+        (group) =>
+          group.type === "ltr" && group.parts.some((part) => part.value === "e5")
+      )
+    ).toBe(true);
+    expect(
+      groups.some(
+        (group) =>
+          group.type === "ltr" &&
+          group.parts.map((part) => part.value).join("").includes("Not quite")
+      )
+    ).toBe(false);
+  });
 });
 
 describe("peekSquaresFromRef", () => {

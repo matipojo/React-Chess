@@ -59,6 +59,7 @@
   gap: 6px;
   margin-inline-end: 4px;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .lesson-play-move {
@@ -95,7 +96,6 @@
 .ltr-run {
   unicode-bidi: isolate;
   direction: ltr;
-  white-space: nowrap;
 }
 
 .lesson-coach-handle {
@@ -252,6 +252,13 @@
 .lesson-coach-feedback {
   font-weight: 600;
   color: #fff;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.lesson-coach[dir="rtl"] .lesson-coach-quiz p.lesson-coach-feedback {
+  direction: ltr;
+  text-align: start;
 }
 
 .lesson-coach-choices {
