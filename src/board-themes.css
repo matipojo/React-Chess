@@ -28,13 +28,17 @@
   font-weight: 700;
 }
 
-[data-board-theme="purple"] .chessboard-wrap {
-  border-radius: 16px;
+[data-board-theme="purple"] .chessboard-frame {
+  background: rgba(24, 10, 42, 0.2);
+  border-color: rgba(226, 210, 255, 0.28);
   box-shadow:
-    0 0 0 1px rgba(226, 210, 255, 0.28),
     0 10px 28px rgba(22, 10, 40, 0.42),
     0 0 22px rgba(168, 130, 230, 0.22),
     0 0 44px rgba(90, 190, 210, 0.1);
+}
+
+[data-board-theme="purple"] .chessboard-wrap {
+  border-radius: 14px;
 }
 
 [data-board-theme="purple"] .chessboard-wrap::after {
@@ -83,21 +87,6 @@
 [data-board-theme="purple"] .chessboard-axis-rank span,
 [data-board-theme="purple"] .chessboard-axis-file span {
   color: #ffffff;
-  font-size: 16px;
-  font-weight: 700;
-  background: none;
-  border: none;
-}
-
-[data-board-theme="purple"] .chessboard-axis-rank span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-[data-board-theme="purple"] .chessboard-axis-file span {
-  margin-top: 8px;
-  padding: 0;
 }
 
 [data-board-theme="purple"] .tile {
@@ -253,8 +242,7 @@
 @media (max-width: 640px) {
   [data-board-theme="purple"] .chessboard-axis-rank span,
   [data-board-theme="purple"] .chessboard-axis-file span {
-    font-size: 13px;
-    font-weight: 800;
+    font-size: 14px;
   }
 }
 
@@ -282,11 +270,15 @@
   color: #f0f0f0;
 }
 
+[data-board-theme="classic"] .chessboard-frame {
+  background: rgba(12, 14, 10, 0.18);
+  border-color: rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.4);
+}
+
 [data-board-theme="classic"] .chessboard-wrap {
-  border-radius: 12px;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 14px 32px rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
 }
 
 [data-board-theme="classic"] #chessboard {
@@ -306,13 +298,6 @@
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
   z-index: 20;
-}
-
-[data-board-theme="classic"] .chessboard-axis-rank span,
-[data-board-theme="classic"] .chessboard-axis-file span {
-  color: #ececec;
-  font-size: 14px;
-  font-weight: 700;
 }
 
 [data-board-theme="classic"] .tile {

@@ -291,16 +291,15 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
 
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ display: 'flex' }}>
-          <div className="chessboard-axis-rank">
-            {VERTICAL_AXIS.slice().reverse().map((rank) => (
-              <span key={rank}>
-                {rank}
-              </span>
-            ))}
-          </div>
-          <div className="chessboard-wrap">
+      <div className="chessboard-frame">
+        <div className="chessboard-axis-rank">
+          {VERTICAL_AXIS.slice().reverse().map((rank) => (
+            <span key={rank}>
+              {rank}
+            </span>
+          ))}
+        </div>
+        <div className="chessboard-wrap">
             <div
               onMouseDown={(e) => grabPiece(e)}
               onClick={handleClick}
@@ -338,7 +337,6 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
               />
             )}
           </div>
-        </div>
         <div className="chessboard-axis-file">
           {HORIZONTAL_AXIS.map((file) => (
             <span key={file}>
