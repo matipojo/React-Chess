@@ -6,12 +6,12 @@ describe("LessonCoach", () => {
     const { container } = render(
       <LessonCoach
         coach={{
-          title: "מט!",
+          title: "Mate!",
           body: "",
           paragraphs: [
-            "מט הסנדלר בארבעה מהלכים.",
+            "Scholar's mate in four moves.",
             "1.e4 e5 2.Qh5 Nc6 3.Bc4 Nf6?? 4.Qxf7#",
-            "הגן על f7 עם Qe7 או g6.",
+            "Defend f7 with Qe7 or g6.",
           ],
         }}
       />
@@ -493,7 +493,7 @@ describe("LessonCoach", () => {
           title: "Develop the bishop",
           body: "",
           why: "Look at f7.",
-          what: "הרץ יוצא.",
+          what: "The bishop comes out.",
           phase: "step",
         }}
         playMoves={[{ notation: "f1:c4", status: "ready" }]}

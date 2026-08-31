@@ -7,13 +7,6 @@ describe("detectTextDirection", () => {
     });
   });
 
-  it("returns rtl and he for Hebrew", () => {
-    expect(detectTextDirection("הפרש זז בצורת L")).toEqual({
-      dir: "rtl",
-      lang: "he",
-    });
-  });
-
   it("returns rtl and ar for Arabic", () => {
     expect(detectTextDirection("الحصان يتحرك على شكل حرف L")).toEqual({
       dir: "rtl",
@@ -21,21 +14,21 @@ describe("detectTextDirection", () => {
     });
   });
 
-  it("treats mixed chess notation with Hebrew as rtl", () => {
-    expect(detectTextDirection("המהלך e2:e4 פותח את המרכז")).toEqual({
+  it("treats mixed chess notation with Arabic as rtl", () => {
+    expect(detectTextDirection("الحركة e2:e4 تفتح المركز")).toEqual({
       dir: "rtl",
-      lang: "he",
+      lang: "ar",
     });
   });
 
-  it("keeps a Hebrew sentence rtl even when it starts with a move number", () => {
+  it("keeps an Arabic sentence rtl even when it starts with a move number", () => {
     expect(
       detectTextDirection(
-        "3...Nf6?? - שחור מפתח עוד כלי ואפילו תוקף את המלכה הלבנה"
+        "3...Nf6?? - الأسود يطور قطعة أخرى ويهاجم الملكة البيضاء"
       )
     ).toEqual({
       dir: "rtl",
-      lang: "he",
+      lang: "ar",
     });
   });
 });

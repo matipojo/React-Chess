@@ -29,8 +29,8 @@ describe("tokenizeChessText", () => {
     expect(parseChessRef("Qxf7").dest).toBe("f7");
   });
 
-  it("keeps Hebrew around Latin notation", () => {
-    const parts = tokenizeChessText("המהלך e2-e4 פותח את המרכז");
+  it("keeps prose around Latin notation", () => {
+    const parts = tokenizeChessText("The move e2-e4 opens the center");
     const refs = parts.filter((part) => part.type === "ref");
     expect(refs).toHaveLength(1);
     expect(refs[0].value).toBe("e2-e4");
@@ -49,9 +49,9 @@ describe("tokenizeChessText", () => {
 });
 
 describe("groupLtrRuns", () => {
-  it("isolates a leading move sequence in a Hebrew paragraph", () => {
+  it("isolates a leading move sequence in a mixed paragraph", () => {
     const text =
-      "2...Nc6 3.Bc4! - עכשיו יש שני תוקפים על f7 (מלכה + רץ) מול מגן יחיד. זהו איום אמיתי: Qxf7 יהיה מט.";
+      "2...Nc6 3.Bc4! - now there are two attackers on f7 (queen + bishop) against one defender. This is a real threat: Qxf7 would be mate.";
     const groups = groupLtrRuns(tokenizeChessText(text));
     expect(groups[0].type).toBe("ltr");
     if (groups[0].type === "ltr") {
@@ -60,12 +60,12 @@ describe("groupLtrRuns", () => {
       expect(joined).toContain("Bc4");
       expect(joined.startsWith("2...")).toBe(true);
     }
-    const rtl = groups.filter((group) => group.type === "text");
-    expect(rtl.some((group) => group.type === "text" && group.value.includes("עכשיו"))).toBe(
+    const prose = groups.filter((group) => group.type === "text");
+    expect(prose.some((group) => group.type === "text" && group.value.includes("now"))).toBe(
       true
     );
     expect(
-      rtl.some((group) => group.type === "text" && group.value.trim().startsWith("-"))
+      prose.some((group) => group.type === "text" && group.value.trim().startsWith("-"))
     ).toBe(true);
   });
 

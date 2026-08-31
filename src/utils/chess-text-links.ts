@@ -238,12 +238,12 @@ export function isRtlScript(text: string): boolean {
   return RTL_SCRIPT.test(text);
 }
 
-/** Spaces and punctuation between moves, not English or Hebrew words. */
+/** Spaces and punctuation between moves, not English or RTL words. */
 function isLtrGlue(text: string): boolean {
   return !/[A-Za-z]{2,}/.test(text) && !isRtlScript(text);
 }
 
-/** Keep adjacent Latin moves together, but never swallow Hebrew or English prose into an LTR run. */
+/** Keep adjacent Latin moves together, but never swallow RTL or English prose into an LTR run. */
 export function groupLtrRuns(parts: ChessTextPart[]): ChessDisplayPart[] {
   const grouped: ChessDisplayPart[] = [];
   let ltrParts: ChessTextPart[] = [];

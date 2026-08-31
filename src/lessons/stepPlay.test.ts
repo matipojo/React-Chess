@@ -7,8 +7,8 @@ import {
 } from "./stepPlay";
 
 describe("step play buttons", () => {
-  it("extracts from:to moves from mixed Hebrew What text", () => {
-    expect(extractFromToMoves("f1:c4, ואז g8:f6.")).toEqual(["f1:c4", "g8:f6"]);
+  it("extracts from:to moves from mixed What text", () => {
+    expect(extractFromToMoves("f1:c4, then g8:f6.")).toEqual(["f1:c4", "g8:f6"]);
   });
 
   it("marks the first move ready and the second blocked before anything is played", () => {

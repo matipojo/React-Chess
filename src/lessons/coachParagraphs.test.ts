@@ -12,11 +12,11 @@ describe("normalizeCoachCopy", () => {
     expect(
       normalizeCoachCopy({
         body: "ignored",
-        paragraphs: [" מהלך ", "", "לקח"],
+        paragraphs: [" move ", "", "takeaway"],
       })
     ).toEqual({
-      paragraphs: ["מהלך", "לקח"],
-      body: "מהלך\n\nלקח",
+      paragraphs: ["move", "takeaway"],
+      body: "move\n\ntakeaway",
     });
   });
 

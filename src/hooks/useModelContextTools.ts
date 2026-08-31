@@ -547,7 +547,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'annotate-board',
-        description: 'Highlight squares and draw arrows on the board. kinds: move, capture, key, wrong, correct. Omit highlights or arrows to leave the current ones in place; pass an empty array to clear that overlay. Square names must be English algebraic (e4, f7), never Hebrew letters.',
+        description: 'Highlight squares and draw arrows on the board. kinds: move, capture, key, wrong, correct. Omit highlights or arrows to leave the current ones in place; pass an empty array to clear that overlay. Square names must be English algebraic (e4, f7).',
         inputSchema: {
           type: 'object',
           properties: {
