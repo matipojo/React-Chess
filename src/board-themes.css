@@ -17,11 +17,8 @@
   border-bottom-color: rgba(192, 132, 252, 0.28);
 }
 
-[data-board-theme="neon"] .app-header-modes button {
+[data-board-theme="neon"] .app-header-title {
   color: #f0f0f0;
-}
-
-[data-board-theme="neon"] .app-header-modes button.is-active {
   border-bottom-color: var(--accent);
 }
 
@@ -276,11 +273,8 @@
   border-bottom-color: #4a5c3d;
 }
 
-[data-board-theme="modern"] .app-header-modes button {
+[data-board-theme="modern"] .app-header-title {
   color: #d8d8d8;
-}
-
-[data-board-theme="modern"] .app-header-modes button.is-active {
   border-bottom-color: #8fbc70;
 }
 

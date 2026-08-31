@@ -238,6 +238,7 @@ export default function Referee() {
     const params = new URLSearchParams(window.location.search);
     const piece = params.get("piece");
     const game = params.get("game");
+    lessons.enterLearnMode();
     if (piece) {
       try {
         lessons.demonstratePiece(piece);
@@ -304,45 +305,21 @@ export default function Referee() {
   return (
     <>
       <header className="app-header">
-        <nav className="app-header-modes" role="radiogroup" aria-label="App mode">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!lessons.learnMode}
-            className={!lessons.learnMode ? "is-active" : undefined}
-            onClick={() => lessons.exitLearnMode()}
-          >
-            Play
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={lessons.learnMode}
-            className={lessons.learnMode ? "is-active" : undefined}
-            onClick={() => lessons.enterLearnMode()}
-          >
-            Learn
-          </button>
-        </nav>
+        <h1 className="app-header-title">Generative Learning</h1>
         <div className="app-header-actions">
           <BoardThemePicker />
-          {!lessons.learnMode && (
-            <p className="referee-status">Turns: {board.totalTurns}</p>
-          )}
-          {lessons.learnMode && (
-            <LessonCatalogMenu
-              lessons={lessons.userLessons}
-              onOpen={(id) => {
-                lessons.openSavedLesson(id);
-              }}
-              onRemove={lessons.deleteSavedLesson}
-            />
-          )}
-          {lessons.learnMode && <LessonDebugConsole />}
+          <LessonCatalogMenu
+            lessons={lessons.userLessons}
+            onOpen={(id) => {
+              lessons.openSavedLesson(id);
+            }}
+            onRemove={lessons.deleteSavedLesson}
+          />
+          <LessonDebugConsole />
         </div>
       </header>
       <div id="app">
-        <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
+        <div className="referee referee-learn">
           <div className="referee-board">
             <div className="modal hidden" ref={modalRef}>
               <div className="modal-body">
@@ -387,8 +364,7 @@ export default function Referee() {
               onSquareClick={lessons.onSquareClick}
             />
           </div>
-          {lessons.learnMode && (
-            <LessonCoach
+          <LessonCoach
               coach={lessons.coach}
               quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
               quizFeedback={lessons.quizFeedback}
@@ -416,7 +392,6 @@ export default function Referee() {
               }}
               playBusy={lessons.animating}
             />
-          )}
         </div>
       </div>
     </>

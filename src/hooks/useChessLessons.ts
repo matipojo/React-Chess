@@ -108,7 +108,7 @@ export function useChessLessons({
   animateMove,
   hideCheckmate,
 }: Args) {
-  const [learnMode, setLearnMode] = useState(() => Boolean(persistedWait || persistedQuiz));
+  const [learnMode, setLearnMode] = useState(true);
   const [coach, setCoachState] = useState<CoachState | null>(null);
   const [highlights, setHighlights] = useState<BoardHighlight[]>([]);
   const [arrows, setArrows] = useState<BoardArrow[]>([]);
@@ -123,7 +123,7 @@ export function useChessLessons({
   const [wait, setWaitState] = useState<WaitForUserState | null>(() => persistedWait);
   const [animating, setAnimating] = useState(false);
 
-  const learnModeRef = useRef(Boolean(persistedWait || persistedQuiz));
+  const learnModeRef = useRef(true);
   const parkedRef = useRef<ParkedLearnSession | null>(null);
   const loadedLineRef = useRef<LoadedLine | null>(null);
   const quizResolverRef = useRef<((result: QuizResult) => void) | null>(null);
