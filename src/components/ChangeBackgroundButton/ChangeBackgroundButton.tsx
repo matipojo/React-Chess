@@ -15,6 +15,9 @@ function ImageIcon() {
   );
 }
 
+const COPIED_MESSAGE =
+  "Prompt copied. Paste it to your agent to generate a custom background image.";
+
 export default function ChangeBackgroundButton() {
   const { theme } = useBoardTheme();
   const [copied, setCopied] = useState(false);
@@ -23,8 +26,9 @@ export default function ChangeBackgroundButton() {
     <button
       type="button"
       className={copied ? "change-bg-btn is-copied" : "change-bg-btn"}
-      aria-label="Change background image"
-      title="Change background image"
+      aria-label={copied ? COPIED_MESSAGE : "Change background image"}
+      title={copied ? COPIED_MESSAGE : "Change background image"}
+      aria-live="polite"
       onClick={async () => {
         const prompt = buildGenerateBackgroundPrompt(readThemePalette(theme));
         const ok = await copyPlainText(prompt);
@@ -32,11 +36,13 @@ export default function ChangeBackgroundButton() {
           return;
         }
         setCopied(true);
-        window.setTimeout(() => setCopied(false), 1600);
+        window.setTimeout(() => setCopied(false), 5500);
       }}
     >
-      <ImageIcon />
-      <span className="change-bg-btn-label">{copied ? "Copied" : "Bg"}</span>
+      {copied ? null : <ImageIcon />}
+      <span className="change-bg-btn-label">
+        {copied ? COPIED_MESSAGE : "Bg"}
+      </span>
     </button>
   );
 }

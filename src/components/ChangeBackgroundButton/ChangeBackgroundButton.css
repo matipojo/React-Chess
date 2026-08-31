@@ -30,8 +30,15 @@
 }
 
 .change-bg-btn.is-copied {
+  height: auto;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 8px 12px;
   background: var(--accent);
   color: #fff;
+  white-space: normal;
+  line-height: 1.35;
+  font-weight: 600;
+  text-align: start;
 }
 
 @media (max-width: 640px) {
