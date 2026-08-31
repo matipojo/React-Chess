@@ -277,6 +277,7 @@ export default function Referee() {
   );
 
   const loaded = lessons.loadedLine.current;
+  const lessonOpen = Boolean(lessons.coach || lessons.quiz || lessons.wait);
   const waitingOnUser = Boolean(lessons.wait && !lessons.wait.timedOut);
   const generatingNext = Boolean(lessons.awaitingContinuation && !waitingOnUser);
   const quizPending = Boolean(lessons.quiz && !lessons.quiz.answered);
@@ -378,6 +379,7 @@ export default function Referee() {
               onFirst={showStepNav ? lessons.stepFirst : undefined}
               onLast={showStepNav ? lessons.stepLast : undefined}
               onReset={showStepNav ? lessons.stepFirst : undefined}
+              onFinish={lessonOpen ? lessons.endLesson : undefined}
               canBack={canBack}
               canNext={canNext}
               canFirst={canFirst}

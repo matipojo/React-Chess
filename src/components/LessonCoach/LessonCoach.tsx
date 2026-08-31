@@ -70,6 +70,7 @@ type Props = {
   onFirst?: () => void;
   onLast?: () => void;
   onReset?: () => void;
+  onFinish?: () => void;
   canBack?: boolean;
   canNext?: boolean;
   canFirst?: boolean;
@@ -99,6 +100,7 @@ export default function LessonCoach({
   onFirst,
   onLast,
   onReset,
+  onFinish,
   canBack,
   canNext,
   canFirst,
@@ -369,9 +371,9 @@ export default function LessonCoach({
           </div>
         )}
       </div>
-      {(onBack || onNext || nextGenerating) && (
+      {(onBack || onNext || nextGenerating || onFinish) && (
         <div className="lesson-coach-nav-wrap">
-          {slideCount && (
+          {slideCount && (onBack || onNext || nextGenerating) && (
             <p
               className="lesson-coach-slide-count"
               dir="ltr"
@@ -381,52 +383,66 @@ export default function LessonCoach({
               {slideCount.current}/{slideCount.total}
             </p>
           )}
-          <div className="lesson-coach-nav" dir="ltr">
-          {onFirst && (
+          {(onBack || onNext || nextGenerating) && (
+            <div className="lesson-coach-nav" dir="ltr">
+              {onFirst && (
+                <button
+                  type="button"
+                  className="lesson-coach-nav-icon"
+                  aria-label="First step"
+                  title="First step"
+                  onClick={onFirst}
+                  disabled={!canFirst}
+                >
+                  <SkipStartIcon />
+                </button>
+              )}
+              <button type="button" onClick={onBack} disabled={!canBack}>
+                Back
+              </button>
+              <button
+                type="button"
+                className={
+                  nextGenerating ? "lesson-coach-next-generating" : undefined
+                }
+                onClick={onNext}
+                disabled={!canNext || nextGenerating}
+                aria-busy={nextGenerating ? true : undefined}
+                aria-label={nextGenerating ? "Generating next screen" : "Next"}
+              >
+                {nextGenerating ? (
+                  <span className="lesson-generating-label">
+                    Generating
+                    <span className="lesson-generating-dots" aria-hidden="true" />
+                  </span>
+                ) : (
+                  "Next"
+                )}
+              </button>
+              {onLast && (
+                <button
+                  type="button"
+                  className="lesson-coach-nav-icon"
+                  aria-label="Last step"
+                  title="Last step"
+                  onClick={onLast}
+                  disabled={!canLast}
+                >
+                  <SkipEndIcon />
+                </button>
+              )}
+            </div>
+          )}
+          {onFinish && (
             <button
               type="button"
-              className="lesson-coach-nav-icon"
-              aria-label="First step"
-              title="First step"
-              onClick={onFirst}
-              disabled={!canFirst}
+              className="lesson-coach-finish"
+              aria-label="Finish lesson"
+              onClick={onFinish}
             >
-              <SkipStartIcon />
+              {dir === "rtl" ? "סיום" : "Finish"}
             </button>
           )}
-          <button type="button" onClick={onBack} disabled={!canBack}>
-            Back
-          </button>
-          <button
-            type="button"
-            className={nextGenerating ? "lesson-coach-next-generating" : undefined}
-            onClick={onNext}
-            disabled={!canNext || nextGenerating}
-            aria-busy={nextGenerating ? true : undefined}
-            aria-label={nextGenerating ? "Generating next screen" : "Next"}
-          >
-            {nextGenerating ? (
-              <span className="lesson-generating-label">
-                Generating
-                <span className="lesson-generating-dots" aria-hidden="true" />
-              </span>
-            ) : (
-              "Next"
-            )}
-          </button>
-          {onLast && (
-            <button
-              type="button"
-              className="lesson-coach-nav-icon"
-              aria-label="Last step"
-              title="Last step"
-              onClick={onLast}
-              disabled={!canLast}
-            >
-              <SkipEndIcon />
-            </button>
-          )}
-          </div>
         </div>
       )}
     </aside>

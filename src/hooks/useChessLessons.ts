@@ -1856,5 +1856,6 @@ export function useChessLessons({
     clearAnnotations,
     openSavedLesson,
     deleteSavedLesson,
+    endLesson: wipeLearnSession,
   };
 }

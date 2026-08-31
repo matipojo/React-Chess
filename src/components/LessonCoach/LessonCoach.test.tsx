@@ -315,6 +315,77 @@ describe("LessonCoach", () => {
     expect(onLast).toHaveBeenCalled();
   });
 
+  it("puts Finish below the nav row so jump controls stay on their own line", () => {
+    const onFinish = jest.fn();
+    const { container, getByRole } = render(
+      <LessonCoach
+        coach={{
+          lessonTitle: "Italian Opening",
+          title: "Develop the knight",
+          body: "Develop pieces.",
+          step: 2,
+          totalSteps: 3,
+        }}
+        onBack={() => undefined}
+        onNext={() => undefined}
+        onFirst={() => undefined}
+        onLast={() => undefined}
+        onFinish={onFinish}
+        canBack
+        canNext
+        canFirst
+        canLast
+      />
+    );
+    const wrap = container.querySelector(".lesson-coach-nav-wrap");
+    const nav = container.querySelector(".lesson-coach-nav");
+    const finish = getByRole("button", { name: "Finish lesson" });
+    expect(wrap && nav && wrap.contains(nav) && wrap.contains(finish)).toBeTruthy();
+    expect(nav && nav.compareDocumentPosition(finish) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(nav && !nav.contains(finish)).toBeTruthy();
+    finish.click();
+    expect(onFinish).toHaveBeenCalled();
+  });
+
+  it("still shows Finish at the bottom when a one-step lesson has no nav", () => {
+    const onFinish = jest.fn();
+    const { container, getByRole, queryByRole } = render(
+      <LessonCoach
+        coach={{
+          title: "Knight exam",
+          body: "Click the landing squares.",
+          phase: "step",
+          step: 1,
+          totalSteps: 1,
+        }}
+        onFinish={onFinish}
+      />
+    );
+    expect(queryByRole("button", { name: "Next" })).toBeNull();
+    const wrap = container.querySelector(".lesson-coach-nav-wrap");
+    const finish = getByRole("button", { name: "Finish lesson" });
+    expect(wrap && wrap.contains(finish)).toBeTruthy();
+    expect(finish.textContent).toBe("Finish");
+  });
+
+  it("labels Finish as סיום when the lesson copy is RTL", () => {
+    const { getByRole } = render(
+      <LessonCoach
+        coach={{
+          lessonTitle: "ההגנה הסיציליאנית",
+          title: "מסע ראשון",
+          body: "השחור עונה במסע למרכז.",
+          why: "יוצרים משחק לא סימטרי.",
+          phase: "step",
+        }}
+        onFinish={() => undefined}
+      />
+    );
+    expect(getByRole("button", { name: "Finish lesson" }).textContent).toBe(
+      "סיום"
+    );
+  });
+
   it("shows a slide fraction above Back/Next and updates it", () => {
     const { getByText, rerender, queryByText } = render(
       <LessonCoach
