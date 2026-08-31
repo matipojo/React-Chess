@@ -1,16 +1,19 @@
 .tile {
   display: grid;
   place-content: center;
-  width: 75px;
-  height: 75px;
+  position: relative;
+  width: var(--tile-size, 75px);
+  height: var(--tile-size, 75px);
 }
 
 .tile .chess-piece {
-  width: 75px;
-  height: 75px;
+  position: relative;
+  z-index: 1;
+  width: var(--tile-size, 75px);
+  height: var(--tile-size, 75px);
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 75px;
+  background-size: var(--tile-size, 75px);
 }
 
 .tile .chess-piece:hover {
@@ -30,13 +33,13 @@
 }
 
 .tile img {
-  width: 60px;
+  width: calc(var(--tile-size, 75px) * 0.8);
 }
 
 .tile-highlight:not(.chess-piece-tile)::before {
   content: " ";
-  width: 20px;
-  height: 20px;
+  width: calc(var(--tile-size, 75px) * 0.27);
+  height: calc(var(--tile-size, 75px) * 0.27);
   border-radius: 50%;
   background-color: rgba(0, 0, 0, 0.4);
 }
@@ -44,8 +47,68 @@
 .tile-highlight.chess-piece-tile::before {
   position: absolute;
   content: " ";
-  width: 65px;
-  height: 65px;
+  width: calc(var(--tile-size, 75px) * 0.87);
+  height: calc(var(--tile-size, 75px) * 0.87);
   border: 5px solid rgba(0, 0, 0, 0.4);
   border-radius: 50%;
+}
+
+.tile-mark-move:not(.chess-piece-tile)::after,
+.tile-mark-key:not(.chess-piece-tile)::after {
+  content: " ";
+  width: calc(var(--tile-size, 75px) * 0.29);
+  height: calc(var(--tile-size, 75px) * 0.29);
+  border-radius: 50%;
+  background-color: rgba(66, 165, 245, 0.75);
+}
+
+.tile-mark-key:not(.chess-piece-tile)::after {
+  background-color: rgba(255, 193, 7, 0.9);
+}
+
+.tile-mark-move.chess-piece-tile,
+.tile-mark-key.chess-piece-tile,
+.tile-mark-capture,
+.tile-mark-wrong,
+.tile-mark-correct {
+  box-shadow: inset 0 0 0 5px rgba(66, 165, 245, 0.85);
+}
+
+.tile-mark-key.chess-piece-tile,
+.tile-mark-key {
+  box-shadow: inset 0 0 0 5px rgba(255, 193, 7, 0.95);
+}
+
+.tile-mark-capture {
+  box-shadow: inset 0 0 0 5px rgba(229, 57, 53, 0.9);
+}
+
+.tile-mark-wrong {
+  box-shadow: inset 0 0 0 5px rgba(229, 57, 53, 1);
+}
+
+.tile-mark-correct {
+  box-shadow: inset 0 0 0 5px var(--mark-correct);
+}
+
+.tile.tile-peek.black-tile {
+  background-color: #4fc3f7;
+}
+
+.tile.tile-peek.white-tile {
+  background-color: #b3e5fc;
+}
+
+.tile-peek-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 6;
+  pointer-events: none;
+  background: rgba(3, 155, 229, 0.38);
+  box-shadow: inset 0 0 0 3px #01579b;
+  outline: 2px dashed #e3f2fd;
+  outline-offset: -5px;
 }

@@ -2,7 +2,10 @@ type ModelContextTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  execute: (params: Record<string, unknown>) => Promise<unknown>;
+  execute: (
+    params: Record<string, unknown>,
+    options?: { signal?: AbortSignal }
+  ) => Promise<unknown>;
 };
 
 type ModelContextRegisterToolOptions = {

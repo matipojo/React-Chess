@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Position } from '../../../models/Position';
-import { GRID_SIZE } from '../../../Constants';
 import './SimpleHandAnimation.css';
 
 const HAND_APPROACH_DURATION = 1000; // 1 second for hand to reach piece from corner
@@ -23,13 +22,15 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
     const [isAnimating, setIsAnimating] = useState(false);
     const handElementRef = useRef<HTMLDivElement | null>(null);
     const pieceCloneElementRef = useRef<HTMLDivElement | null>(null);
+    const lastHandSquareRef = useRef<Position | null>(null);
 
     const convertPositionToPixels = (position: Position) => {
       if (!chessboardRef.current) return { x: 0, y: 0 };
       
       const chessboardRect = chessboardRef.current.getBoundingClientRect();
-      const baseX = position.x * GRID_SIZE + GRID_SIZE / 2;
-      const baseY = (7 - position.y) * GRID_SIZE + GRID_SIZE / 2;
+      const tile = chessboardRect.width / 8;
+      const baseX = position.x * tile + tile / 2;
+      const baseY = (7 - position.y) * tile + tile / 2;
       
       return { 
         x: chessboardRect.left + baseX, 
@@ -46,7 +47,12 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
       const sourceTile = tiles[tileIndex] as HTMLElement;
       const originalPiece = sourceTile?.querySelector('.chess-piece') as HTMLElement;
 
-      if (!originalPiece) return;
+      if (!originalPiece) {
+        if (onAnimationComplete) {
+          onAnimationComplete();
+        }
+        return;
+      }
 
       const restoreOriginalPiece = () => {
         originalPiece.style.visibility = 'visible';
@@ -56,8 +62,13 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
         const fromPixels = convertPositionToPixels(from);
         const toPixels = convertPositionToPixels(to);
 
-        // Bottom left corner of the screen
-        const startPosition = { x: 0, y: window.innerHeight };
+        const lastSquare = lastHandSquareRef.current;
+        const startPosition = lastSquare
+          ? (() => {
+              const lastPixels = convertPositionToPixels(lastSquare);
+              return { x: lastPixels.x, y: lastPixels.y - 30 };
+            })()
+          : { x: 0, y: window.innerHeight };
 
         // Keep original piece visible during hand approach, hide it when hand reaches piece
 
@@ -87,7 +98,7 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
         document.body.appendChild(pieceClone);
         pieceCloneElementRef.current = pieceClone;
 
-        // Create hand starting from bottom left corner
+        // Create hand starting from last rest position, or bottom left on first move
         const hand = document.createElement('div') as HTMLDivElement;
         hand.className = 'simple-hand-animation';
         hand.style.position = 'fixed';
@@ -127,6 +138,7 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
             // Cleanup after piece movement is complete
             setTimeout(() => {
               restoreOriginalPiece();
+              lastHandSquareRef.current = to.clone();
               
               if (pieceClone.parentNode) {
                 pieceClone.remove();

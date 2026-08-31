@@ -1,3 +1,7 @@
+export function coordinatesToNotation(x: number, y: number): string {
+  return `${String.fromCharCode("a".charCodeAt(0) + x)}${y + 1}`;
+}
+
 export function chessNotationToCoordinates(notation: string): { x: number; y: number } {
   if (!/^[a-h][1-8]$/.test(notation)) {
     throw new Error(`Invalid chess notation: ${notation}. Expected format like 'e4', 'a1', etc.`);

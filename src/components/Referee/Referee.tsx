@@ -1,16 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { initialBoard } from "../../Constants";
 import { Piece, Position } from "../../models";
 import { Board } from "../../models/Board";
-import { Pawn } from "../../models/Pawn";
 import {
   bishopMove,
-  getPossibleBishopMoves,
-  getPossibleKingMoves,
-  getPossibleKnightMoves,
-  getPossiblePawnMoves,
-  getPossibleQueenMoves,
-  getPossibleRookMoves,
   kingMove,
   knightMove,
   pawnMove,
@@ -19,8 +12,18 @@ import {
 } from "../../referee/rules";
 import { PieceType, TeamType } from "../../Types";
 import Chessboard, { ChessboardHandle } from "../Chessboard/Chessboard";
+import LessonCoach from "../LessonCoach/LessonCoach";
+import LessonCatalogMenu from "../LessonCatalogMenu/LessonCatalogMenu";
 import { Howl } from "howler";
 import { useModelContextTools } from "../../hooks/useModelContextTools";
+import { useChessLessons } from "../../hooks/useChessLessons";
+import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
+import { logLessonDebug } from "../../lessons/debugLog";
+import { shouldShowLessonNav } from "../../lessons/lessonCopy";
+import { coordinatesToNotation } from "../../utils/chess-notation-utils";
+import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
+import { useBoardTheme } from "../../hooks/useBoardTheme";
+import "./Referee.css";
 
 const moveSound = new Howl({
   src: [`${process.env.PUBLIC_URL}/sounds/move-self.mp3`],
@@ -35,109 +38,50 @@ const checkmateSound = new Howl({
 });
 
 export default function Referee() {
+  const { setCustomBackground } = useBoardTheme();
   const [board, setBoard] = useState<Board>(initialBoard.clone());
   const [promotionPawn, setPromotionPawn] = useState<Piece>();
+  const [peekSquares, setPeekSquares] = useState<string[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
   const checkmateModalRef = useRef<HTMLDivElement>(null);
   const chessboardHandleRef = useRef<ChessboardHandle>(null);
+  const boardRef = useRef<Board>(board);
+  boardRef.current = board;
 
-  function playMove(playedPiece: Piece, destination: Position): boolean {
-    // If the playing piece doesn't have any moves return
-    if (playedPiece.possibleMoves === undefined) return false;
+  const hideCheckmate = useCallback(() => {
+    checkmateModalRef.current?.classList.add("hidden");
+  }, []);
 
-    // Prevent the inactive team from playing
-    if (playedPiece.team === TeamType.OUR && board.totalTurns % 2 !== 1)
-      return false;
-    if (playedPiece.team === TeamType.OPPONENT && board.totalTurns % 2 !== 0)
-      return false;
-
-    let playedMoveIsValid = false;
-
-    const validMove = playedPiece.possibleMoves?.some((m) =>
-      m.samePosition(destination)
-    );
-
-    if (!validMove) return false;
-
-    const enPassantMove = isEnPassantMove(
-      playedPiece.position,
-      destination,
-      playedPiece.type,
-      playedPiece.team
-    );
-
-    // playMove modifies the board thus we
-    // need to call setBoard
-    setBoard(() => {
-      const clonedBoard = board.clone();
-      clonedBoard.totalTurns += 1;
-      // Playing the move
-      playedMoveIsValid = clonedBoard.playMove(
-        enPassantMove,
-        validMove,
-        playedPiece,
-        destination
-      );
-
-      if (playedMoveIsValid) {
-        moveSound.play();
-      }
-
-      if (clonedBoard.winningTeam !== undefined) {
-        checkmateModalRef.current?.classList.remove("hidden");
-        checkmateSound.play();
-      }
-
-      return clonedBoard;
+  const playMoveSync = useCallback((from: Position, to: Position): boolean => {
+    const clonedBoard = boardRef.current.clone();
+    const success = clonedBoard.tryPlayMove(from, to, {
+      ignoreTurn: clonedBoard.learnMode,
     });
-
-    // This is for promoting a pawn
-    let promotionRow = playedPiece.team === TeamType.OUR ? 7 : 0;
-
-    if (destination.y === promotionRow && playedPiece.isPawn) {
-      modalRef.current?.classList.remove("hidden");
-      setPromotionPawn((previousPromotionPawn) => {
-        const clonedPlayedPiece = playedPiece.clone();
-        clonedPlayedPiece.position = destination.clone();
-        return clonedPlayedPiece;
-      });
+    if (!success) {
+      return false;
     }
 
-    return playedMoveIsValid;
-  }
+    boardRef.current = clonedBoard;
+    setBoard(clonedBoard);
+    moveSound.play();
 
-  function isEnPassantMove(
-    initialPosition: Position,
-    desiredPosition: Position,
-    type: PieceType,
-    team: TeamType
-  ) {
-    const pawnDirection = team === TeamType.OUR ? 1 : -1;
+    if (clonedBoard.winningTeam !== undefined && !clonedBoard.learnMode) {
+      checkmateModalRef.current?.classList.remove("hidden");
+      checkmateSound.play();
+    }
 
-    if (type === PieceType.PAWN) {
-      if (
-        (desiredPosition.x - initialPosition.x === -1 ||
-          desiredPosition.x - initialPosition.x === 1) &&
-        desiredPosition.y - initialPosition.y === pawnDirection
-      ) {
-        const piece = board.pieces.find(
-          (p) =>
-            p.position.x === desiredPosition.x &&
-            p.position.y === desiredPosition.y - pawnDirection &&
-            p.isPawn &&
-            (p as Pawn).enPassant
-        );
-        if (piece) {
-          return true;
-        }
+    const moved = clonedBoard.pieces.find((piece) => piece.samePosition(to));
+    if (moved && moved.isPawn) {
+      const promotionRow = moved.team === TeamType.OUR ? 7 : 0;
+      if (to.y === promotionRow) {
+        modalRef.current?.classList.remove("hidden");
+        setPromotionPawn(moved.clone());
       }
     }
 
-    return false;
-  }
+    return true;
+  }, []);
 
-  //TODO
-  //Add stalemate!
   function isValidMove(
     initialPosition: Position,
     desiredPosition: Position,
@@ -204,7 +148,7 @@ export default function Referee() {
     }
 
     setBoard(() => {
-      const clonedBoard = board.clone();
+      const clonedBoard = boardRef.current.clone();
       clonedBoard.pieces = clonedBoard.pieces.reduce((results, piece) => {
         if (piece.samePiecePosition(promotionPawn)) {
           results.push(
@@ -217,12 +161,12 @@ export default function Referee() {
       }, [] as Piece[]);
 
       clonedBoard.calculateAllMoves();
-
+      boardRef.current = clonedBoard;
       return clonedBoard;
     });
 
     modalRef.current?.classList.add("hidden");
-  }, [board, promotionPawn]);
+  }, [promotionPawn]);
 
   function promotionTeamType() {
     return promotionPawn?.team === TeamType.OUR ? "w" : "b";
@@ -230,58 +174,228 @@ export default function Referee() {
 
   const restartGameAction = useCallback(() => {
     checkmateModalRef.current?.classList.add("hidden");
-    setBoard(initialBoard.clone());
+    const next = initialBoard.clone();
+    next.learnMode = boardRef.current.learnMode;
+    next.calculateAllMoves();
+    boardRef.current = next;
+    setBoard(next);
   }, []);
 
   const animateMove = useCallback((from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => {
+    logLessonDebug("visual", "animate-move", {
+      from: coordinatesToNotation(from.x, from.y),
+      to: coordinatesToNotation(to.x, to.y),
+      team,
+    });
     chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
   }, []);
 
+  const lessons = useChessLessons({
+    boardRef,
+    setBoard,
+    playMoveSync,
+    animateMove,
+    hideCheckmate,
+  });
+
+  function playMove(playedPiece: Piece, destination: Position): boolean {
+    const from = coordinatesToNotation(playedPiece.position.x, playedPiece.position.y);
+    const to = coordinatesToNotation(destination.x, destination.y);
+    const success = playMoveSync(playedPiece.position, destination);
+    logLessonDebug("user-move", "drop", {
+      piece: playedPiece.type,
+      team: playedPiece.team,
+      from,
+      to,
+      success,
+      learnMode: lessons.learnMode,
+    });
+    if (success && lessons.learnMode) {
+      lessons.recordLearnMove();
+    }
+    return success;
+  }
+
+  function restartGame() {
+    restartGameAction();
+    lessons.clearAnnotations();
+  }
+
   useModelContextTools({
-    board,
+    getBoard: () => boardRef.current,
     playMove,
-    restartGame: restartGameAction,
+    restartGame,
     promotePawn: promotePawnAction,
     animateMove,
+    lessons,
+    setPageBackground: (cssUrl: string | null) => ({
+      persisted: setCustomBackground(cssUrl),
+    }),
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const piece = params.get("piece");
+    const game = params.get("game");
+    lessons.enterLearnMode();
+    if (piece) {
+      try {
+        lessons.demonstratePiece(piece);
+      } catch {
+        // ignore invalid demo links
+      }
+    } else if (game) {
+      lessons.loadGame(game);
+    }
+    // Run once so a shared lesson link can open without WebMCP.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const peekArrows =
+    peekSquares.length >= 2
+      ? peekSquares.slice(0, -1).map((from) => ({
+          from,
+          to: peekSquares[peekSquares.length - 1],
+          color: "#81d4fa",
+        }))
+      : [];
+
+  const resolvePeekSquares = useCallback(
+    (ref: ChessRefPart) => {
+      return peekSquaresFromRef(
+        ref,
+        board.pieces.map((piece) => ({
+          type: piece.type,
+          square: coordinatesToNotation(piece.position.x, piece.position.y),
+          destinations: (piece.possibleMoves || []).map((move) =>
+            coordinatesToNotation(move.x, move.y)
+          ),
+        }))
+      );
+    },
+    [board]
+  );
+
+  const loaded = lessons.loadedLine.current;
+  const lessonOpen = Boolean(lessons.coach || lessons.quiz || lessons.wait);
+  const waitingOnUser = Boolean(lessons.wait && !lessons.wait.timedOut);
+  const generatingNext = Boolean(lessons.awaitingContinuation && !waitingOnUser);
+  const quizPending = Boolean(lessons.quiz && !lessons.quiz.answered);
+  const canStep = !lessons.animating && !quizPending;
+  const showStepNav = shouldShowLessonNav({
+    expectsRecap: lessons.expectsRecap,
+    generatingNext,
+    hasLineMoves: Boolean(loaded && loaded.moves.length > 0),
+  });
+  const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
+  const canFirst = canBack;
+  const canNext =
+    canStep &&
+    !generatingNext &&
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length) ||
+      waitingOnUser);
+  const canLast =
+    canStep &&
+    !waitingOnUser &&
+    !generatingNext &&
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length));
 
   return (
     <>
-      <p style={{ color: "white", fontSize: "24px", textAlign: "center" }}>
-        Total turns: {board.totalTurns}
-      </p>
-      <div className="modal hidden" ref={modalRef}>
-        <div className="modal-body">
-          <img
-            onClick={() => promotePawnAction(PieceType.ROOK)}
-            src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
+      <header className="app-header">
+        <h1 className="app-header-title">Generative Learning</h1>
+        <div className="app-header-actions">
+          <LessonCatalogMenu
+            lessons={lessons.userLessons}
+            onOpen={(id) => {
+              lessons.openSavedLesson(id);
+            }}
+            onRemove={lessons.deleteSavedLesson}
           />
-          <img
-            onClick={() => promotePawnAction(PieceType.BISHOP)}
-            src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
-          />
-          <img
-            onClick={() => promotePawnAction(PieceType.KNIGHT)}
-            src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
-          />
-          <img
-            onClick={() => promotePawnAction(PieceType.QUEEN)}
-            src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
-          />
+          <LessonDebugConsole />
         </div>
-      </div>
-      <div className="modal hidden" ref={checkmateModalRef}>
-        <div className="modal-body">
-          <div className="checkmate-body">
-            <span>
-              The winning team is{" "}
-              {board.winningTeam === TeamType.OUR ? "white" : "black"}!
-            </span>
-            <button onClick={restartGameAction}>Play again</button>
+      </header>
+      <div id="app">
+        <div className="referee referee-learn">
+          <div className="referee-board">
+            <div className="modal hidden" ref={modalRef}>
+              <div className="modal-body">
+                <img
+                  onClick={() => promotePawnAction(PieceType.ROOK)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.BISHOP)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.KNIGHT)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.QUEEN)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
+                />
+              </div>
+            </div>
+            <div className="modal hidden" ref={checkmateModalRef}>
+              <div className="modal-body">
+                <div className="checkmate-body">
+                  <span>
+                    The winning team is{" "}
+                    {board.winningTeam === TeamType.OUR ? "white" : "black"}!
+                  </span>
+                  <button onClick={restartGame}>Play again</button>
+                </div>
+              </div>
+            </div>
+            <Chessboard
+              ref={chessboardHandleRef}
+              playMove={playMove}
+              pieces={board.pieces}
+              highlights={lessons.highlights}
+              peekSquares={peekSquares}
+              arrows={[...lessons.arrows, ...peekArrows]}
+              interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
+              locked={lessons.animating}
+              onSquareClick={lessons.onSquareClick}
+            />
           </div>
+          <LessonCoach
+              coach={lessons.coach}
+              quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
+              quizFeedback={lessons.quizFeedback}
+              quizSecondsLeft={lessons.quizSecondsLeft}
+              waitPrompt={lessons.wait ? lessons.wait.prompt : undefined}
+              waitChoices={lessons.wait ? lessons.wait.choices : undefined}
+              waitTimedOut={Boolean(lessons.wait?.timedOut)}
+              onWaitChoice={lessons.onWaitChoice}
+              onHoverSquares={setPeekSquares}
+              resolvePeekSquares={resolvePeekSquares}
+              onBack={showStepNav ? lessons.stepBack : undefined}
+              onNext={showStepNav ? lessons.stepNext : undefined}
+              onFirst={showStepNav ? lessons.stepFirst : undefined}
+              onLast={showStepNav ? lessons.stepLast : undefined}
+              onReset={showStepNav ? lessons.stepFirst : undefined}
+              onFinish={lessonOpen ? lessons.endLesson : undefined}
+              canBack={canBack}
+              canNext={canNext}
+              canFirst={canFirst}
+              canLast={canLast}
+              canReset={canFirst}
+              nextGenerating={generatingNext}
+              playMoves={lessons.coachPlayMoves}
+              onPlayMove={(notation) => {
+                void lessons.playCoachMove(notation);
+              }}
+              playBusy={lessons.animating}
+              historyIndex={lessons.historyIndex}
+              historyLength={lessons.historyLength}
+            />
         </div>
       </div>
-      <Chessboard ref={chessboardHandleRef} playMove={playMove} pieces={board.pieces} />
     </>
   );
 }

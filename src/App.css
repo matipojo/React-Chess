@@ -1,6 +1,56 @@
-#app {
-    display: grid;
-    place-content: center;
-    height: 100vh;
+.page-root {
+    min-height: 100vh;
     background-color: #202020;
+    display: flex;
+    flex-direction: column;
+    --accent: #779556;
+    --accent-hover: #6a854c;
+    --accent-soft: #9ccc65;
+    --mark-correct: rgba(76, 175, 80, 1);
+}
+
+.page-root[data-custom-bg="true"] {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+.page-chrome {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 50;
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+#app {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+    .page-root {
+        min-height: 100svh;
+    }
+
+    #app {
+        align-items: flex-start;
+        padding: 12px 8px 0;
+    }
+
+    #app:has(.referee-learn) {
+        padding-bottom: min(38vh, 280px);
+    }
+
+    .page-root:has(.referee-learn) .page-chrome {
+        bottom: calc(min(38vh, 280px) + 8px);
+    }
 }
