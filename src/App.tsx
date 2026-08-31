@@ -1,5 +1,6 @@
 import './App.css';
 import './board-themes.css';
+import ChangeBackgroundButton from './components/ChangeBackgroundButton/ChangeBackgroundButton';
 import ModelContextBanner from './components/ModelContextBanner/ModelContextBanner';
 import Referee from './components/Referee/Referee';
 import { BoardThemeProvider, useBoardTheme } from './hooks/useBoardTheme';
@@ -21,6 +22,7 @@ function AppShell() {
     >
       <ModelContextBanner />
       <Referee />
+      <ChangeBackgroundButton />
     </div>
   );
 }

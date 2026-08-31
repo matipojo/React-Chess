@@ -47,35 +47,6 @@
   color: #fff;
 }
 
-.board-theme-picker-file {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  overflow: hidden;
-}
-
-.board-theme-picker-photo {
-  appearance: none;
-  border: 1px solid #3d3d3d;
-  border-radius: 8px;
-  background: transparent;
-  color: #ccc;
-  padding: 6px 9px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.board-theme-picker-photo:hover {
-  color: #fff;
-}
-
-.board-theme-picker-photo.is-active {
-  background: #3a3a3a;
-  color: #fff;
-}
-
 @media (max-width: 640px) {
   .board-theme-picker-options button {
     padding: 6px 7px;
@@ -83,8 +54,7 @@
   }
 }
 
-[data-board-theme="modern"] .board-theme-picker-options button.is-active,
-[data-board-theme="modern"] .board-theme-picker-photo.is-active {
+[data-board-theme="modern"] .board-theme-picker-options button.is-active {
   background: #4a5f38;
 }
 
@@ -92,11 +62,6 @@
   border-color: rgba(74, 42, 114, 0.55);
 }
 
-[data-board-theme="neon"] .board-theme-picker-photo {
-  border-color: rgba(74, 42, 114, 0.55);
-}
-
-[data-board-theme="neon"] .board-theme-picker-options button.is-active,
-[data-board-theme="neon"] .board-theme-picker-photo.is-active {
+[data-board-theme="neon"] .board-theme-picker-options button.is-active {
   background: var(--accent);
 }

@@ -1,9 +1,14 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  BoardThemeId,
+  persistThemeBackgrounds,
+  readThemeBackgrounds,
+  ThemeBackgroundMap,
+} from "../utils/themeBackgrounds";
 
-export type BoardThemeId = "modern" | "neon";
+export type { BoardThemeId };
 
 const STORAGE_KEY = "board-theme";
-const BACKGROUND_STORAGE_KEY = "page-background";
 
 type BoardThemeContextValue = {
   theme: BoardThemeId;
@@ -17,10 +22,7 @@ const BoardThemeContext = createContext<BoardThemeContextValue | null>(null);
 function readStoredTheme(): BoardThemeId {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (
-      stored === "modern" ||
-      stored === "neon"
-    ) {
+    if (stored === "modern" || stored === "neon") {
       return stored;
     }
   } catch {
@@ -29,21 +31,12 @@ function readStoredTheme(): BoardThemeId {
   return "neon";
 }
 
-function readStoredBackground(): string | null {
-  try {
-    const stored = window.localStorage.getItem(BACKGROUND_STORAGE_KEY);
-    if (stored && (stored.startsWith("data:image/") || /^https?:\/\//i.test(stored))) {
-      return stored;
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
 export function BoardThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<BoardThemeId>(readStoredTheme);
-  const [customBackground, setCustomBackgroundState] = useState<string | null>(readStoredBackground);
+  const [backgrounds, setBackgrounds] = useState<ThemeBackgroundMap>(() =>
+    readThemeBackgrounds(readStoredTheme())
+  );
+  const customBackground = backgrounds[theme];
 
   useEffect(() => {
     try {
@@ -54,18 +47,14 @@ export function BoardThemeProvider({ children }: { children: React.ReactNode }) 
   }, [theme]);
 
   const setCustomBackground = useCallback((cssUrl: string | null): boolean => {
-    setCustomBackgroundState(cssUrl);
-    try {
-      if (cssUrl) {
-        window.localStorage.setItem(BACKGROUND_STORAGE_KEY, cssUrl);
-      } else {
-        window.localStorage.removeItem(BACKGROUND_STORAGE_KEY);
-      }
-      return true;
-    } catch {
-      return false;
-    }
-  }, []);
+    let persisted = true;
+    setBackgrounds((current) => {
+      const next: ThemeBackgroundMap = { ...current, [theme]: cssUrl };
+      persisted = persistThemeBackgrounds(next);
+      return next;
+    });
+    return persisted;
+  }, [theme]);
 
   const value = useMemo(
     () => ({

@@ -736,7 +736,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-page-background',
         description:
-          'Sets the chess page background from an image. WebMCP tool arguments are JSON only — there is no native File transfer — so pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. If the user attached an image in this chat, encode it as base64/data URL and pass it here. Use clear: true to restore the theme background.',
+          'Saves a custom page background for the currently selected board theme only (Modern or Neon). Switching themes shows that theme’s image, or the default theme background if none was set. WebMCP tool arguments are JSON only — there is no native File transfer — so pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. If the user attached an image in this chat, encode it as base64/data URL and pass it here. Use clear: true to remove the image for the current theme only.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -755,18 +755,22 @@ export function useModelContextTools(actions: ChessActions) {
             },
             clear: {
               type: 'boolean',
-              description: 'If true, remove the custom background and use the selected board theme again.',
+              description: 'If true, remove the custom background for the current theme only.',
             },
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const theme =
+            document.querySelector('[data-board-theme]')?.getAttribute('data-board-theme') || null;
           const args = parseBackgroundToolArgs(params);
           if (args.clear) {
             actionsRef.current.setPageBackground(null);
             return {
               success: true,
-              message: 'Custom page background cleared.',
-              data: { cleared: true },
+              message: theme
+                ? `Custom page background cleared for the ${theme} theme.`
+                : 'Custom page background cleared for the current theme.',
+              data: { cleared: true, theme },
             };
           }
           const prepared = await preparePageBackground(params);
@@ -777,9 +781,9 @@ export function useModelContextTools(actions: ChessActions) {
           return {
             success: true,
             message: persisted
-              ? 'Page background updated from the image.'
-              : 'Page background updated for this session, but it was too large to save in the browser.',
-            data: { kind: prepared.kind, mimeType: prepared.mimeType || null, persisted },
+              ? `Page background saved for the ${theme || 'current'} theme.`
+              : `Page background applied for the ${theme || 'current'} theme this session, but it was too large to save in the browser.`,
+            data: { kind: prepared.kind, mimeType: prepared.mimeType || null, persisted, theme },
           };
         },
       },
