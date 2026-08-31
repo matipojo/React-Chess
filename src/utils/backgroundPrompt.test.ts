@@ -17,7 +17,7 @@ describe("buildGenerateBackgroundPrompt", () => {
     expect(prompt).toContain("#4a2a72");
     expect(prompt).toContain("#9b74d8");
     expect(prompt).toContain("set-page-background");
-    expect(prompt).toContain("currently selected theme");
-    expect(prompt).toContain("no chessboard");
+    expect(prompt).toContain("this theme only");
+    expect(prompt).toContain("No text, UI, or chess");
   });
 });

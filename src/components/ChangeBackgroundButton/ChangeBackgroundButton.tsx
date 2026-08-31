@@ -23,26 +23,31 @@ export default function ChangeBackgroundButton() {
   const [copied, setCopied] = useState(false);
 
   return (
-    <button
-      type="button"
-      className={copied ? "change-bg-btn is-copied" : "change-bg-btn"}
-      aria-label={copied ? COPIED_MESSAGE : "Change background image"}
-      title={copied ? COPIED_MESSAGE : "Change background image"}
-      aria-live="polite"
-      onClick={async () => {
-        const prompt = buildGenerateBackgroundPrompt(readThemePalette(theme));
-        const ok = await copyPlainText(prompt);
-        if (!ok) {
-          return;
-        }
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 5500);
-      }}
-    >
-      {copied ? null : <ImageIcon />}
-      <span className="change-bg-btn-label">
-        {copied ? COPIED_MESSAGE : "Bg"}
-      </span>
-    </button>
+    <div className="change-bg-wrap">
+      <button
+        type="button"
+        className={copied ? "change-bg-btn is-copied" : "change-bg-btn"}
+        aria-label="Change background image"
+        title="Change background image"
+        aria-describedby={copied ? "change-bg-tip" : undefined}
+        onClick={async () => {
+          const prompt = buildGenerateBackgroundPrompt(readThemePalette(theme));
+          const ok = await copyPlainText(prompt);
+          if (!ok) {
+            return;
+          }
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 5500);
+        }}
+      >
+        <ImageIcon />
+        <span className="change-bg-btn-label">Bg</span>
+      </button>
+      {copied ? (
+        <p id="change-bg-tip" className="change-bg-tip" role="status">
+          {COPIED_MESSAGE}
+        </p>
+      ) : null}
+    </div>
   );
 }

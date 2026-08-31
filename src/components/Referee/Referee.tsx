@@ -22,7 +22,6 @@ import { logLessonDebug } from "../../lessons/debugLog";
 import { shouldShowLessonNav } from "../../lessons/lessonCopy";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
-import BoardThemePicker from "../BoardThemePicker/BoardThemePicker";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
 import "./Referee.css";
 
@@ -307,7 +306,6 @@ export default function Referee() {
       <header className="app-header">
         <h1 className="app-header-title">Generative Learning</h1>
         <div className="app-header-actions">
-          <BoardThemePicker />
           <LessonCatalogMenu
             lessons={lessons.userLessons}
             onOpen={(id) => {

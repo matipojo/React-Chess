@@ -55,10 +55,5 @@ export function readThemePalette(theme: BoardThemeId): ThemePalette {
 }
 
 export function buildGenerateBackgroundPrompt(palette: ThemePalette): string {
-  return [
-    `Generate a full-bleed atmospheric background image for this chess page in the ${palette.theme} board theme.`,
-    "Match this palette closely: no text, no UI, no chess pieces, no chessboard.",
-    `Page ${palette.page}, accent ${palette.accent}, accent hover ${palette.accentHover}, soft accent ${palette.accentSoft}, dark squares ${palette.darkSquare}, light squares ${palette.lightSquare}.`,
-    "After the image is generated, call set-page-background with it (data URL, base64, or url) so it is saved for the currently selected theme only.",
-  ].join(" ");
+  return `Make a full-bleed background for the ${palette.theme} theme (${palette.accent}, ${palette.darkSquare}, ${palette.lightSquare}). No text, UI, or chess. Then call set-page-background for this theme only.`;
 }

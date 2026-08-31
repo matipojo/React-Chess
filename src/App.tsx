@@ -1,5 +1,6 @@
 import './App.css';
 import './board-themes.css';
+import BoardThemePicker from './components/BoardThemePicker/BoardThemePicker';
 import ChangeBackgroundButton from './components/ChangeBackgroundButton/ChangeBackgroundButton';
 import ModelContextBanner from './components/ModelContextBanner/ModelContextBanner';
 import Referee from './components/Referee/Referee';
@@ -22,7 +23,10 @@ function AppShell() {
     >
       <ModelContextBanner />
       <Referee />
-      <ChangeBackgroundButton />
+      <div className="page-chrome">
+        <BoardThemePicker />
+        <ChangeBackgroundButton />
+      </div>
     </div>
   );
 }
