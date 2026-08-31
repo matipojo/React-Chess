@@ -3,10 +3,15 @@ import { CoachState, WaitChoice } from "../../lessons/types";
 import { CoachPlayMove } from "../../lessons/stepPlay";
 import { lessonSlideCounter } from "../../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../../lessons/coachParagraphs";
-import { copyWaitChoice } from "../../lessons/waitForUser";
+import { copyPlainText, copyWaitChoice } from "../../lessons/waitForUser";
 import { detectTextDirection } from "../../utils/text-direction";
 import ChessLinkedText from "./ChessLinkedText";
 import { ChessRefPart } from "../../utils/chess-text-links";
+import {
+  buildCodexPromptHref,
+  EXAMPLE_LESSON_PROMPTS,
+  isCodexHost,
+} from "../../utils/codexPrompt";
 import "./LessonCoach.css";
 
 function uncoveredMoveText(
@@ -115,17 +120,52 @@ export default function LessonCoach({
 }: Props) {
   const [copiedId, setCopiedId] = useState<string>("");
   const waiting = Boolean(waitPrompt && waitChoices && waitChoices.length > 0);
+  const openInCodex = isCodexHost();
 
   if (!coach && !quizQuestion && !waiting) {
     return (
       <aside className="lesson-coach">
         <div className="lesson-coach-handle" aria-hidden="true" />
-        <div className="lesson-coach-content">
-          <p className="lesson-coach-kicker">Learn</p>
-          <h2>Ask the agent</h2>
+        <div className="lesson-coach-content lesson-coach-empty">
+          <p className="lesson-coach-kicker">Generative Learning</p>
+          <h2>Your turn, generate your lesson</h2>
+          <div className="lesson-coach-examples">
+            {EXAMPLE_LESSON_PROMPTS.map((prompt) =>
+              openInCodex ? (
+                <a
+                  key={prompt}
+                  className="lesson-coach-example"
+                  href={buildCodexPromptHref(prompt)}
+                >
+                  {prompt}
+                </a>
+              ) : (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="lesson-coach-example"
+                  onClick={async () => {
+                    const ok = await copyPlainText(prompt);
+                    if (!ok) {
+                      return;
+                    }
+                    setCopiedId(prompt);
+                    window.setTimeout(() => setCopiedId(""), 2000);
+                  }}
+                >
+                  {copiedId === prompt ? "Copied" : prompt}
+                </button>
+              )
+            )}
+          </div>
           <p>
-            Try: “how does a knight move?”, “show Scholar’s Mate”, or “quiz me
-            on forks.”
+            Everything you learn here is created in the chat. Tell the agent
+            what you want to study, and it builds a lesson with steps that match
+            your request.
+          </p>
+          <p>
+            When you are ready, it can also quiz you on any topic you have
+            already covered.
           </p>
         </div>
       </aside>

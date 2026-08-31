@@ -154,6 +154,46 @@
   font-weight: 700;
 }
 
+.lesson-coach-empty h2 {
+  font-size: 20px;
+}
+
+.lesson-coach-empty-hint {
+  margin-top: 4px;
+  color: #cfcfcf;
+  font-size: 14px;
+}
+
+.lesson-coach-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.lesson-coach-example {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lesson-coach-example:hover {
+  background: var(--accent-hover);
+}
+
 .lesson-coach-topic {
   margin: 0 0 8px;
   font-size: 13px;

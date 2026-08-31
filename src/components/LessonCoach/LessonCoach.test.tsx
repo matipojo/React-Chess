@@ -2,6 +2,42 @@ import { render, waitFor } from "@testing-library/react";
 import LessonCoach from "./LessonCoach";
 
 describe("LessonCoach", () => {
+  it("explains generative learning when no lesson is open", () => {
+    const { getByText, getByRole } = render(<LessonCoach coach={null} />);
+    expect(getByText("Generative Learning")).toBeTruthy();
+    expect(getByText("Your turn, generate your lesson")).toBeTruthy();
+    expect(
+      getByText(
+        /Everything you learn here is created in the chat/
+      )
+    ).toBeTruthy();
+    expect(
+      getByText(/it can also quiz you on any topic you have already covered/)
+    ).toBeTruthy();
+    expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
+    expect(getByRole("button", { name: "show Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "quiz me on forks" })).toBeTruthy();
+  });
+
+  it("opens example prompts with codex:// when the host is Codex", () => {
+    const original = navigator.userAgent;
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      get: () => "Mozilla/5.0 Codex/1.0",
+    });
+    try {
+      const { getByRole } = render(<LessonCoach coach={null} />);
+      expect(
+        getByRole("link", { name: "how does a knight move?" }).getAttribute("href")
+      ).toBe("codex://new?prompt=how%20does%20a%20knight%20move%3F");
+    } finally {
+      Object.defineProperty(navigator, "userAgent", {
+        configurable: true,
+        get: () => original,
+      });
+    }
+  });
+
   it("renders each coach paragraph as its own block", () => {
     const { container } = render(
       <LessonCoach
