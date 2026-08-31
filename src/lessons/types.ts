@@ -19,10 +19,17 @@ export type BoardArrow = {
 
 export type CoachState = {
   title: string;
+  lessonTitle?: string;
   body: string;
   paragraphs?: string[];
+  what?: string;
+  why?: string;
+  lesson?: number;
   step?: number;
   totalSteps?: number;
+  phase?: "goal" | "step" | "recap";
+  moves?: string[];
+  fromFen?: string;
 };
 
 export type QuizState = {
@@ -30,6 +37,14 @@ export type QuizState = {
   type: "click-square" | "click-piece" | "choose-move";
   correct: string[];
   hint?: string;
+  timedOut?: boolean;
+  answered?: boolean;
+};
+
+export type QuizResult = {
+  correct: boolean;
+  square: string;
+  timedOut?: boolean;
 };
 
 export type WaitChoice = {
@@ -68,12 +83,38 @@ export type LoadedLine = {
 
 export type SavedLessonKind = "game" | "piece" | "custom";
 
+export type SavedLessonStep = {
+  title: string;
+  body: string;
+  paragraphs?: string[];
+  what?: string;
+  why?: string;
+  kind?: "step" | "recap" | "summary";
+  moves?: string[];
+  fen?: string;
+  highlights?: BoardHighlight[];
+  arrows?: BoardArrow[];
+  quiz?: QuizState;
+  ply?: number;
+};
+
+export type LessonRecap = {
+  title?: string;
+  body?: string;
+  paragraphs: string[];
+};
+
 export type SavedLesson = {
   id: string;
   kind: SavedLessonKind;
   title: string;
   body: string;
   savedAt: number;
+  number?: number;
+  steps?: SavedLessonStep[];
+  recap?: LessonRecap;
+  activeStep?: number;
+  paragraphs?: string[];
   gameId?: string;
   moves?: string[];
   notes?: { ply: number; text: string }[];

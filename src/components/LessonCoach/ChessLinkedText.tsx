@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { CoachPlayMove, matchPlayMove } from "../../lessons/stepPlay";
 import {
   ChessRefPart,
   ChessTextPart,
@@ -12,16 +13,33 @@ type Props = {
   text: string;
   onHoverSquares?: (squares: string[]) => void;
   resolvePeekSquares?: (ref: ChessRefPart) => string[];
+  playMoves?: CoachPlayMove[];
+  onPlayMove?: (notation: string) => void;
+  playBusy?: boolean;
 };
+
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+      <path fill="currentColor" d="M3.2 1.6v8.8L10.4 6z" />
+    </svg>
+  );
+}
 
 function ChessParts({
   parts,
   onHoverSquares,
   resolvePeekSquares,
+  playMoves,
+  onPlayMove,
+  playBusy,
 }: {
   parts: ChessTextPart[];
   onHoverSquares?: (squares: string[]) => void;
   resolvePeekSquares?: (ref: ChessRefPart) => string[];
+  playMoves?: CoachPlayMove[];
+  onPlayMove?: (notation: string) => void;
+  playBusy?: boolean;
 }) {
   return (
     <>
@@ -33,25 +51,42 @@ function ChessParts({
         const squares = resolvePeekSquares
           ? resolvePeekSquares(part)
           : part.squares;
+        const play = matchPlayMove(playMoves, part.value, part.squares, part.dest);
 
         return (
-          <button
-            key={index}
-            type="button"
-            className="chess-ref"
-            dir="ltr"
-            onClick={(event) => event.stopPropagation()}
-            onPointerEnter={() => onHoverSquares?.(squares)}
-            onPointerLeave={(event) => {
-              if (event.currentTarget !== document.activeElement) {
-                onHoverSquares?.([]);
-              }
-            }}
-            onFocus={() => onHoverSquares?.(squares)}
-            onBlur={() => onHoverSquares?.([])}
-          >
-            {part.value}
-          </button>
+          <span key={index} className="chess-ref-wrap">
+            <button
+              type="button"
+              className="chess-ref"
+              dir="ltr"
+              onClick={(event) => event.stopPropagation()}
+              onPointerEnter={() => onHoverSquares?.(squares)}
+              onPointerLeave={(event) => {
+                if (event.currentTarget !== document.activeElement) {
+                  onHoverSquares?.([]);
+                }
+              }}
+              onFocus={() => onHoverSquares?.(squares)}
+              onBlur={() => onHoverSquares?.([])}
+            >
+              {part.value}
+            </button>
+            {play && play.status === "ready" && onPlayMove && (
+              <button
+                type="button"
+                className="lesson-play-move"
+                dir="ltr"
+                disabled={playBusy}
+                aria-label={`Play ${play.notation}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPlayMove(play.notation);
+                }}
+              >
+                <PlayIcon />
+              </button>
+            )}
+          </span>
         );
       })}
     </>
@@ -62,10 +97,16 @@ function CoachLine({
   line,
   onHoverSquares,
   resolvePeekSquares,
+  playMoves,
+  onPlayMove,
+  playBusy,
 }: {
   line: string;
   onHoverSquares?: (squares: string[]) => void;
   resolvePeekSquares?: (ref: ChessRefPart) => string[];
+  playMoves?: CoachPlayMove[];
+  onPlayMove?: (notation: string) => void;
+  playBusy?: boolean;
 }) {
   const { dir } = detectTextDirection(line);
   const groups = groupLtrRuns(tokenizeChessText(line));
@@ -84,6 +125,9 @@ function CoachLine({
               parts={group.parts}
               onHoverSquares={onHoverSquares}
               resolvePeekSquares={resolvePeekSquares}
+              playMoves={playMoves}
+              onPlayMove={onPlayMove}
+              playBusy={playBusy}
             />
           </bdi>
         );
@@ -96,6 +140,9 @@ export default function ChessLinkedText({
   text,
   onHoverSquares,
   resolvePeekSquares,
+  playMoves,
+  onPlayMove,
+  playBusy,
 }: Props) {
   const lines = splitTextLines(text);
   if (lines.length === 0) {
@@ -110,6 +157,9 @@ export default function ChessLinkedText({
           line={line}
           onHoverSquares={onHoverSquares}
           resolvePeekSquares={resolvePeekSquares}
+          playMoves={playMoves}
+          onPlayMove={onPlayMove}
+          playBusy={playBusy}
         />
       ))}
     </>

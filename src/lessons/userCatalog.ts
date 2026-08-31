@@ -1,4 +1,4 @@
-import { SavedLesson } from "./types";
+import { SavedLesson, SavedLessonStep } from "./types";
 
 export const USER_CATALOG_KEY = "webmcp-chess-user-lessons";
 
@@ -9,6 +9,27 @@ export function lessonSlug(title: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug || "lesson";
+}
+
+export function customLessonId(lessonNumber: number): string {
+  return `custom:lesson-${lessonNumber}`;
+}
+
+export function parseCustomLessonNumber(id: string): number | undefined {
+  const match = /^custom:lesson-(\d+)$/.exec(id);
+  if (!match) {
+    return undefined;
+  }
+  const value = Number(match[1]);
+  return Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function isSavedLessonStep(value: unknown): value is SavedLessonStep {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const item = value as SavedLessonStep;
+  return typeof item.title === "string" && typeof item.body === "string";
 }
 
 function isSavedLesson(value: unknown): value is SavedLesson {
@@ -25,8 +46,93 @@ function isSavedLesson(value: unknown): value is SavedLesson {
   );
 }
 
+function cloneStep(step: SavedLessonStep): SavedLessonStep {
+  return {
+    title: step.title,
+    body: step.body,
+    paragraphs: step.paragraphs ? [...step.paragraphs] : undefined,
+    what: step.what,
+    why: step.why,
+    kind: step.kind,
+    moves: step.moves ? [...step.moves] : undefined,
+    fen: step.fen,
+    highlights: step.highlights ? step.highlights.map((item) => ({ ...item })) : undefined,
+    arrows: step.arrows ? step.arrows.map((item) => ({ ...item })) : undefined,
+    quiz: step.quiz
+      ? { ...step.quiz, correct: [...step.quiz.correct] }
+      : undefined,
+    ply: step.ply,
+  };
+}
+
+function legacyAsStep(item: SavedLesson): SavedLessonStep {
+  return cloneStep({
+    title: item.title,
+    body: item.body,
+    paragraphs: item.paragraphs,
+    fen: item.fen,
+    highlights: item.highlights,
+    arrows: item.arrows,
+    quiz: item.quiz,
+    ply: item.ply,
+  });
+}
+
+export function lessonSteps(item: SavedLesson): SavedLessonStep[] {
+  if (Array.isArray(item.steps)) {
+    return item.steps.filter(isSavedLessonStep).map(cloneStep);
+  }
+  return [legacyAsStep(item)];
+}
+
+function flattenFromStep(
+  step: SavedLessonStep
+): Pick<SavedLesson, "fen" | "highlights" | "arrows" | "quiz" | "ply"> {
+  return {
+    fen: step.fen,
+    highlights: step.highlights,
+    arrows: step.arrows,
+    quiz: step.quiz,
+    ply: step.ply,
+  };
+}
+
 function writeCatalog(lessons: SavedLesson[]) {
   localStorage.setItem(USER_CATALOG_KEY, JSON.stringify(lessons));
+}
+
+function assignLessonNumbers(lessons: SavedLesson[]): SavedLesson[] {
+  const used = new Set<number>();
+  for (const item of lessons) {
+    const fromField =
+      typeof item.number === "number" && item.number > 0 ? item.number : undefined;
+    const fromId = parseCustomLessonNumber(item.id);
+    const number = fromField || fromId;
+    if (number) {
+      used.add(number);
+    }
+  }
+  let next = 1;
+  const takeNext = () => {
+    while (used.has(next)) {
+      next += 1;
+    }
+    used.add(next);
+    return next;
+  };
+  return lessons.map((item) => {
+    if (typeof item.number === "number" && item.number > 0) {
+      return item;
+    }
+    const fromId = parseCustomLessonNumber(item.id);
+    if (fromId) {
+      return { ...item, number: fromId };
+    }
+    if (item.kind !== "custom") {
+      return item;
+    }
+    return { ...item, number: takeNext() };
+  });
 }
 
 export function readUserCatalog(): SavedLesson[] {
@@ -39,12 +145,47 @@ export function readUserCatalog(): SavedLesson[] {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    return parsed
+    const lessons = parsed
       .filter(isSavedLesson)
+      .map((item) => ({
+        ...item,
+        steps: item.steps ? item.steps.filter(isSavedLessonStep) : undefined,
+      }))
       .sort((a, b) => b.savedAt - a.savedAt);
+    return assignLessonNumbers(lessons);
   } catch {
     return [];
   }
+}
+
+export function nextLessonNumber(lessons = readUserCatalog()): number {
+  let max = 0;
+  for (const item of lessons) {
+    const n = item.number || parseCustomLessonNumber(item.id) || 0;
+    if (n > max) {
+      max = n;
+    }
+  }
+  return max + 1;
+}
+
+export function createCatalogLesson(args: {
+  title: string;
+  body?: string;
+  paragraphs?: string[];
+}): SavedLesson {
+  const number = nextLessonNumber();
+  upsertUserLesson({
+    id: customLessonId(number),
+    kind: "custom",
+    title: args.title.trim() || "Lesson",
+    body: args.body || "",
+    paragraphs: args.paragraphs,
+    number,
+    steps: [],
+    activeStep: 0,
+  });
+  return findUserLessonByNumber(number)!;
 }
 
 export function upsertUserLesson(
@@ -63,8 +204,114 @@ export function findUserLesson(id: string): SavedLesson | undefined {
     (item) =>
       item.id.toLowerCase() === needle ||
       item.title.toLowerCase() === needle ||
-      (item.gameId && item.gameId.toLowerCase() === needle)
+      (item.gameId && item.gameId.toLowerCase() === needle) ||
+      (item.number !== undefined && String(item.number) === needle)
   );
+}
+
+export function findUserLessonByNumber(lessonNumber: number): SavedLesson | undefined {
+  return readUserCatalog().find(
+    (item) =>
+      item.number === lessonNumber ||
+      parseCustomLessonNumber(item.id) === lessonNumber
+  );
+}
+
+export type UpsertLessonStepInput = {
+  lessonNumber: number;
+  step: SavedLessonStep;
+  /** 1-based. Omit to append a new step. */
+  stepNumber?: number;
+  /** Update the current/last step instead of adding one. */
+  patch?: boolean;
+  lessonTitle?: string;
+  kind?: SavedLesson["kind"];
+  gameId?: string;
+  moves?: string[];
+  notes?: SavedLesson["notes"];
+  piece?: string;
+  square?: string;
+  color?: string;
+};
+
+export function upsertLessonStep(input: UpsertLessonStepInput): SavedLesson[] {
+  const existing = findUserLessonByNumber(input.lessonNumber);
+  const steps = existing ? lessonSteps(existing) : [];
+  const incoming = cloneStep(input.step);
+
+  let index: number;
+  if (input.patch) {
+    const active =
+      existing && typeof existing.activeStep === "number"
+        ? existing.activeStep - 1
+        : steps.length - 1;
+    index = Math.max(0, active);
+    if (steps.length === 0) {
+      steps.push(incoming);
+      index = 0;
+    } else {
+      steps[index] = incoming;
+    }
+  } else if (typeof input.stepNumber === "number" && input.stepNumber > 0) {
+    index = input.stepNumber - 1;
+    if (index < steps.length) {
+      steps[index] = incoming;
+    } else {
+      steps.push(incoming);
+      index = steps.length - 1;
+    }
+  } else {
+    const teaching = steps.filter(
+      (item) => item.kind !== "summary" && item.kind !== "recap"
+    );
+    teaching.push(incoming);
+    steps.length = 0;
+    steps.push(...teaching);
+    index = steps.length - 1;
+  }
+
+  const currentStep = steps[index];
+  const lessonTitle =
+    input.lessonTitle || existing?.title || currentStep.title;
+  const nextItem: Omit<SavedLesson, "savedAt"> = {
+    id: existing ? existing.id : customLessonId(input.lessonNumber),
+    kind: input.kind || existing?.kind || "custom",
+    title: lessonTitle,
+    body: existing?.body || currentStep.body,
+    paragraphs: existing?.paragraphs,
+    recap: existing?.recap,
+    number: input.lessonNumber,
+    steps,
+    activeStep: index + 1,
+    gameId: input.gameId !== undefined ? input.gameId : existing?.gameId,
+    moves: input.moves !== undefined ? input.moves : existing?.moves,
+    notes: input.notes !== undefined ? input.notes : existing?.notes,
+    piece: input.piece !== undefined ? input.piece : existing?.piece,
+    square: input.square !== undefined ? input.square : existing?.square,
+    color: input.color !== undefined ? input.color : existing?.color,
+    ...flattenFromStep(currentStep),
+  };
+
+  return upsertUserLesson(nextItem);
+}
+
+export function setLessonRecap(
+  lessonNumber: number,
+  recap: { title?: string; paragraphs: string[]; body?: string }
+): SavedLesson[] {
+  const existing = findUserLessonByNumber(lessonNumber);
+  if (!existing) {
+    return readUserCatalog();
+  }
+  const { savedAt: _savedAt, ...rest } = existing;
+  return upsertUserLesson({
+    ...rest,
+    recap: {
+      title: recap.title,
+      paragraphs: recap.paragraphs,
+      body: recap.body || recap.paragraphs.join("\n\n"),
+    },
+  });
 }
 
 export function removeUserLesson(id: string): SavedLesson[] {
