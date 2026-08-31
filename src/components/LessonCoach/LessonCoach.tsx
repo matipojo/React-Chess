@@ -115,7 +115,7 @@ export default function LessonCoach({
         <div className="lesson-coach-handle" aria-hidden="true" />
         <div className="lesson-coach-content">
           <p className="lesson-coach-kicker">Learn</p>
-          <h2>Ask the assistant</h2>
+          <h2>Ask the agent</h2>
           <p>
             Try: “how does a knight move?”, “show Scholar’s Mate”, or “quiz me
             on forks.”
@@ -316,7 +316,7 @@ export default function LessonCoach({
             </p>
             {waitTimedOut && (
               <p className="lesson-coach-hint">
-                The assistant stopped waiting. Copy an answer and paste it in chat.
+                The agent stopped waiting. Copy an answer and paste it in chat.
               </p>
             )}
             <div className="lesson-coach-choices">
