@@ -161,4 +161,28 @@ describe("user catalog", () => {
     setLessonRecap(1, { title: "Takeaways", paragraphs: ["Recap v2"] });
     expect(findUserLessonByNumber(1)?.recap?.paragraphs).toEqual(["Recap v2"]);
   });
+
+  it("stores a riddle step with its quiz on the numbered lesson", () => {
+    createCatalogLesson({ title: "Knight forks", body: "Tactics." });
+    upsertLessonStep({
+      lessonNumber: 1,
+      lessonTitle: "Knight forks",
+      step: {
+        title: "Find the fork",
+        body: "",
+        kind: "riddle",
+        quiz: {
+          question: "Click the fork square.",
+          type: "click-square",
+          correct: ["c7"],
+          hint: "Look at the queen.",
+        },
+      },
+    });
+    const lesson = findUserLessonByNumber(1);
+    expect(lesson?.steps).toHaveLength(1);
+    expect(lesson?.steps?.[0].kind).toBe("riddle");
+    expect(lesson?.steps?.[0].quiz?.correct).toEqual(["c7"]);
+    expect(lesson?.steps?.[0].quiz?.question).toBe("Click the fork square.");
+  });
 });

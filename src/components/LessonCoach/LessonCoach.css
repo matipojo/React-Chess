@@ -356,6 +356,8 @@
 
 .lesson-coach-copy {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
   background: #3d3d3d;
   color: #fff;
   border: 1px solid var(--accent);
@@ -364,6 +366,7 @@
   font: inherit;
   font-size: 13px;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
 }
 

@@ -3,7 +3,10 @@ import { CoachState, WaitChoice } from "../../lessons/types";
 import { CoachPlayMove } from "../../lessons/stepPlay";
 import { lessonSlideCounter } from "../../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../../lessons/coachParagraphs";
-import { copyPlainText, copyWaitChoice } from "../../lessons/waitForUser";
+import {
+  copyPlainText,
+  formatWaitChoiceCopy,
+} from "../../lessons/waitForUser";
 import { detectTextDirection } from "../../utils/text-direction";
 import ChessLinkedText from "./ChessLinkedText";
 import { ChessRefPart } from "../../utils/chess-text-links";
@@ -11,6 +14,8 @@ import {
   buildCodexPromptHref,
   EXAMPLE_LESSON_PROMPTS,
   isCodexHost,
+  openCodexPrompt,
+  sharePromptWithHost,
 } from "../../utils/codexPrompt";
 import "./LessonCoach.css";
 
@@ -136,6 +141,10 @@ export default function LessonCoach({
                   key={prompt}
                   className="lesson-coach-example"
                   href={buildCodexPromptHref(prompt)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openCodexPrompt(prompt);
+                  }}
                 >
                   {prompt}
                 </a>
@@ -145,8 +154,11 @@ export default function LessonCoach({
                   type="button"
                   className="lesson-coach-example"
                   onClick={async () => {
-                    const ok = await copyPlainText(prompt);
-                    if (!ok) {
+                    const result = await sharePromptWithHost(
+                      prompt,
+                      copyPlainText
+                    );
+                    if (result !== "copied") {
                       return;
                     }
                     setCopiedId(prompt);
@@ -208,14 +220,16 @@ export default function LessonCoach({
       .join("\n")
   );
 
-  async function copyChoice(choice: WaitChoice) {
-    const ok = await copyWaitChoice(waitPrompt || "", choice);
-    if (ok) {
-      setCopiedId(choice.id);
-      window.setTimeout(() => {
-        setCopiedId((current) => (current === choice.id ? "" : current));
-      }, 1500);
+  async function shareChoice(choice: WaitChoice) {
+    const text = formatWaitChoiceCopy(waitPrompt || "", choice);
+    const result = await sharePromptWithHost(text, copyPlainText);
+    if (result !== "copied") {
+      return;
     }
+    setCopiedId(choice.id);
+    window.setTimeout(() => {
+      setCopiedId((current) => (current === choice.id ? "" : current));
+    }, 1500);
   }
 
   return (
@@ -264,6 +278,9 @@ export default function LessonCoach({
             )}
             {coach.phase === "step" && (
               <p className="lesson-coach-recap-label">Step</p>
+            )}
+            {coach.phase === "riddle" && (
+              <p className="lesson-coach-recap-label">Riddle</p>
             )}
             {coach.phase === "recap" && (
               <p className="lesson-coach-recap-label">Recap</p>
@@ -374,7 +391,7 @@ export default function LessonCoach({
                       dir={choiceDir}
                       onClick={() => {
                         if (waitTimedOut) {
-                          void copyChoice(choice);
+                          void shareChoice(choice);
                           return;
                         }
                         onWaitChoice?.(choice.id, choice.label);
@@ -385,7 +402,7 @@ export default function LessonCoach({
                         }
                         event.preventDefault();
                         if (waitTimedOut) {
-                          void copyChoice(choice);
+                          void shareChoice(choice);
                           return;
                         }
                         onWaitChoice?.(choice.id, choice.label);
@@ -397,13 +414,28 @@ export default function LessonCoach({
                         resolvePeekSquares={resolvePeekSquares}
                       />
                     </div>
-                    <button
-                      type="button"
-                      className="lesson-coach-copy"
-                      onClick={() => void copyChoice(choice)}
-                    >
-                      {copiedId === choice.id ? "Copied" : "Copy"}
-                    </button>
+                    {openInCodex ? (
+                      <a
+                        className="lesson-coach-copy"
+                        href={buildCodexPromptHref(
+                          formatWaitChoiceCopy(waitPrompt || "", choice)
+                        )}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          void shareChoice(choice);
+                        }}
+                      >
+                        Open
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="lesson-coach-copy"
+                        onClick={() => void shareChoice(choice)}
+                      >
+                        {copiedId === choice.id ? "Copied" : "Copy"}
+                      </button>
+                    )}
                   </div>
                 );
               })}

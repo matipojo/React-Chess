@@ -2,6 +2,7 @@ import { boardToFen, startingLearnBoard } from "../utils/board-setup";
 import {
   contentLesson,
   contentQuiz,
+  fenAfterTeaching,
   lastTeachingSlideIndex,
   projectLessonSession,
 } from "./lessonDocument";
@@ -83,5 +84,52 @@ describe("lesson document vs session", () => {
     expect(slides[2].fen.includes("4P")).toBe(true);
     expect(slides[1].quiz?.answered).toBeUndefined();
     expect(lastTeachingSlideIndex(slides)).toBe(2);
+    expect(fenAfterTeaching(italian(), start)).toBe(slides[slides.length - 1].fen);
+  });
+
+  it("uses the starting fen for the next step when the lesson has only a goal", () => {
+    const start = boardToFen(startingLearnBoard());
+    const lesson: SavedLesson = {
+      id: "custom:lesson-2",
+      kind: "custom",
+      title: "Only a goal",
+      body: "We will learn the Italian.",
+      savedAt: 1,
+      number: 2,
+      steps: [],
+    };
+    expect(fenAfterTeaching(lesson, start).split(" ")[0]).toBe(start.split(" ")[0]);
+  });
+
+  it("keeps riddle steps as riddles when projecting a session", () => {
+    const start = boardToFen(startingLearnBoard());
+    const lesson: SavedLesson = {
+      id: "custom:lesson-3",
+      kind: "custom",
+      title: "Knight forks",
+      body: "Find hanging royals.",
+      savedAt: 1,
+      number: 3,
+      steps: [
+        {
+          title: "Find the fork",
+          body: "",
+          kind: "riddle",
+          quiz: {
+            question: "Click the fork square.",
+            type: "click-square",
+            correct: ["c7"],
+          },
+          fen: start,
+        },
+      ],
+    };
+    const content = contentLesson(lesson);
+    expect(content.steps?.[0].kind).toBe("riddle");
+    const slides = projectLessonSession(lesson, start);
+    expect(slides.map((slide) => slide.coach?.phase)).toEqual(["goal", "riddle"]);
+    expect(slides[1].quiz?.question).toBe("Click the fork square.");
+    expect(slides[1].coach?.what).toBeUndefined();
+    expect(lastTeachingSlideIndex(slides)).toBe(1);
   });
 });

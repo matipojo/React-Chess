@@ -27,7 +27,7 @@ export type CoachState = {
   lesson?: number;
   step?: number;
   totalSteps?: number;
-  phase?: "goal" | "step" | "recap";
+  phase?: "goal" | "step" | "riddle" | "recap";
   moves?: string[];
   fromFen?: string;
 };
@@ -89,7 +89,7 @@ export type SavedLessonStep = {
   paragraphs?: string[];
   what?: string;
   why?: string;
-  kind?: "step" | "recap" | "summary";
+  kind?: "step" | "riddle" | "recap" | "summary";
   moves?: string[];
   fen?: string;
   highlights?: BoardHighlight[];

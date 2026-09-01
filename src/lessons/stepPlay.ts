@@ -34,7 +34,7 @@ export function fromToNotation(
   squares: string[],
   dest?: string
 ): string | null {
-  const castleToken = raw.replace(/\s/g, "");
+  const castleToken = raw.replace(/\s/g, "").replace(/^\d+\.{1,3}/, "");
   if (/^(O-O-O|0-0-0)/i.test(castleToken)) {
     return "O-O-O";
   }
@@ -44,10 +44,10 @@ export function fromToNotation(
   if (dest && squares.length >= 2 && /^[a-h][1-8]$/.test(squares[0]) && squares[0] !== dest) {
     return `${squares[0]}:${dest}`;
   }
-  const compact = raw.replace(/\s/g, "");
-  const coord = compact.match(/^([a-h][1-8])[-:x–—→]([a-h][1-8])/i);
-  if (coord) {
-    return `${coord[1].toLowerCase()}:${coord[2].toLowerCase()}`;
+  const compact = raw.replace(/\s/g, "").replace(/^\d+\.{1,3}/, "");
+  const lan = compact.match(/^(?:[NBRQK])?([a-h][1-8])[-:x–—→]([a-h][1-8])/i);
+  if (lan) {
+    return `${lan[1].toLowerCase()}:${lan[2].toLowerCase()}`;
   }
   return null;
 }
