@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import "./PointerHandAnimation.css";
 
 export const HAND_APPROACH_MS = 1000;
@@ -29,7 +29,6 @@ function setHandPosition(hand: HTMLDivElement, point: ScreenPoint) {
 
 const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
   function PointerHandAnimation({ onAnimationComplete }, ref) {
-    const [isAnimating, setIsAnimating] = useState(false);
     const handElementRef = useRef<HTMLDivElement | null>(null);
     const timersRef = useRef<number[]>([]);
     const lastRestRef = useRef<ScreenPoint | null>(null);
@@ -60,7 +59,6 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
       cleanupVisuals();
       lastRestRef.current = null;
       progressRef.current = undefined;
-      setIsAnimating(false);
     };
 
     const playDrag = (
@@ -87,7 +85,6 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
       setHandPosition(hand, start);
       document.body.appendChild(hand);
       handElementRef.current = hand;
-      setIsAnimating(true);
 
       schedule(() => {
         setHandPosition(hand, from);
@@ -111,7 +108,6 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
             progressRef.current?.(1);
             lastRestRef.current = to;
             cleanupVisuals();
-            setIsAnimating(false);
             progressRef.current = undefined;
             options?.onComplete?.();
             onAnimationComplete?.();
