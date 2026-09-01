@@ -108,11 +108,17 @@ export function shouldShowLessonNav(input: {
   generatingNext: boolean;
   hasLineMoves: boolean;
   isShowme?: boolean;
+  stepCount?: number;
 }): boolean {
   if (input.isShowme) {
     return false;
   }
-  return input.generatingNext || input.expectsRecap || input.hasLineMoves;
+  return (
+    input.generatingNext ||
+    input.expectsRecap ||
+    input.hasLineMoves ||
+    (typeof input.stepCount === "number" && input.stepCount > 1)
+  );
 }
 
 export function lessonSlideCounter(input: {

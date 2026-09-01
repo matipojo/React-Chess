@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { allObjectIds, cloneFigure, defaultScalene, moveFreePoint } from "../geometry/figure";
-import { applyGan } from "../geometry/gan";
+import { applyGan, parseGanCommand } from "../geometry/gan";
 import { ganAnswerIsCorrect } from "../geometry/hitTest";
 import { figureSummary, measureFigure } from "../geometry/measure";
 import { COACH_GAN_RULE } from "../geometry/notation";
@@ -51,6 +51,43 @@ type Snapshot = {
 
 function cloneCoach(coach: CoachState | null): CoachState | null {
   return coach ? { ...coach, paragraphs: coach.paragraphs ? [...coach.paragraphs] : undefined, moves: coach.moves ? [...coach.moves] : undefined } : null;
+}
+
+function applyRightMarks(figure: Figure, what?: string, moves?: string[]): Figure {
+  let current = figure;
+  resolveStepGan(what, moves).forEach((cmd) => {
+    const parsed = parseGanCommand(cmd);
+    if (!parsed || parsed.type !== "mark-right") {
+      return;
+    }
+    const result = applyGan(current, cmd);
+    if (!result.error) {
+      current = result.figure;
+    }
+  });
+  return current;
+}
+
+function coachFromSavedStep(
+  item: SavedLesson,
+  step: SavedLessonStep,
+  index: number,
+  total: number
+): CoachState {
+  return {
+    title: step.title,
+    lessonTitle: item.title,
+    body: step.body,
+    paragraphs: step.paragraphs,
+    what: step.what,
+    why: step.why,
+    lesson: item.number,
+    step: index + 1,
+    totalSteps: total,
+    phase: step.kind === "riddle" ? "riddle" : "step",
+    moves: step.moves,
+    fromFen: step.tfn,
+  };
 }
 
 export function useTriangleLessons() {
@@ -323,6 +360,7 @@ export function useTriangleLessons() {
       );
       coachRef.current = coach;
       setCoachState(coach);
+      applyFigure(applyRightMarks(figureRef.current, coach.what, constructions));
       setAwaitingContinuation(lessonExpectsRecap(totalTeaching));
       pushSnapshot();
       if (quizState) {
@@ -354,7 +392,7 @@ export function useTriangleLessons() {
         recapExpected: lessonExpectsRecap(totalTeaching),
       };
     },
-    [askQuiz, pushSnapshot]
+    [askQuiz, applyFigure, pushSnapshot]
   );
 
   const addLessonSteps = useCallback(
@@ -491,6 +529,25 @@ export function useTriangleLessons() {
     return playGan(gan);
   }, [playGan]);
 
+  const showCatalogStep = useCallback(
+    (item: SavedLesson, teachingIndex: number, push: boolean) => {
+      const steps = teachingSteps(lessonSteps(item));
+      const step = steps[teachingIndex];
+      if (!step) {
+        return false;
+      }
+      const base = step.tfn ? parseTfn(step.tfn) : cloneFigure(figureRef.current);
+      applyFigure(applyRightMarks(base, step.what, step.moves));
+      coachRef.current = coachFromSavedStep(item, step, teachingIndex, steps.length);
+      setCoachState(coachRef.current);
+      if (push) {
+        pushSnapshot();
+      }
+      return true;
+    },
+    [applyFigure, pushSnapshot]
+  );
+
   const openSavedLesson = useCallback((id: string) => {
     const item = findUserLesson(id, TRIANGLE_CATALOG_KEY);
     if (!item) {
@@ -498,51 +555,59 @@ export function useTriangleLessons() {
     }
     wipe();
     lessonNumberRef.current = item.number || null;
-    const steps = lessonSteps(item);
-    const firstTfn = (steps[0] && steps[0].tfn) || item.tfn;
-    if (firstTfn) {
-      applyFigure(parseTfn(firstTfn));
-    }
-    const intro: CoachState = {
-      title: item.title,
-      lessonTitle: item.title,
-      body: item.body,
-      paragraphs: item.paragraphs,
-      lesson: item.number,
-      phase: "goal",
-    };
-    if (steps[0]) {
-      const step = steps[0];
-      coachRef.current = {
-        title: step.title,
+    const steps = teachingSteps(lessonSteps(item));
+    if (!steps.length) {
+      const intro: CoachState = {
+        title: item.title,
         lessonTitle: item.title,
-        body: step.body,
-        paragraphs: step.paragraphs,
-        what: step.what,
-        why: step.why,
+        body: item.body,
+        paragraphs: item.paragraphs,
         lesson: item.number,
-        step: 1,
-        totalSteps: teachingSteps(steps).length,
-        phase: step.kind === "riddle" ? "riddle" : "step",
-        moves: step.moves,
-        fromFen: step.tfn,
+        phase: "goal",
       };
-    } else {
+      if (item.tfn) {
+        applyFigure(parseTfn(item.tfn));
+      }
       coachRef.current = intro;
+      setCoachState(intro);
+      pushSnapshot();
+      return { success: true, message: `Opened ${item.title}`, data: { id: item.id, lesson: item.number } };
     }
-    setCoachState(coachRef.current);
-    pushSnapshot();
+    steps.forEach((_, index) => {
+      showCatalogStep(item, index, true);
+    });
+    restoreSnapshot(historyRef.current[0]);
+    publishHistory(0, historyRef.current.length);
     return { success: true, message: `Opened ${item.title}`, data: { id: item.id, lesson: item.number } };
-  }, [applyFigure, pushSnapshot, wipe]);
+  }, [applyFigure, publishHistory, pushSnapshot, restoreSnapshot, showCatalogStep, wipe]);
+
+  const catalogStepIndex = () => {
+    const current = coachRef.current?.step;
+    return typeof current === "number" && current > 0 ? current - 1 : 0;
+  };
 
   const stepBack = useCallback(() => {
-    if (animating || historyIndexRef.current <= 0) {
+    if (animating) {
       return;
     }
-    const nextIndex = historyIndexRef.current - 1;
-    restoreSnapshot(historyRef.current[nextIndex]);
-    publishHistory(nextIndex, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    if (historyIndexRef.current > 0) {
+      const nextIndex = historyIndexRef.current - 1;
+      restoreSnapshot(historyRef.current[nextIndex]);
+      publishHistory(nextIndex, historyRef.current.length);
+      return;
+    }
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (!item) {
+      return;
+    }
+    const prev = catalogStepIndex() - 1;
+    if (prev >= 0) {
+      showCatalogStep(item, prev, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
 
   const stepNext = useCallback(() => {
     if (animating) {
@@ -552,28 +617,62 @@ export function useTriangleLessons() {
       const nextIndex = historyIndexRef.current + 1;
       restoreSnapshot(historyRef.current[nextIndex]);
       publishHistory(nextIndex, historyRef.current.length);
-    }
-  }, [animating, publishHistory, restoreSnapshot]);
-
-  const stepFirst = useCallback(() => {
-    if (animating || historyIndexRef.current <= 0) {
       return;
     }
-    restoreSnapshot(historyRef.current[0]);
-    publishHistory(0, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (!item) {
+      return;
+    }
+    const next = catalogStepIndex() + 1;
+    const total = teachingSteps(lessonSteps(item)).length;
+    if (next < total) {
+      showCatalogStep(item, next, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
+
+  const stepFirst = useCallback(() => {
+    if (animating) {
+      return;
+    }
+    if (historyIndexRef.current > 0) {
+      restoreSnapshot(historyRef.current[0]);
+      publishHistory(0, historyRef.current.length);
+      return;
+    }
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (item) {
+      showCatalogStep(item, 0, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
 
   const stepLast = useCallback(() => {
     if (animating) {
       return;
     }
     const last = historyRef.current.length - 1;
-    if (last < 0 || historyIndexRef.current >= last) {
+    if (last >= 0 && historyIndexRef.current < last) {
+      restoreSnapshot(historyRef.current[last]);
+      publishHistory(last, historyRef.current.length);
       return;
     }
-    restoreSnapshot(historyRef.current[last]);
-    publishHistory(last, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (!item) {
+      return;
+    }
+    const steps = teachingSteps(lessonSteps(item));
+    if (steps.length) {
+      showCatalogStep(item, steps.length - 1, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
 
   const savedLesson =
     typeof coach?.lesson === "number"
@@ -593,6 +692,11 @@ export function useTriangleLessons() {
     });
   }, [coach, figure]);
 
+  const canStepBack = historyIndex > 0 || (coach?.step || 1) > 1;
+  const canStepForward =
+    historyIndex >= 0 &&
+    (historyIndex < historyLength - 1 || (coach?.step || 1) < teachingCount);
+
   return {
     figure,
     coach,
@@ -606,6 +710,9 @@ export function useTriangleLessons() {
     userLessons,
     awaitingContinuation,
     expectsRecap,
+    teachingCount,
+    canStepBack,
+    canStepForward,
     coachPlayMoves,
     knownIds: allObjectIds(figure),
     createLesson,
@@ -615,6 +722,8 @@ export function useTriangleLessons() {
     setCoach: (next: CoachState) => {
       coachRef.current = next;
       setCoachState(next);
+      applyFigure(applyRightMarks(figureRef.current, next.what, next.moves));
+      pushSnapshot();
       return {
         lesson: next.lesson || lessonNumberRef.current || 0,
         step: next.step || 1,

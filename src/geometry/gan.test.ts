@@ -1,4 +1,4 @@
-import { applyGan, commandSatisfied, parseGanCommand } from "./gan";
+import { applyGan, angleAt, commandSatisfied, parseGanCommand } from "./gan";
 import { defaultScalene, emptyFigure, moveFreePoint } from "./figure";
 import { ganAnswerIsCorrect, idsMatchHighlight, isAngleHighlighted } from "./hitTest";
 import { measureFigure } from "./measure";
@@ -39,6 +39,15 @@ describe("apply-gan constructions", () => {
     expect(created.figure.rights[0].vertex).toBe("C");
     expect(commandSatisfied(created.figure, "△ABC")).toBe(true);
     expect(commandSatisfied(created.figure, "mark(90,C)")).toBe(true);
+  });
+
+  it("snaps a scalene triangle so mark(90,C) is actually a right angle", () => {
+    const start = startFigure("scalene");
+    expect(angleAt(start, "C")).not.toBeCloseTo(90, 0);
+    const marked = applyGan(start, "mark(90,C)");
+    expect(marked.error).toBeUndefined();
+    expect(angleAt(marked.figure, "C")).toBeCloseTo(90, 0);
+    expect(marked.figure.rights[0].vertex).toBe("C");
   });
 
   it("drops an altitude and a median", () => {

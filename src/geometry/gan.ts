@@ -1,8 +1,11 @@
 import {
+  add,
   angleDeg,
   dist,
   footOfPerpendicular,
+  nearlyEqual,
   rotateAround,
+  scale,
   sub,
   unit,
   vec,
@@ -291,6 +294,40 @@ function rightRays(figure: Figure, vertex: string): [string, string] | null {
     return null;
   }
   return oppositeVertex(tri, vertex);
+}
+
+function snapRightAngle(figure: Figure, vertex: string): boolean {
+  const rays = rightRays(figure, vertex);
+  const origin = figure.points[vertex];
+  if (!rays || !origin) {
+    return false;
+  }
+  const left = figure.points[rays[0]];
+  const right = figure.points[rays[1]];
+  if (!left || !right) {
+    return false;
+  }
+  if (nearlyEqual(angleDeg(left, origin, right), 90, 0.6)) {
+    return true;
+  }
+  const moveName = right.free ? rays[1] : left.free ? rays[0] : null;
+  if (!moveName) {
+    return false;
+  }
+  const keep = moveName === rays[1] ? left : right;
+  const moving = figure.points[moveName];
+  const arm = unit(sub(keep, origin));
+  const length = Math.max(dist(origin, moving), 1.2);
+  const candA = add(origin, scale({ x: -arm.y, y: arm.x }, length));
+  const candB = add(origin, scale({ x: arm.y, y: -arm.x }, length));
+  const next = dist(candA, moving) <= dist(candB, moving) ? candA : candB;
+  figure.points[moveName] = {
+    ...figure.points[moveName],
+    x: next.x,
+    y: next.y,
+  };
+  resolveFigure(figure);
+  return true;
 }
 
 function mapFit(
@@ -627,6 +664,7 @@ export function applyGanCommand(figure: Figure, raw: string): ApplyGanResult {
     if (!rays) {
       return { figure, command: raw, created: [], error: "No angle at " + command.vertex };
     }
+    snapRightAngle(next, command.vertex);
     next.rights.push({ vertex: command.vertex, a: rays[0], b: rays[1] });
     remember("mark(90," + command.vertex + ")");
   } else if (command.type === "mark-parallel") {

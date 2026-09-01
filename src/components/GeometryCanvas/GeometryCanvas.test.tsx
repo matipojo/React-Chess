@@ -20,4 +20,11 @@ describe("GeometryCanvas angle highlights", () => {
     );
     expect(container.querySelector('[data-angle="∠A"]')).toBeTruthy();
   });
+
+  it("draws a halo when peeking a vertex", () => {
+    const { container } = render(
+      <GeometryCanvas figure={defaultScalene()} peekIds={["C"]} />
+    );
+    expect(container.querySelector(".geometry-point.is-hot .geometry-point-halo")).toBeTruthy();
+  });
 });

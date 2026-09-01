@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { circleGeometry, oppositeVertex, pointVec, segmentKey } from "../../geometry/figure";
 import { idsMatchHighlight, isAngleHighlighted } from "../../geometry/hitTest";
-import { dist, midpoint, unit, sub, add, scale } from "../../geometry/math";
+import { dist, midpoint, unit, sub, add, scale, cross } from "../../geometry/math";
 import { Figure, FigureAnimation, Vec } from "../../geometry/types";
 import "./GeometryCanvas.css";
 
@@ -62,11 +62,26 @@ function tickMark(a: Vec, b: Vec, count: number): string {
 function rightAnglePath(vertex: Vec, a: Vec, b: Vec): string {
   const ua = unit(sub(a, vertex));
   const ub = unit(sub(b, vertex));
-  const s = 0.22;
+  const s = 0.34;
   const p1 = add(vertex, scale(ua, s));
   const p2 = add(p1, scale(ub, s));
   const p3 = add(vertex, scale(ub, s));
   return `M ${p1.x} ${-p1.y} L ${p2.x} ${-p2.y} L ${p3.x} ${-p3.y}`;
+}
+
+function interiorAngleArms(vertex: Vec, left: Vec, right: Vec, inside: Vec): [Vec, Vec] {
+  const ua = sub(left, vertex);
+  const ub = sub(right, vertex);
+  const up = sub(inside, vertex);
+  const c1 = cross(ua, up);
+  const c2 = cross(up, ub);
+  const c3 = cross(ua, ub);
+  const insideSector = (c1 >= 0 && c2 >= 0 && c3 >= 0) || (c1 <= 0 && c2 <= 0 && c3 <= 0);
+  return insideSector ? [left, right] : [right, left];
+}
+
+function triangleCentroid(a: Vec, b: Vec, c: Vec): Vec {
+  return { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
 }
 
 function angleSweep(ua: Vec, ub: Vec): 0 | 1 {
@@ -76,11 +91,11 @@ function angleSweep(ua: Vec, ub: Vec): 0 | 1 {
 function angleArc(vertex: Vec, left: Vec, right: Vec, arcs: number): string {
   const ua = unit(sub(left, vertex));
   const ub = unit(sub(right, vertex));
-  const r = 0.38;
+  const r = 0.42;
   const paths: string[] = [];
   const sweep = angleSweep(ua, ub);
   for (let i = 0; i < arcs; i++) {
-    const rr = r + i * 0.08;
+    const rr = r + i * 0.1;
     const a1 = add(vertex, scale(ua, rr));
     const a2 = add(vertex, scale(ub, rr));
     paths.push(
@@ -93,7 +108,7 @@ function angleArc(vertex: Vec, left: Vec, right: Vec, arcs: number): string {
 function angleSector(vertex: Vec, left: Vec, right: Vec): string {
   const ua = unit(sub(left, vertex));
   const ub = unit(sub(right, vertex));
-  const r = 0.48;
+  const r = 0.72;
   const a1 = add(vertex, scale(ua, r));
   const a2 = add(vertex, scale(ub, r));
   const sweep = angleSweep(ua, ub);
@@ -356,10 +371,16 @@ export default function GeometryCanvas({
           if (!v || !a || !b) {
             return null;
           }
+          const thirdName = figure.triangles
+            .find((t) => t.indexOf(ang.vertex) >= 0 && t.indexOf(ang.left) >= 0 && t.indexOf(ang.right) >= 0)
+            ?.find((name) => name !== ang.vertex && name !== ang.left && name !== ang.right);
+          const third = thirdName ? pointVec(figure, thirdName) : null;
+          const inside = third || triangleCentroid(v, a, b);
+          const [left, right] = interiorAngleArms(v, a, b, inside);
           return (
             <g key={"hot-ang-" + ang.vertex + ang.left + ang.right} data-angle={"∠" + ang.vertex}>
-              <path className="geometry-angle is-hot" d={angleSector(v, a, b)} />
-              <path className="geometry-angle-arc is-hot" d={angleArc(v, a, b, 1)} fill="none" />
+              <path className="geometry-angle is-hot" d={angleSector(v, left, right)} />
+              <path className="geometry-angle-arc is-hot" d={angleArc(v, left, right, 1)} fill="none" />
             </g>
           );
         })}
@@ -496,8 +517,9 @@ export default function GeometryCanvas({
             hotAngles.some((ang) => ang.vertex === name);
           return (
             <g key={name} className={active ? "geometry-point is-hot" : "geometry-point"}>
-              <circle cx={p.x} cy={-p.y} r={p.free ? 0.09 : 0.07} />
-              <text x={p.x + 0.14} y={-p.y - 0.14}>
+              {active ? <circle className="geometry-point-halo" cx={p.x} cy={-p.y} r={0.28} /> : null}
+              <circle cx={p.x} cy={-p.y} r={active ? 0.14 : p.free ? 0.09 : 0.07} />
+              <text x={p.x + 0.16} y={-p.y - 0.16}>
                 {name}
               </text>
             </g>
