@@ -37,7 +37,7 @@ import {
 import {
   chessNotationToCoordinates,
   coordinatesToNotation,
-  parseMoveNotation,
+  parseMoveOrCastle,
 } from "../utils/chess-notation-utils";
 import { logLessonDebug } from "../lessons/debugLog";
 import { lastTeachingSlideIndex, projectLessonSession } from "../lessons/lessonDocument";
@@ -820,7 +820,7 @@ export function useChessLessons({
     }
     const next = startingLearnBoard();
     for (let i = 0; i < target; i++) {
-      const parsed = parseMoveNotation(line.moves[i]);
+      const parsed = parseMoveOrCastle(line.moves[i], next.currentTeam);
       const fromCoords = chessNotationToCoordinates(parsed.from);
       const toCoords = chessNotationToCoordinates(parsed.to);
       const from = new Position(fromCoords.x, fromCoords.y);
@@ -943,7 +943,7 @@ export function useChessLessons({
     async (moves: string[]): Promise<{ played: string[]; stoppedAt?: string }> => {
       const played: string[] = [];
       for (const move of moves) {
-        const parsed = parseMoveNotation(move);
+        const parsed = parseMoveOrCastle(move, boardRef.current.currentTeam);
         const fromCoords = chessNotationToCoordinates(parsed.from);
         const toCoords = chessNotationToCoordinates(parsed.to);
         const from = new Position(fromCoords.x, fromCoords.y);
@@ -1012,7 +1012,7 @@ export function useChessLessons({
 
         const played: string[] = [];
         for (let i = 0; i < sequence.length; i++) {
-          const parsed = parseMoveNotation(sequence[i]);
+          const parsed = parseMoveOrCastle(sequence[i], boardRef.current.currentTeam);
           const fromCoords = chessNotationToCoordinates(parsed.from);
           const toCoords = chessNotationToCoordinates(parsed.to);
           const from = new Position(fromCoords.x, fromCoords.y);

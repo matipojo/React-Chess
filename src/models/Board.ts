@@ -176,27 +176,51 @@ export class Board {
       p.samePosition(destination)
     );
 
-    // If the move is a castling move do this
-    if (
-      playedPiece.isKing &&
-      destinationPiece?.isRook &&
-      destinationPiece.team === playedPiece.team
-    ) {
-      const direction =
-        destinationPiece.position.x - origin.x > 0 ? 1 : -1;
-      const newKingXPosition = origin.x + direction * 2;
-      this.pieces = this.pieces.map((p) => {
-        if (p.samePosition(origin)) {
-          p.position.x = newKingXPosition;
-        } else if (p.samePiecePosition(destinationPiece)) {
-          p.position.x = newKingXPosition - direction;
+    // Castling: drop the king on its own rook, or move it two squares (e1-g1 / e1-c1).
+    if (playedPiece.isKing) {
+      const ontoOwnRook =
+        !!destinationPiece?.isRook &&
+        destinationPiece.team === playedPiece.team;
+      const twoSquareKingMove =
+        destination.y === origin.y &&
+        Math.abs(destination.x - origin.x) === 2;
+      if (ontoOwnRook || twoSquareKingMove) {
+        const direction = ontoOwnRook
+          ? destinationPiece!.position.x - origin.x > 0
+            ? 1
+            : -1
+          : destination.x - origin.x > 0
+            ? 1
+            : -1;
+        const rook = ontoOwnRook
+          ? destinationPiece!
+          : this.pieces.find(
+              (p) =>
+                p.isRook &&
+                p.team === playedPiece.team &&
+                !p.hasMoved &&
+                p.position.y === origin.y &&
+                (direction > 0
+                  ? p.position.x > origin.x
+                  : p.position.x < origin.x)
+            );
+        if (rook) {
+          const newKingXPosition = origin.x + direction * 2;
+          this.pieces = this.pieces.map((p) => {
+            if (p.samePosition(origin)) {
+              p.position.x = newKingXPosition;
+              p.hasMoved = true;
+            } else if (p.samePiecePosition(rook)) {
+              p.position.x = newKingXPosition - direction;
+              p.hasMoved = true;
+            }
+            return p;
+          });
+
+          this.calculateAllMoves();
+          return true;
         }
-
-        return p;
-      });
-
-      this.calculateAllMoves();
-      return true;
+      }
     }
 
     if (enPassantMove) {
