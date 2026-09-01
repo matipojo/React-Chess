@@ -114,6 +114,26 @@ export function lastTeachingSlideIndex(slides: LessonSessionSlide[]): number {
   return last;
 }
 
+/** Board fen a newly appended teaching step should start from. */
+export function fenAfterTeaching(
+  item: SavedLesson,
+  startingFen = boardToFen(startingLearnBoard())
+): string {
+  const slides = projectLessonSession(item, startingFen);
+  const last = slides[slides.length - 1];
+  if (!last) {
+    return startingFen;
+  }
+  if (last.coach?.phase === "recap" || last.coach?.phase === "goal") {
+    return last.fen;
+  }
+  const moves = resolveStepMoves(last.coach?.what, last.coach?.moves);
+  if (!moves.length) {
+    return last.fen;
+  }
+  return fenAfterMoves(last.fen, moves) || last.fen;
+}
+
 export function projectLessonSession(
   item: SavedLesson,
   startingFen = boardToFen(startingLearnBoard())

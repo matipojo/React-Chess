@@ -382,7 +382,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson and wipe the previous live session (board, coach, quiz, recap, history). Goal screen only: lasting title + what we will learn. Not a numbered step and not a recap. Call once per topic. Next: add-lesson-step (type step or riddle). Do not call create-lesson again for the same topic. ' +
+          'Create a new catalog lesson. Does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn. Not a numbered step and not a recap. Call once per topic. Next: add-lesson-step (type step or riddle). The student opens the lesson from My lessons. Do not call create-lesson again for the same topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -424,7 +424,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not play the board; why first, then the move; student taps Play. type riddle stores the puzzle on this lesson and waits for a square click (same as ask-quiz). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, Next shows Generating... until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -524,7 +524,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-lesson-recap',
         description:
-          'Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons such as a chess exam or riddle — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
+          'Write or replace the Recap screen after the last teaching step. Catalog only; does not change the live playhead. Skip this for one-step lessons such as a chess exam or riddle — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
           COACH_NOTATION_RULE +
           ' ' +
           WAIT_TURN_RULE,
@@ -576,7 +576,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-coach',
         description:
-          'Update the currently visible coach text only. Prefer create-lesson, add-lesson-step, and set-lesson-recap. ' +
+          'Update the currently visible coach text only. Does not write the catalog. Prefer create-lesson, add-lesson-step, and set-lesson-recap. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
