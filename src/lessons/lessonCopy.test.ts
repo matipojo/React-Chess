@@ -1,9 +1,7 @@
 import {
   buildStepParagraphs,
-  coachFromDraft,
   lessonExpectsRecap,
   lessonSlideCounter,
-  parseLessonStepType,
   parseStepDrafts,
   parseSummaryDraft,
   shouldShowLessonNav,
@@ -18,39 +16,7 @@ describe("lesson copy", () => {
         { title: "Missing why", what: "Play g1:f3." },
       ])
     ).toEqual([
-      { title: "Center", what: "Play e2:e4.", why: "Take space.", type: "step", paragraphs: undefined, moves: undefined },
-    ]);
-  });
-
-  it("parses a riddle step from type riddle or Hebrew חידה", () => {
-    expect(parseLessonStepType("riddle")).toBe("riddle");
-    expect(parseLessonStepType("quiz")).toBe("riddle");
-    expect(parseLessonStepType("חידה")).toBe("riddle");
-    expect(parseLessonStepType("step")).toBe("step");
-    expect(
-      parseStepDrafts([
-        {
-          type: "riddle",
-          title: "Find the fork",
-          question: "Click the square where the knight forks king and queen.",
-          correct: ["c7"],
-          hint: "Look at the black queen.",
-        },
-        { type: "riddle", question: "Missing squares" },
-      ])
-    ).toEqual([
-      {
-        title: "Find the fork",
-        what: "",
-        why: "",
-        type: "riddle",
-        paragraphs: undefined,
-        moves: undefined,
-        question: "Click the square where the knight forks king and queen.",
-        correct: ["c7"],
-        hint: "Look at the black queen.",
-        quizType: undefined,
-      },
+      { title: "Center", what: "Play e2:e4.", why: "Take space.", paragraphs: undefined, moves: undefined },
     ]);
   });
 
@@ -160,24 +126,5 @@ describe("lesson copy", () => {
         historyLength: 6,
       })
     ).toEqual({ current: 4, total: 6 });
-  });
-
-  it("builds riddle coach copy without why/what spoilers", () => {
-    const coach = coachFromDraft(
-      {
-        title: "Knight fork",
-        what: "",
-        why: "",
-        type: "riddle",
-        question: "Click the fork square.",
-        correct: ["c7"],
-      },
-      { lessonTitle: "Tactics", lesson: 2, step: 1, totalSteps: 1 }
-    );
-    expect(coach.phase).toBe("riddle");
-    expect(coach.title).toBe("Knight fork");
-    expect(coach.what).toBeUndefined();
-    expect(coach.why).toBeUndefined();
-    expect(coach.body).toBe("");
   });
 });

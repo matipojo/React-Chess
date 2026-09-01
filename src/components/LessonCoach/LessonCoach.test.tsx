@@ -168,29 +168,6 @@ describe("LessonCoach", () => {
     expect(queryByText("1/1")).toBeNull();
   });
 
-  it("labels a riddle step as Riddle instead of Step", () => {
-    const { getByText, queryByText, queryByRole } = render(
-      <LessonCoach
-        coach={{
-          lessonTitle: "Tactics",
-          title: "Find the fork",
-          body: "",
-          step: 1,
-          totalSteps: 1,
-          phase: "riddle",
-          lesson: 1,
-        }}
-        quizQuestion="Click the fork square."
-        quizSecondsLeft={30}
-      />
-    );
-    expect(getByText("Riddle")).toBeTruthy();
-    expect(queryByText("Step")).toBeNull();
-    expect(getByText("Click the fork square.")).toBeTruthy();
-    expect(queryByRole("button", { name: "Back" })).toBeNull();
-    expect(queryByRole("button", { name: "Next" })).toBeNull();
-  });
-
   it("renders wait-for-user choices and reports the clicked action", () => {
     const onWaitChoice = jest.fn();
     const { getByRole } = render(

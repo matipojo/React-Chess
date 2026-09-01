@@ -29,7 +29,6 @@ describe("buildGiveMeAHintPrompt", () => {
     expect(prompt).toContain("Do not add other buttons yet");
     expect(prompt).toContain("background #8a5fc8");
     expect(prompt).toContain("label text #ffffff");
-    expect(prompt).toContain("add-lesson-step with type riddle");
-    expect(prompt).toContain("Use ask-quiz only if this puzzle is not a catalog lesson step");
+    expect(prompt).toContain("call ask-quiz");
   });
 });
