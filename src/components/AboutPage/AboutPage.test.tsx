@@ -23,9 +23,9 @@ describe("AboutPage", () => {
     expect(getByText("Not the canvas.")).toBeTruthy();
     expect(getByText("Italian Game")).toBeTruthy();
     expect(getByText("3. Bc4")).toBeTruthy();
-    expect(getByRole("link", { name: "Open the board" }).getAttribute("href")).toBe(
-      "#/"
-    );
+    const nav = getByRole("navigation", { name: "Learning surfaces" });
+    expect(nav.querySelector('a[aria-current="page"]')?.textContent).toMatch(/Home/);
+    expect(nav.querySelector(".about-subnav-chess")?.getAttribute("href")).toBe("#/");
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelectorAll(".chess-piece").length).toBe(32);
     expect(container.querySelectorAll(".board-arrows line").length).toBe(2);
@@ -144,6 +144,51 @@ describe("AboutPage", () => {
         configurable: true,
         get: () => original,
       });
+    }
+  });
+
+  it("registers list-pages and open-page so an agent can find Chess and open it", async () => {
+    const registered: Array<{
+      name: string;
+      execute: (params: Record<string, unknown>) => Promise<{
+        success: boolean;
+        message: string;
+        data: unknown;
+      }>;
+    }> = [];
+    const modelContext = {
+      provideContext: ({ tools }: { tools: typeof registered }) => {
+        registered.splice(0, registered.length, ...tools);
+      },
+      clearContext: () => {
+        registered.length = 0;
+      },
+    };
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: modelContext,
+    });
+    window.location.hash = "#/about";
+    try {
+      const { unmount } = renderAbout();
+      expect(registered.map((tool) => tool.name)).toEqual(["list-pages", "open-page"]);
+      const listed = await registered[0].execute({});
+      expect(listed.success).toBe(true);
+      expect(listed.message).toMatch(/sub-navigation includes Chess/i);
+      const data = listed.data as {
+        currentPage: string;
+        subnav: Array<{ id: string; available: boolean }>;
+      };
+      expect(data.currentPage).toBe("about");
+      expect(data.subnav.some((item) => item.id === "chess" && item.available)).toBe(true);
+      const opened = await registered[1].execute({ page: "chess" });
+      expect(opened.success).toBe(true);
+      expect(window.location.hash).toBe("#/");
+      unmount();
+      expect(registered).toEqual([]);
+    } finally {
+      delete (document as { modelContext?: unknown }).modelContext;
+      window.location.hash = "";
     }
   });
 });

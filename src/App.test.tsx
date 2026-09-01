@@ -1,9 +1,11 @@
 import { render } from "@testing-library/react";
 import App from "./App";
+import { ModelContextTool } from "./model-context-types";
 
 describe("App routes", () => {
   afterEach(() => {
     window.location.hash = "";
+    delete (document as { modelContext?: unknown }).modelContext;
   });
 
   it("shows the chess app by default", () => {
@@ -22,5 +24,28 @@ describe("App routes", () => {
     expect(getByText("Not the canvas.")).toBeTruthy();
     expect(queryByRole("heading", { name: "Generative Learning" })).toBeNull();
     unmount();
+  });
+
+  it("lets home-page agent tools open the chess app", async () => {
+    const registered: ModelContextTool[] = [];
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        provideContext: ({ tools }: { tools: ModelContextTool[] }) => {
+          registered.splice(0, registered.length, ...tools);
+        },
+        clearContext: () => {
+          registered.length = 0;
+        },
+      },
+    });
+    window.location.hash = "#/about";
+    const { findByRole, queryByText } = render(<App />);
+    expect(queryByText("Not the canvas.")).toBeTruthy();
+    const openPage = registered.find((tool) => tool.name === "open-page");
+    expect(openPage).toBeTruthy();
+    await openPage!.execute({ page: "chess" });
+    expect(await findByRole("heading", { name: "Generative Learning" })).toBeTruthy();
+    expect(queryByText("Not the canvas.")).toBeNull();
   });
 });

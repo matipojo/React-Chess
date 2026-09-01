@@ -8,6 +8,7 @@ import {
   ITALIAN_GAME_FEN,
 } from "./aboutDemo";
 import { ABOUT_HASH, PLAY_HASH } from "../../utils/appRoute";
+import { useHomePageTools } from "../../hooks/useHomePageTools";
 import {
   buildCodexPromptHref,
   CODEX_UNAVAILABLE_MESSAGE,
@@ -200,6 +201,8 @@ function MiniBoard() {
 }
 
 export default function AboutPage() {
+  useHomePageTools();
+
   return (
     <div className="about-page">
       <header className="about-header">
@@ -207,9 +210,14 @@ export default function AboutPage() {
           <LogoMark />
           <span>Living Learning Surfaces</span>
         </a>
-        <a className="about-header-link" href={PLAY_HASH}>
-          Open the board
-        </a>
+        <nav className="about-subnav" aria-label="Learning surfaces">
+          <a href={ABOUT_HASH} aria-current="page">
+            Home
+          </a>
+          <a className="about-subnav-chess" href={PLAY_HASH}>
+            Chess
+          </a>
+        </nav>
       </header>
 
       <main>

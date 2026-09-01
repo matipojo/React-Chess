@@ -4,7 +4,8 @@ import { Piece } from '../models/Piece';
 import { Position } from '../models/Position';
 import { PieceType, TeamType } from '../Types';
 import { chessNotationToCoordinates, parseMoveOrCastle } from '../utils/chess-notation-utils';
-import { getModelContext } from '../model-context-types';
+import { ToolResponse } from '../model-context-types';
+import { registerModelContextTools } from '../utils/registerModelContextTools';
 import { normalizeCoachCopy, splitCoachParagraphs } from '../lessons/coachParagraphs';
 import { logLessonDebug } from '../lessons/debugLog';
 import { compactToolResult } from '../lessons/debugSnapshot';
@@ -14,12 +15,6 @@ import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
 import { parseLessonFormat, parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
-
-type ToolResponse = {
-  success: boolean;
-  message: string;
-  data: unknown;
-};
 
 type LessonActions = {
   learnMode: boolean;
@@ -166,11 +161,6 @@ export function useModelContextTools(actions: ChessActions) {
   actionsRef.current = actions;
 
   useEffect(() => {
-    const mc = getModelContext();
-    if (!mc) {
-      return;
-    }
-
     const tools = [
       {
         name: 'get-board-state',
@@ -936,7 +926,6 @@ export function useModelContextTools(actions: ChessActions) {
       },
     ];
 
-    const toolNames = tools.map(t => t.name);
     const longRunning = new Set(["ask-quiz", "play-line", "add-lesson-step"]);
     const wrappedTools = tools.map((tool) => ({
       ...tool,
@@ -964,50 +953,7 @@ export function useModelContextTools(actions: ChessActions) {
         }
       },
     }));
-    const registration = new AbortController();
 
-    function cleanupTools() {
-      registration.abort();
-      const ctx = getModelContext();
-      if (!ctx) {
-        return;
-      }
-      if (typeof ctx.clearContext === 'function') {
-        ctx.clearContext();
-        return;
-      }
-      if (typeof ctx.unregisterTool === 'function') {
-        for (const name of toolNames) {
-          try {
-            ctx.unregisterTool(name);
-          } catch {
-            // Already unregistered or unsupported in this snapshot of the API.
-          }
-        }
-      }
-    }
-
-    if (typeof mc.provideContext === 'function') {
-      mc.provideContext({ tools: wrappedTools });
-    } else if (typeof mc.registerTool === 'function') {
-      for (const tool of wrappedTools) {
-        if (typeof mc.unregisterTool === 'function') {
-          try {
-            mc.unregisterTool(tool.name);
-          } catch {
-            // ignore duplicate-unregister failures
-          }
-        }
-        void Promise.resolve(mc.registerTool(tool, { signal: registration.signal })).catch(() => {
-          // Duplicate names, aborted Strict Mode remounts, or unsupported snapshots.
-        });
-      }
-    } else {
-      return;
-    }
-
-    return () => {
-      cleanupTools();
-    };
+    return registerModelContextTools(wrappedTools);
   }, []);
 }

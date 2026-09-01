@@ -1,3 +1,9 @@
+export type ToolResponse = {
+  success: boolean;
+  message: string;
+  data: unknown;
+};
+
 type ModelContextTool = {
   name: string;
   description: string;
@@ -37,4 +43,4 @@ export function getModelContext(): ModelContext | undefined {
   return document.modelContext ?? navigator.modelContext;
 }
 
-export type { ModelContextTool };
+export type { ModelContextTool, ToolResponse };
