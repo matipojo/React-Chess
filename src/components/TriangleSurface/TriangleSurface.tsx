@@ -15,14 +15,20 @@ export default function TriangleSurface() {
   const canvasRef = useRef<GeometryCanvasHandle>(null);
   const triangles = useTriangleLessons({
     playPointer: (animation, onComplete) => {
-      if (canvasRef.current) {
-        canvasRef.current.playAnimation(animation, onComplete);
-        return;
+      try {
+        if (canvasRef.current) {
+          canvasRef.current.playAnimation(animation, onComplete);
+          return;
+        }
+      } catch {
+        // Fall through so the GAN still commits.
       }
       onComplete();
     },
     cancelPointer: () => canvasRef.current?.cancelAnimation(),
   });
+  const trianglesRef = useRef(triangles);
+  trianglesRef.current = triangles;
 
   useTriangleModelContextTools({
     getFigure: triangles.getFigure,
@@ -52,27 +58,21 @@ export default function TriangleSurface() {
     if (demo !== "pointer" && demo !== "altitude") {
       return;
     }
-    const start = triangles.getFigure().points.C;
-    if (!start) {
-      return;
-    }
-    let cancelled = false;
     const timer = window.setTimeout(() => {
-      void (async () => {
-        if (cancelled) {
+      const start = () => {
+        if (!canvasRef.current) {
+          window.setTimeout(start, 50);
           return;
         }
         if (demo === "pointer") {
-          await triangles.movePoint("C", { x: 1.55, y: -0.2 });
+          void trianglesRef.current.movePoint("C", { x: 1.55, y: -0.2 });
           return;
         }
-        await triangles.applyGan("h(C,AB)");
-      })();
-    }, 800);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
+        void trianglesRef.current.applyGan("h(C,AB)");
+      };
+      start();
+    }, 500);
+    return () => window.clearTimeout(timer);
     // Open a shared demo link the same way chess uses ?piece= / ?showme=.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

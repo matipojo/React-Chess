@@ -40,13 +40,19 @@ function previewFigure(figure: Figure, animation: FigureAnimation | null, t: num
 }
 
 function worldToClient(svg: SVGSVGElement, world: Vec): { x: number; y: number } {
-  const ctm = svg.getScreenCTM?.();
-  if (ctm && typeof svg.createSVGPoint === "function") {
-    const pt = svg.createSVGPoint();
-    pt.x = world.x;
-    pt.y = -world.y;
-    const loc = pt.matrixTransform(ctm);
-    return { x: loc.x, y: loc.y };
+  try {
+    const ctm = svg.getScreenCTM?.();
+    if (ctm && typeof svg.createSVGPoint === "function") {
+      const pt = svg.createSVGPoint();
+      pt.x = world.x;
+      pt.y = -world.y;
+      const loc = pt.matrixTransform(ctm);
+      if (Number.isFinite(loc.x) && Number.isFinite(loc.y)) {
+        return { x: loc.x, y: loc.y };
+      }
+    }
+  } catch {
+    // Fall through to the viewBox mapping.
   }
   const rect = svg.getBoundingClientRect();
   const viewBox = svg.viewBox && svg.viewBox.baseVal
@@ -229,11 +235,6 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
         completeRef.current = onComplete || null;
         setActiveAnimation(next);
         setPreviewT(0);
-        pointer.playDrag(worldToClient(svg, path.from), worldToClient(svg, path.to), {
-          grab: path.grab,
-          onProgress: setPreviewT,
-          onComplete: finishPointer,
-        });
         if (safetyRef.current) {
           window.clearTimeout(safetyRef.current);
         }
@@ -244,6 +245,15 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
             finishPointer();
           }
         }, 3600);
+        try {
+          pointer.playDrag(worldToClient(svg, path.from), worldToClient(svg, path.to), {
+            grab: path.grab,
+            onProgress: setPreviewT,
+            onComplete: finishPointer,
+          });
+        } catch {
+          finishPointer();
+        }
       };
       attempt();
     },
@@ -398,6 +408,8 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
         viewBox={`${bounds.minX} ${-bounds.maxY} ${width} ${height}`}
         role="img"
         aria-label="Triangle figure"
+        data-c-x={figure.points.C ? String(figure.points.C.x) : undefined}
+        data-c-y={figure.points.C ? String(figure.points.C.y) : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

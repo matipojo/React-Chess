@@ -498,8 +498,12 @@ export function useTriangleLessons(options?: {
           }
           resolve();
         };
-        playPointerRef.current!(animation, done);
         animTimerRef.current = window.setTimeout(done, 4000);
+        try {
+          playPointerRef.current!(animation, done);
+        } catch {
+          done();
+        }
       });
     } else if (animation) {
       setAnimation(animation);
