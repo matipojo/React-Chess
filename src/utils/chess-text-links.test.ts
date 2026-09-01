@@ -1,4 +1,4 @@
-import { splitTextLines, squaresFromChessRef, tokenizeChessText, groupLtrRuns, parseChessRef, peekSquaresFromRef } from "./chess-text-links";
+import { splitTextLines, squaresFromChessRef, tokenizeChessText, groupLtrRuns, parseChessRef, peekSquaresFromRef, sanMovesNeedingFromTo } from "./chess-text-links";
 import { PieceType } from "../Types";
 
 describe("tokenizeChessText", () => {
@@ -17,6 +17,16 @@ describe("tokenizeChessText", () => {
     expect(squaresFromChessRef("Nf3")).toEqual(["f3"]);
     expect(squaresFromChessRef("Bxc6")).toEqual(["c6"]);
     expect(squaresFromChessRef("exd5")).toEqual(["d5"]);
+  });
+
+  it("links long algebraic piece moves", () => {
+    const parts = tokenizeChessText("White plays Ng1-f3, then Bf1-c4.");
+    const refs = parts.filter((part) => part.type === "ref");
+    expect(refs.map((part) => part.value)).toEqual(["Ng1-f3", "Bf1-c4"]);
+    expect(parseChessRef("Ng1-f3").squares).toEqual(["g1", "f3"]);
+    expect(parseChessRef("Ng1-f3").piece).toBe(PieceType.KNIGHT);
+    expect(parseChessRef("Bf1-c4").squares).toEqual(["f1", "c4"]);
+    expect(parseChessRef("e2-e4").squares).toEqual(["e2", "e4"]);
   });
 
   it("links numbered SAN with annotations", () => {
@@ -120,5 +130,50 @@ describe("peekSquaresFromRef", () => {
         { type: PieceType.BISHOP, square: "c4", destinations: ["b3", "d5"] },
       ])
     ).toEqual(["c4"]);
+  });
+
+  it("keeps long algebraic origin and dest even after the piece has arrived", () => {
+    const pawn = { type: "ref" as const, value: "e2-e4", ...parseChessRef("e2-e4") };
+    expect(pawn.squares).toEqual(["e2", "e4"]);
+    expect(
+      peekSquaresFromRef(pawn, [
+        { type: PieceType.PAWN, square: "e4", destinations: ["e5"] },
+      ])
+    ).toEqual(["e2", "e4"]);
+
+    const knight = { type: "ref" as const, value: "Ng1-f3", ...parseChessRef("Ng1-f3") };
+    expect(
+      peekSquaresFromRef(knight, [
+        { type: PieceType.KNIGHT, square: "f3", destinations: ["d4", "h4"] },
+      ])
+    ).toEqual(["g1", "f3"]);
+  });
+
+  it("treats bare pawn SAN as a square, not a known piece", () => {
+    expect(parseChessRef("e4").piece).toBeUndefined();
+    expect(parseChessRef("e4").squares).toEqual(["e4"]);
+  });
+});
+
+describe("sanMovesNeedingFromTo", () => {
+  it("flags Italian SAN that cannot show a hover arrow", () => {
+    expect(
+      sanMovesNeedingFromTo(
+        "הקו הבסיסי הוא 1.e4 e5 2.Nf3 Nc6 3.Bc4 — והרָץ כבר מביט אל f7"
+      )
+    ).toEqual(["1.e4", "e5", "2.Nf3", "Nc6", "3.Bc4"]);
+  });
+
+  it("allows long algebraic moves and bare location squares", () => {
+    expect(
+      sanMovesNeedingFromTo(
+        "הקו הבסיסי הוא 1.e2-e4 e7-e5 2.Ng1-f3 Nb8-c6 3.Bf1-c4 — והרָץ כבר מביט אל f7"
+      )
+    ).toEqual([]);
+  });
+
+  it("allows castling and isolated squares", () => {
+    expect(sanMovesNeedingFromTo("Castle O-O, then look at f7.")).toEqual([]);
+    expect(sanMovesNeedingFromTo("Control the e4 square.")).toEqual([]);
   });
 });
