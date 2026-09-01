@@ -12,6 +12,7 @@ import {
 } from "../../referee/rules";
 import { PieceType, TeamType } from "../../Types";
 import Chessboard, { ChessboardHandle } from "../Chessboard/Chessboard";
+import BoardUndoBar from "../BoardUndoBar/BoardUndoBar";
 import LessonCoach from "../LessonCoach/LessonCoach";
 import LessonCatalogMenu from "../LessonCatalogMenu/LessonCatalogMenu";
 import { Howl } from "howler";
@@ -361,6 +362,12 @@ export default function Referee() {
               interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
               locked={lessons.animating}
               onSquareClick={lessons.onSquareClick}
+            />
+            <BoardUndoBar
+              canUndo={lessons.canUndoLearnMove}
+              canRedo={lessons.canRedoLearnMove}
+              onUndo={lessons.undoLearnMove}
+              onRedo={lessons.redoLearnMove}
             />
           </div>
           <LessonCoach
