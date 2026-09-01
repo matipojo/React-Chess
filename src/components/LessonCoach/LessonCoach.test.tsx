@@ -38,6 +38,56 @@ describe("LessonCoach", () => {
     }
   });
 
+  it("opens example prompts with codex:// in the ChatGPT desktop webview", () => {
+    const original = navigator.userAgent;
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      get: () =>
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.180 Electron/42.3.0 Safari/537.36",
+    });
+    const open = jest.fn().mockReturnValue({});
+    const originalOpen = window.open;
+    window.open = open;
+    try {
+      const { getByRole } = render(<LessonCoach coach={null} />);
+      const link = getByRole("link", { name: "show me Scholar's Mate" });
+      expect(link.getAttribute("href")).toBe(
+        "codex://new?prompt=show%20me%20Scholar's%20Mate"
+      );
+      link.click();
+      expect(open).toHaveBeenCalledWith(
+        "codex://new?prompt=show%20me%20Scholar's%20Mate",
+        "_blank",
+        "noopener"
+      );
+    } finally {
+      window.open = originalOpen;
+      Object.defineProperty(navigator, "userAgent", {
+        configurable: true,
+        get: () => original,
+      });
+    }
+  });
+
+  it("keeps example prompts as copy buttons in regular Chrome", () => {
+    const original = navigator.userAgent;
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      get: () =>
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+    });
+    try {
+      const { getByRole, queryByRole } = render(<LessonCoach coach={null} />);
+      expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
+      expect(queryByRole("link", { name: "show me Scholar's Mate" })).toBeNull();
+    } finally {
+      Object.defineProperty(navigator, "userAgent", {
+        configurable: true,
+        get: () => original,
+      });
+    }
+  });
+
   it("renders each coach paragraph as its own block", () => {
     const { container } = render(
       <LessonCoach
@@ -322,6 +372,38 @@ describe("LessonCoach", () => {
         ].join("\n")
       );
     });
+  });
+
+  it("opens wait answers with codex:// instead of copying on Codex", () => {
+    const original = navigator.userAgent;
+    Object.defineProperty(navigator, "userAgent", {
+      configurable: true,
+      get: () => "Mozilla/5.0 ChatGPT/26.715.72359 Electron/42.3.0",
+    });
+    const open = jest.fn().mockReturnValue({});
+    const originalOpen = window.open;
+    window.open = open;
+    try {
+      const { getAllByRole, queryAllByRole } = render(
+        <LessonCoach
+          coach={null}
+          waitPrompt="What do you want to learn today?"
+          waitChoices={[{ id: "scholars-mate", label: "Scholar's Mate" }]}
+        />
+      );
+      expect(queryAllByRole("button", { name: "Copy" })).toHaveLength(0);
+      const link = getAllByRole("link", { name: "Open" })[0];
+      expect(link.getAttribute("href")).toContain("codex://new?prompt=");
+      link.click();
+      expect(open).toHaveBeenCalled();
+      expect(String(open.mock.calls[0][0])).toContain("codex://new?prompt=");
+    } finally {
+      window.open = originalOpen;
+      Object.defineProperty(navigator, "userAgent", {
+        configurable: true,
+        get: () => original,
+      });
+    }
   });
 
   it("does not show a how-to-solve hint on the coach panel", () => {

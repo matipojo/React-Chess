@@ -21,7 +21,7 @@ export type PeekPiece = {
 };
 
 const CHESS_REF =
-  /O-O-O|O-O|[a-h][1-8]\s*[-:x–—→]\s*[a-h][1-8]|[a-h][1-8][a-h][1-8]|[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?[!?]*|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?[!?]*|[a-h][1-8](?:=[NBRQ])?[+#]?[!?]*/g;
+  /O-O-O|O-O|[NBRQK][a-h][1-8]\s*[-:x–—→]\s*[a-h][1-8](?:=[NBRQ])?[+#]?[!?]*|[a-h][1-8]\s*[-:x–—→]\s*[a-h][1-8]|[a-h][1-8][a-h][1-8]|[NBRQK][a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?[+#]?[!?]*|[a-h]x[a-h][1-8](?:=[NBRQ])?[+#]?[!?]*|[a-h][1-8](?:=[NBRQ])?[+#]?[!?]*/g;
 
 const LETTER_TO_PIECE: { [letter: string]: PieceType } = {
   N: PieceType.KNIGHT,
@@ -52,6 +52,21 @@ export function parseChessRef(raw: string): Omit<ChessRefPart, "type" | "value">
   }
   if (/^O-O/.test(compact)) {
     return { squares: ["e1", "g1", "h1", "e8", "g8", "h8"], piece: PieceType.KING };
+  }
+
+  const pieceLan = compact.match(
+    /^([NBRQK])([a-h][1-8])[-:x–—→]([a-h][1-8])(?:=[NBRQ])?[+#]?$/
+  );
+  if (pieceLan) {
+    const from = pieceLan[2].toLowerCase();
+    const dest = pieceLan[3].toLowerCase();
+    return {
+      squares: [from, dest],
+      dest,
+      piece: LETTER_TO_PIECE[pieceLan[1]],
+      fromFile: from[0],
+      fromRank: from[1],
+    };
   }
 
   const coord = compact.match(/^([a-h][1-8])[-:x–—→]([a-h][1-8])/i);
@@ -98,6 +113,7 @@ export function parseChessRef(raw: string): Omit<ChessRefPart, "type" | "value">
   const pawn = compact.match(/^([a-h][1-8])(?:=[NBRQ])?[+#]?$/i);
   if (pawn) {
     const dest = pawn[1].toLowerCase();
+    // Bare e4 is a square, not a known pawn: hover cannot pick the piece.
     return { squares: [dest], dest };
   }
 
@@ -113,6 +129,9 @@ export function peekSquaresFromRef(
   ref: ChessRefPart,
   pieces: PeekPiece[]
 ): string[] {
+  if (ref.dest && ref.squares.length >= 2 && ref.squares[0] !== ref.dest) {
+    return uniqueSquares(ref.squares);
+  }
   if (!ref.piece || !ref.dest) {
     return ref.squares;
   }
@@ -201,6 +220,69 @@ export function tokenizeChessText(text: string): ChessTextPart[] {
   }
 
   return attachMoveNumbers(parts);
+}
+
+function isCastleRef(value: string): boolean {
+  return /^O-O/.test(value.replace(/\s/g, "").replace(/^\d+\.{1,3}/, ""));
+}
+
+function isFromToRef(part: ChessRefPart): boolean {
+  if (part.dest && part.squares.length >= 2 && part.squares[0] !== part.dest) {
+    return true;
+  }
+  const compact = part.value.replace(/\s/g, "").replace(/^\d+\.{1,3}/, "");
+  return /^(?:[NBRQK])?(?:[a-h][1-8])[-:x–—→](?:[a-h][1-8])/i.test(compact) ||
+    /^[a-h][1-8][a-h][1-8]$/i.test(compact);
+}
+
+function isMoveScoreGlue(text: string): boolean {
+  return !/[A-Za-z]{2,}/.test(text) && !isRtlScript(text);
+}
+
+function isAdjacentToOtherRef(parts: ChessTextPart[], index: number): boolean {
+  for (let i = index - 1; i >= 0; i--) {
+    const part = parts[i];
+    if (part.type === "ref") {
+      return true;
+    }
+    if (!isMoveScoreGlue(part.value)) {
+      break;
+    }
+  }
+  for (let i = index + 1; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.type === "ref") {
+      return true;
+    }
+    if (!isMoveScoreGlue(part.value)) {
+      break;
+    }
+  }
+  return false;
+}
+
+/** Short SAN that hover cannot resolve to a piece arrow — coach text must use long algebraic. */
+export function sanMovesNeedingFromTo(text: string): string[] {
+  if (!text) {
+    return [];
+  }
+  const parts = tokenizeChessText(text);
+  const found: string[] = [];
+  parts.forEach((part, index) => {
+    if (part.type !== "ref") {
+      return;
+    }
+    if (isCastleRef(part.value) || isFromToRef(part)) {
+      return;
+    }
+    const numbered = /^\d+\.{1,3}/.test(part.value);
+    const pieceMove = Boolean(part.piece);
+    const pawnInScore = Boolean(part.dest) && isAdjacentToOtherRef(parts, index);
+    if (pieceMove || numbered || pawnInScore) {
+      found.push(part.value);
+    }
+  });
+  return found;
 }
 
 /** Fold "3..." / "4." into the following SAN so the number cannot separate in RTL. */

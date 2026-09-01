@@ -55,6 +55,97 @@ export function createPiece(
   return new Piece(position, type, team, hasMoved);
 }
 
+type CastlingRights = { K: boolean; Q: boolean; k: boolean; q: boolean };
+
+const ALL_CASTLING: CastlingRights = { K: true, Q: true, k: true, q: true };
+
+function parseCastlingRights(field: string | undefined): CastlingRights {
+  // Missing or "-" still infers from home squares so learn-mode FEN setups can castle.
+  if (!field || field === "-") {
+    return ALL_CASTLING;
+  }
+  return {
+    K: field.indexOf("K") >= 0,
+    Q: field.indexOf("Q") >= 0,
+    k: field.indexOf("k") >= 0,
+    q: field.indexOf("q") >= 0,
+  };
+}
+
+function hasMovedFromPlacement(
+  type: PieceType,
+  team: TeamType,
+  x: number,
+  y: number,
+  rights: CastlingRights
+): boolean {
+  if (type === PieceType.PAWN) {
+    const startRank = team === TeamType.OUR ? 1 : 6;
+    return y !== startRank;
+  }
+  if (type === PieceType.KING) {
+    const homeY = team === TeamType.OUR ? 0 : 7;
+    if (x !== 4 || y !== homeY) {
+      return true;
+    }
+    return team === TeamType.OUR ? !(rights.K || rights.Q) : !(rights.k || rights.q);
+  }
+  if (type === PieceType.ROOK) {
+    const homeY = team === TeamType.OUR ? 0 : 7;
+    if (y !== homeY) {
+      return true;
+    }
+    if (x === 7) {
+      return team === TeamType.OUR ? !rights.K : !rights.k;
+    }
+    if (x === 0) {
+      return team === TeamType.OUR ? !rights.Q : !rights.q;
+    }
+    return true;
+  }
+  return true;
+}
+
+function pieceAt(
+  board: Board,
+  x: number,
+  y: number,
+  team: TeamType,
+  test: (piece: Piece) => boolean
+): boolean {
+  return board.pieces.some(
+    (piece) =>
+      piece.team === team &&
+      piece.position.x === x &&
+      piece.position.y === y &&
+      !piece.hasMoved &&
+      test(piece)
+  );
+}
+
+export function fenCastlingField(board: Board): string {
+  let rights = "";
+  const whiteKingHome = pieceAt(board, 4, 0, TeamType.OUR, (p) => p.isKing);
+  const blackKingHome = pieceAt(board, 4, 7, TeamType.OPPONENT, (p) => p.isKing);
+  if (whiteKingHome) {
+    if (pieceAt(board, 7, 0, TeamType.OUR, (p) => p.isRook)) {
+      rights += "K";
+    }
+    if (pieceAt(board, 0, 0, TeamType.OUR, (p) => p.isRook)) {
+      rights += "Q";
+    }
+  }
+  if (blackKingHome) {
+    if (pieceAt(board, 7, 7, TeamType.OPPONENT, (p) => p.isRook)) {
+      rights += "k";
+    }
+    if (pieceAt(board, 0, 7, TeamType.OPPONENT, (p) => p.isRook)) {
+      rights += "q";
+    }
+  }
+  return rights || "-";
+}
+
 export function boardFromFen(fen: string, learnMode: boolean): Board {
   const parts = fen.trim().split(/\s+/);
   const placement = parts[0];
@@ -67,6 +158,7 @@ export function boardFromFen(fen: string, learnMode: boolean): Board {
     throw new Error("Invalid FEN: expected 8 ranks");
   }
 
+  const rights = parseCastlingRights(parts[2]);
   const pieces: Piece[] = [];
   for (let rankIndex = 0; rankIndex < 8; rankIndex++) {
     const y = 7 - rankIndex;
@@ -86,7 +178,14 @@ export function boardFromFen(fen: string, learnMode: boolean): Board {
         throw new Error("Invalid FEN: too many squares in a rank");
       }
       const team = ch === ch.toUpperCase() ? TeamType.OUR : TeamType.OPPONENT;
-      pieces.push(createPiece(type, team, new Position(x, y), true));
+      pieces.push(
+        createPiece(
+          type,
+          team,
+          new Position(x, y),
+          hasMovedFromPlacement(type, team, x, y, rights)
+        )
+      );
       x += 1;
     }
     if (x !== 8) {
@@ -107,18 +206,14 @@ export function boardFromPlacements(
   learnMode: boolean
 ): Board {
   const pieces = placements.map((placement) => {
-      const coords = chessNotationToCoordinates(placement.square.toLowerCase());
+    const coords = chessNotationToCoordinates(placement.square.toLowerCase());
     const type = parsePieceType(placement.type);
     const team = parseTeam(placement.color);
-    const onStartRank =
-      type === PieceType.PAWN &&
-      ((team === TeamType.OUR && coords.y === 1) ||
-        (team === TeamType.OPPONENT && coords.y === 6));
     return createPiece(
       type,
       team,
       new Position(coords.x, coords.y),
-      !onStartRank
+      hasMovedFromPlacement(type, team, coords.x, coords.y, ALL_CASTLING)
     );
   });
 
@@ -180,5 +275,5 @@ export function boardToFen(board: Board): string {
     ranks.push(rank);
   }
   const turn = board.currentTeam === TeamType.OPPONENT ? "b" : "w";
-  return `${ranks.join("/")} ${turn} - - 0 1`;
+  return `${ranks.join("/")} ${turn} ${fenCastlingField(board)} - 0 1`;
 }

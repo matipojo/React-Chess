@@ -2,6 +2,7 @@ import { boardToFen, startingLearnBoard } from "../utils/board-setup";
 import {
   contentLesson,
   contentQuiz,
+  fenAfterTeaching,
   lastTeachingSlideIndex,
   projectLessonSession,
 } from "./lessonDocument";
@@ -83,6 +84,21 @@ describe("lesson document vs session", () => {
     expect(slides[2].fen.includes("4P")).toBe(true);
     expect(slides[1].quiz?.answered).toBeUndefined();
     expect(lastTeachingSlideIndex(slides)).toBe(2);
+    expect(fenAfterTeaching(italian(), start)).toBe(slides[slides.length - 1].fen);
+  });
+
+  it("uses the starting fen for the next step when the lesson has only a goal", () => {
+    const start = boardToFen(startingLearnBoard());
+    const lesson: SavedLesson = {
+      id: "custom:lesson-2",
+      kind: "custom",
+      title: "Only a goal",
+      body: "We will learn the Italian.",
+      savedAt: 1,
+      number: 2,
+      steps: [],
+    };
+    expect(fenAfterTeaching(lesson, start).split(" ")[0]).toBe(start.split(" ")[0]);
   });
 
   it("keeps riddle steps as riddles when projecting a session", () => {

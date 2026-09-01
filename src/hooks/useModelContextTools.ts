@@ -2,15 +2,15 @@ import { useEffect, useRef } from 'react';
 import { Board } from '../models/Board';
 import { Piece } from '../models/Piece';
 import { Position } from '../models/Position';
-import { PieceType } from '../Types';
-import { chessNotationToCoordinates, parseMoveNotation } from '../utils/chess-notation-utils';
+import { PieceType, TeamType } from '../Types';
+import { chessNotationToCoordinates, parseMoveOrCastle } from '../utils/chess-notation-utils';
 import { getModelContext } from '../model-context-types';
 import { normalizeCoachCopy, splitCoachParagraphs } from '../lessons/coachParagraphs';
 import { logLessonDebug } from '../lessons/debugLog';
 import { compactToolResult } from '../lessons/debugSnapshot';
 import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
-import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
+import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
 import { parseLessonFormat, parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
@@ -199,13 +199,13 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'make-move',
-        description: 'Makes a chess move. Provide the move as "from:to" (e.g., "e2:e4"). In learn mode, either side may move. Animates with the hand.',
+        description: 'Makes a chess move. Provide the move as "from:to" (e.g., "e2:e4"). Castling: "e1:g1", "e1:h1", or "O-O". In learn mode, either side may move. Animates with the hand.',
         inputSchema: {
           type: 'object',
           properties: {
             move: {
               type: 'string',
-              description: 'Move in format "from:to" (e.g., "e2:e4")',
+              description: 'Move in format "from:to" (e.g., "e2:e4"), or O-O / O-O-O to castle',
               default: 'e2:e4',
             },
           },
@@ -214,11 +214,19 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
           try {
             const board = actionsRef.current.getBoard();
-            const { from: fromNotation, to: toNotation } = parseMoveNotation(params.move as string);
-            const fromCoords = chessNotationToCoordinates(fromNotation);
+            const rawMove = params.move as string;
+            let parsed = parseMoveOrCastle(rawMove, board.currentTeam);
+            let fromCoords = chessNotationToCoordinates(parsed.from);
+            let from = new Position(fromCoords.x, fromCoords.y);
+            if (!board.pieces.find(p => p.samePosition(from))) {
+              const otherTeam = board.currentTeam === TeamType.OUR ? TeamType.OPPONENT : TeamType.OUR;
+              parsed = parseMoveOrCastle(rawMove, otherTeam);
+              fromCoords = chessNotationToCoordinates(parsed.from);
+              from = new Position(fromCoords.x, fromCoords.y);
+            }
+            const fromNotation = parsed.from;
+            const toNotation = parsed.to;
             const toCoords = chessNotationToCoordinates(toNotation);
-
-            const from = new Position(fromCoords.x, fromCoords.y);
             const to = new Position(toCoords.x, toCoords.y);
 
             const piece = board.pieces.find(p => p.samePosition(from));
@@ -389,7 +397,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson and wipe the previous live session (board, coach, quiz, recap, history). Pass type as a built-in enum: lesson (default) or showme. type lesson = Goal screen only (lasting title + what we will learn), then add-lesson-step. type showme = one screen: one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Do not call create-lesson again for the same topic. ' +
+          'Create a new catalog lesson. type lesson (default): does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn; then add-lesson-step. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -408,7 +416,7 @@ export function useModelContextTools(actions: ChessActions) {
               type: 'array',
               items: { type: 'string' },
               description:
-                'type lesson: optional intro. type showme: the single explanation of the line the student will watch.',
+                'type lesson: optional intro (long algebraic for any moves, e.g. e2-e4). type showme: the single explanation of the line the student will watch.',
             },
             moves: {
               type: 'array',
@@ -451,7 +459,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not play the board; why first, then the move; student taps Play. type riddle stores the puzzle on this lesson and waits for a square click (same as ask-quiz). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, Next shows Generating... until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -468,7 +476,7 @@ export function useModelContextTools(actions: ChessActions) {
             },
             title: { type: 'string', description: 'Beat heading, not the lesson title. For a riddle, a short name.' },
             why: { type: 'string', description: 'Teaching steps: situation and goal before the move. Omit for riddles.' },
-            what: { type: 'string', description: 'Teaching steps: concrete move(s), English from:to such as e2:e4. Omit for riddles.' },
+            what: { type: 'string', description: 'Teaching steps: concrete move(s) in long algebraic notation such as e2-e4, Ng1-f3. Omit for riddles.' },
             paragraphs: {
               type: 'array',
               items: { type: 'string' },
@@ -551,7 +559,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-lesson-recap',
         description:
-          'Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons such as a chess exam or riddle — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
+          'Write or replace the Recap screen after the last teaching step. Catalog only; does not change the live playhead. Skip this for one-step lessons such as a chess exam or riddle — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
           COACH_NOTATION_RULE +
           ' ' +
           WAIT_TURN_RULE,
@@ -603,7 +611,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-coach',
         description:
-          'Update the currently visible coach text only. Prefer create-lesson, add-lesson-step, and set-lesson-recap. ' +
+          'Update the currently visible coach text only. Does not write the catalog. Prefer create-lesson, add-lesson-step, and set-lesson-recap. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -613,7 +621,7 @@ export function useModelContextTools(actions: ChessActions) {
               description: 'Catalog lesson number. Reuse it; do not invent a new lesson per move.',
             },
             title: { type: 'string', description: 'Beat heading, not the whole lesson topic.' },
-            what: { type: 'string', description: 'What happens now, with English moves.' },
+            what: { type: 'string', description: 'What happens now. Moves must be long algebraic such as e2-e4, Ng1-f3, never short SAN (e4, Nf3).' },
             why: { type: 'string', description: 'Why this belongs here.' },
             paragraphs: {
               type: 'array',
@@ -636,6 +644,16 @@ export function useModelContextTools(actions: ChessActions) {
           const what = typeof params.what === 'string' ? params.what.trim() : '';
           const why = typeof params.why === 'string' ? params.why.trim() : '';
           const extra = asStringArray(params.paragraphs);
+          const notationError = coachNotationViolation([
+            String(params.title || ''),
+            what,
+            why,
+            typeof params.body === 'string' ? params.body : '',
+            ...extra,
+          ]);
+          if (notationError) {
+            return { success: false, message: notationError, data: null };
+          }
           const copy = normalizeCoachCopy({
             body: typeof params.body === 'string' ? params.body : '',
             paragraphs: extra.length ? extra : what || why ? [] : asStringArray(params.paragraphs),
@@ -814,6 +832,13 @@ export function useModelContextTools(actions: ChessActions) {
           const correct = asStringArray(params.correct);
           if (!correct.length) {
             return { success: false, message: 'Provide at least one correct square', data: null };
+          }
+          const notationError = coachNotationViolation([
+            String(params.question || ''),
+            typeof params.hint === 'string' ? params.hint : '',
+          ]);
+          if (notationError) {
+            return { success: false, message: notationError, data: null };
           }
           const result = await actionsRef.current.lessons.askQuiz({
             question: String(params.question || ''),
