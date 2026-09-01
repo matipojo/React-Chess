@@ -39,12 +39,12 @@ describe("GeometryCanvas pointer", () => {
     });
 
     expect(document.querySelector("[data-pointer-hand]")).toBeTruthy();
-    expect(document.querySelector(".pointer-hand-animation")).toBeTruthy();
+    expect(document.querySelector(".simple-hand-animation")).toBeTruthy();
 
     act(() => {
       jest.advanceTimersByTime(HAND_START_DELAY_MS + HAND_APPROACH_MS);
     });
-    expect(document.querySelector(".pointer-hand-animation.grabbing")).toBeTruthy();
+    expect(document.querySelector(".simple-hand-animation.grabbing")).toBeTruthy();
 
     act(() => {
       jest.advanceTimersByTime(HAND_DRAG_MS);

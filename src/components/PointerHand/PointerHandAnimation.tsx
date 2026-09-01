@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import "./PointerHandAnimation.css";
+import "../Chessboard/HandAnimation/SimpleHandAnimation.css";
 
 export const HAND_APPROACH_MS = 1000;
 export const HAND_DRAG_MS = 1000;
@@ -75,11 +75,11 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
       const start = lastRestRef.current || { x: 0, y: window.innerHeight || 800 };
 
       const hand = document.createElement("div");
-      hand.className = "pointer-hand-animation";
+      hand.className = "simple-hand-animation";
       hand.setAttribute("data-pointer-hand", "true");
       hand.style.position = "fixed";
       hand.style.transform = "translate(-50%, -50%)";
-      hand.style.zIndex = "1001";
+      hand.style.zIndex = "10000";
       hand.style.pointerEvents = "none";
       hand.style.transition = `all ${HAND_APPROACH_MS}ms ${SMOOTH_EASING}`;
       setHandPosition(hand, start);
@@ -91,7 +91,7 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
 
         schedule(() => {
           if (grab) {
-            hand.className = "pointer-hand-animation grabbing";
+            hand.className = "simple-hand-animation grabbing";
           }
           hand.style.transition = `all ${HAND_DRAG_MS}ms ease-in-out`;
           setHandPosition(hand, to);

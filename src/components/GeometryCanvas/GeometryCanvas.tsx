@@ -168,6 +168,8 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
         }
       : null;
 
+  const retryRef = useRef(0);
+
   const finishPointer = () => {
     const done = completeRef.current;
     completeRef.current = null;
@@ -177,33 +179,45 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
   };
 
   const cancelAnimation = () => {
+    if (retryRef.current) {
+      window.clearTimeout(retryRef.current);
+      retryRef.current = 0;
+    }
     pointerRef.current?.cancel();
     finishPointer();
   };
 
   React.useImperativeHandle(ref, () => ({
     playAnimation: (next, onComplete) => {
-      const svg = svgRef.current;
-      const path = animationPointerPath(next, figure);
-      if (!svg || !path) {
-        onComplete?.();
-        return;
-      }
-      if (!pointerRef.current) {
-        onComplete?.();
-        return;
-      }
-      if (completeRef.current) {
-        cancelAnimation();
-      }
-      completeRef.current = onComplete || null;
-      setActiveAnimation(next);
-      setPreviewT(0);
-      pointerRef.current?.playDrag(worldToClient(svg, path.from), worldToClient(svg, path.to), {
-        grab: path.grab,
-        onProgress: setPreviewT,
-        onComplete: finishPointer,
-      });
+      const started = Date.now();
+      const attempt = () => {
+        retryRef.current = 0;
+        const svg = svgRef.current;
+        const pointer = pointerRef.current;
+        const path = animationPointerPath(next, figure);
+        if (!svg || !pointer || !path) {
+          if (Date.now() - started > 2000) {
+            onComplete?.();
+            return;
+          }
+          retryRef.current = window.setTimeout(attempt, 50);
+          return;
+        }
+        if (completeRef.current) {
+          pointer.cancel();
+          completeRef.current();
+          completeRef.current = null;
+        }
+        completeRef.current = onComplete || null;
+        setActiveAnimation(next);
+        setPreviewT(0);
+        pointer.playDrag(worldToClient(svg, path.from), worldToClient(svg, path.to), {
+          grab: path.grab,
+          onProgress: setPreviewT,
+          onComplete: finishPointer,
+        });
+      };
+      attempt();
     },
     cancelAnimation,
   }));

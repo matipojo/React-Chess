@@ -68,7 +68,7 @@ export default function TriangleSurface() {
         }
         await triangles.applyGan("h(C,AB)");
       })();
-    }, 500);
+    }, 800);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
