@@ -1,8 +1,8 @@
 {
-  "name": "chess-app",
+  "name": "generative-learning",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://matipojo.github.io/WebMCP-React-Chess",
+  "homepage": ".",
   "dependencies": {
     "@mcp-b/webmcp-polyfill": "^5.0.1",
     "@testing-library/jest-dom": "^5.11.4",
