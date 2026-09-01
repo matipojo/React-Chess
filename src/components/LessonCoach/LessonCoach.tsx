@@ -302,6 +302,9 @@ export default function LessonCoach({
             {coach.phase === "step" && (
               <p className="lesson-coach-recap-label">Step</p>
             )}
+            {coach.phase === "riddle" && (
+              <p className="lesson-coach-recap-label">Riddle</p>
+            )}
             {coach.phase === "recap" && (
               <p className="lesson-coach-recap-label">Recap</p>
             )}

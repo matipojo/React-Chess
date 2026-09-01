@@ -84,4 +84,36 @@ describe("lesson document vs session", () => {
     expect(slides[1].quiz?.answered).toBeUndefined();
     expect(lastTeachingSlideIndex(slides)).toBe(2);
   });
+
+  it("keeps riddle steps as riddles when projecting a session", () => {
+    const start = boardToFen(startingLearnBoard());
+    const lesson: SavedLesson = {
+      id: "custom:lesson-3",
+      kind: "custom",
+      title: "Knight forks",
+      body: "Find hanging royals.",
+      savedAt: 1,
+      number: 3,
+      steps: [
+        {
+          title: "Find the fork",
+          body: "",
+          kind: "riddle",
+          quiz: {
+            question: "Click the fork square.",
+            type: "click-square",
+            correct: ["c7"],
+          },
+          fen: start,
+        },
+      ],
+    };
+    const content = contentLesson(lesson);
+    expect(content.steps?.[0].kind).toBe("riddle");
+    const slides = projectLessonSession(lesson, start);
+    expect(slides.map((slide) => slide.coach?.phase)).toEqual(["goal", "riddle"]);
+    expect(slides[1].quiz?.question).toBe("Click the fork square.");
+    expect(slides[1].coach?.what).toBeUndefined();
+    expect(lastTeachingSlideIndex(slides)).toBe(1);
+  });
 });

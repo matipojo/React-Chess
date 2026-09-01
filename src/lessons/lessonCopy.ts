@@ -1,13 +1,41 @@
-import { CoachState, SavedLesson, SavedLessonStep } from "./types";
+import { CoachState, QuizState, SavedLesson, SavedLessonStep } from "./types";
 import { normalizeCoachCopy } from "./coachParagraphs";
+
+export type LessonStepType = "step" | "riddle";
 
 export type LessonStepDraft = {
   title: string;
   what: string;
   why: string;
+  type?: LessonStepType;
   paragraphs?: string[];
   moves?: string[];
+  question?: string;
+  correct?: string[];
+  hint?: string;
+  quizType?: QuizState["type"];
 };
+
+export function parseLessonStepType(value: unknown): LessonStepType {
+  if (typeof value !== "string") {
+    return "step";
+  }
+  const raw = value.trim().toLowerCase();
+  if (
+    raw === "riddle" ||
+    raw === "quiz" ||
+    raw === "puzzle" ||
+    raw === "exam" ||
+    raw === "חידה"
+  ) {
+    return "riddle";
+  }
+  return "step";
+}
+
+export function isRiddleStep(step: { kind?: SavedLessonStep["kind"] }): boolean {
+  return step.kind === "riddle";
+}
 
 export type LessonSummaryDraft = {
   title?: string;
@@ -113,6 +141,18 @@ export function coachFromDraft(
     moves?: string[];
   }
 ): CoachState {
+  if (draft.type === "riddle") {
+    return {
+      title: draft.title.trim() || "Riddle",
+      lessonTitle: meta.lessonTitle,
+      body: "",
+      lesson: meta.lesson,
+      step: meta.step,
+      totalSteps: meta.totalSteps,
+      phase: "riddle",
+      fromFen: meta.fromFen,
+    };
+  }
   const extra = (draft.paragraphs || []).map((item) => item.trim()).filter(Boolean);
   const paragraphs = buildStepParagraphs({
     what: draft.what,
@@ -163,6 +203,18 @@ export function coachFromSavedStep(
 ): CoachState {
   const index = steps.indexOf(step);
   const counts = teachingStepIndex(steps, index);
+  if (isRiddleStep(step)) {
+    return {
+      title: step.title,
+      lessonTitle: item.title,
+      body: "",
+      lesson: item.number,
+      step: counts.step,
+      totalSteps: counts.totalSteps,
+      phase: "riddle",
+      fromFen: step.fen,
+    };
+  }
   if (!isTeachingStep(step)) {
     return {
       title: step.title,
@@ -242,18 +294,40 @@ export function parseStepDrafts(value: unknown): LessonStepDraft[] {
       return [];
     }
     const item = entry as Record<string, unknown>;
-    const title = typeof item.title === "string" ? item.title.trim() : "";
-    const what = typeof item.what === "string" ? item.what.trim() : "";
-    const why = typeof item.why === "string" ? item.why.trim() : "";
-    if (!title || !what || !why) {
-      return [];
-    }
+    const type = parseLessonStepType(item.type);
     const paragraphs = Array.isArray(item.paragraphs)
       ? item.paragraphs.filter((part): part is string => typeof part === "string")
       : undefined;
     const moves = Array.isArray(item.moves)
       ? item.moves.filter((part): part is string => typeof part === "string")
       : undefined;
-    return [{ title, what, why, paragraphs, moves }];
+    if (type === "riddle") {
+      const question = typeof item.question === "string" ? item.question.trim() : "";
+      const correct = Array.isArray(item.correct)
+        ? item.correct.filter((part): part is string => typeof part === "string").map((part) => part.trim()).filter(Boolean)
+        : [];
+      if (!question || !correct.length) {
+        return [];
+      }
+      const title =
+        typeof item.title === "string" && item.title.trim()
+          ? item.title.trim()
+          : "Riddle";
+      const hint = typeof item.hint === "string" ? item.hint : undefined;
+      const quizType =
+        item.quizType === "click-piece" ||
+        item.quizType === "choose-move" ||
+        item.quizType === "click-square"
+          ? item.quizType
+          : undefined;
+      return [{ title, what: "", why: "", type, paragraphs, moves, question, correct, hint, quizType }];
+    }
+    const title = typeof item.title === "string" ? item.title.trim() : "";
+    const what = typeof item.what === "string" ? item.what.trim() : "";
+    const why = typeof item.why === "string" ? item.why.trim() : "";
+    if (!title || !what || !why) {
+      return [];
+    }
+    return [{ title, what, why, type, paragraphs, moves }];
   });
 }

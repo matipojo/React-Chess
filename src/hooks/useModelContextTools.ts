@@ -8,11 +8,11 @@ import { getModelContext } from '../model-context-types';
 import { normalizeCoachCopy, splitCoachParagraphs } from '../lessons/coachParagraphs';
 import { logLessonDebug } from '../lessons/debugLog';
 import { compactToolResult } from '../lessons/debugSnapshot';
-import { BoardHighlight, BoardArrow, CoachState, QuizState } from '../lessons/types';
+import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
-import { parseStepDrafts, parseSummaryDraft } from '../lessons/lessonCopy';
+import { parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
 type ToolResponse = {
@@ -35,21 +35,28 @@ type LessonActions = {
   addLessonStep: (args: {
     lesson?: number;
     title: string;
-    why: string;
-    what: string;
+    why?: string;
+    what?: string;
+    type?: string;
     paragraphs?: string[];
     moves?: string[];
-  }) => {
+    question?: string;
+    correct?: string[];
+    hint?: string;
+    quizType?: QuizState["type"];
+    signal?: AbortSignal;
+  }) => Promise<{
     success: boolean;
     message: string;
     lesson: number;
     step: number;
     totalSteps: number;
-    screen: "step";
+    screen: "step" | "riddle";
     nextTools: string[];
     recapWritten: boolean;
     recapExpected: boolean;
-  };
+    quiz?: { correct: boolean; square: string; timedOut?: boolean };
+  }>;
   applyLessonRecap: (args: { lesson?: number; title?: string; paragraphs: string[] }) => {
     success: boolean;
     message: string;
@@ -116,6 +123,35 @@ function asPositiveInt(value: unknown): number | undefined {
     }
   }
   return undefined;
+}
+
+function quizClickToolResponse(
+  result: QuizResult,
+  extra?: Record<string, unknown>
+): ToolResponse {
+  const data = extra ? { ...extra, ...result } : result;
+  if (result.timedOut) {
+    return {
+      success: false,
+      message:
+        'Time ran out. Do not reveal the answer. You are no longer tracking the board click. The coach already told the student to write the answer in this chat. Wait for that written answer.',
+      data,
+    };
+  }
+  if (!result.correct) {
+    return {
+      success: false,
+      message: result.square
+        ? `Clicked ${result.square}. The coach panel and board already teach the correct square(s). Explain why that answer is right, then call how_to_ask_the_user.`
+        : 'Quiz cancelled.',
+      data,
+    };
+  }
+  return {
+    success: true,
+    message: `Correct: ${result.square}. The coach already showed Correct! Do not mark the answer on the board.`,
+    data,
+  };
 }
 
 export function useModelContextTools(actions: ChessActions) {
@@ -312,7 +348,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'list-lessons',
-        description: 'Lists famous games, piece tutorials, and saved catalog lessons. Lesson screens: Goal (create-lesson), teaching Steps (add-lesson-step), Recap (set-lesson-recap, not a step, skip for one-step exams). After two or more steps, add another step or write the recap. ' + COACH_NOTATION_RULE,
+        description: 'Lists famous games, piece tutorials, and saved catalog lessons. Lesson screens: Goal (create-lesson), teaching Steps (add-lesson-step), Riddle (add-lesson-step type riddle), Recap (set-lesson-recap, not a step, skip for one-step exams/riddles). After two or more steps, add another step or write the recap. ' + COACH_NOTATION_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => ({
           success: true,
@@ -354,7 +390,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson and wipe the previous live session (board, coach, quiz, recap, history). Goal screen only: lasting title + what we will learn. Not a numbered step and not a recap. Call once per topic. Next: add-lesson-step. Do not call create-lesson again for the same topic. ' +
+          'Create a new catalog lesson and wipe the previous live session (board, coach, quiz, recap, history). Goal screen only: lasting title + what we will learn. Not a numbered step and not a recap. Call once per topic. Next: add-lesson-step (type step or riddle). Do not call create-lesson again for the same topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -395,7 +431,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE teaching Step (not a recap). Fast: no board playback. Why first, then the move; student taps Play. A one-step lesson (quiz/exam) has no recap and no Back/Next — state the task only, never how to solve; then how_to_offer_a_hint and ask-quiz. After two or more steps, Next shows Generating... until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not play the board; why first, then the move; student taps Play. type riddle stores the puzzle on this lesson and waits for a square click (same as ask-quiz). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, Next shows Generating... until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -404,31 +440,79 @@ export function useModelContextTools(actions: ChessActions) {
               type: 'number',
               description: 'Catalog number from create-lesson.',
             },
-            title: { type: 'string', description: 'Beat heading, not the lesson title.' },
-            why: { type: 'string', description: 'Situation and goal before the move.' },
-            what: { type: 'string', description: 'Concrete move(s), English from:to such as e2:e4.' },
+            type: {
+              type: 'string',
+              enum: ['step', 'riddle'],
+              description:
+                'step = teaching beat (title, why, what). riddle = chess puzzle/חידה: question + correct squares, then wait for a click.',
+            },
+            title: { type: 'string', description: 'Beat heading, not the lesson title. For a riddle, a short name.' },
+            why: { type: 'string', description: 'Teaching steps: situation and goal before the move. Omit for riddles.' },
+            what: { type: 'string', description: 'Teaching steps: concrete move(s), English from:to such as e2:e4. Omit for riddles.' },
             paragraphs: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Optional extra detail.',
+              description: 'Optional extra detail for teaching steps. Do not spoil a riddle here.',
             },
             moves: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Optional from:to for Play buttons, e.g. ["e2:e4", "e7:e5"].',
+              description: 'Optional from:to for Play buttons on teaching steps, e.g. ["e2:e4", "e7:e5"].',
+            },
+            question: {
+              type: 'string',
+              description:
+                'Required for type riddle. Puzzle prompt shown to the student. Task only, no spoiler. ' + COACH_NOTATION_RULE,
+            },
+            correct: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Required for type riddle. Acceptable squares such as ["e5", "e4"].',
+            },
+            hint: {
+              type: 'string',
+              description:
+                'Optional private nudge for type riddle, used only after they tap ' +
+                HINT_BUTTON_LABEL +
+                ' in chat. Never put this in question. Not shown on the chess page. ' +
+                COACH_NOTATION_RULE,
+            },
+            quizType: {
+              type: 'string',
+              enum: ['click-square', 'click-piece', 'choose-move'],
+              description: 'How the student answers a riddle. Default click-square.',
             },
           },
-          required: ['lesson', 'title', 'why', 'what'],
+          required: ['lesson'],
         },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const result = actionsRef.current.lessons.addLessonStep({
+        execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {
+          const type = parseLessonStepType(params.type);
+          const correct = asStringArray(params.correct);
+          const result = await actionsRef.current.lessons.addLessonStep({
             lesson: asPositiveInt(params.lesson),
             title: String(params.title || ''),
-            why: String(params.why || ''),
-            what: String(params.what || ''),
+            why: typeof params.why === 'string' ? params.why : '',
+            what: typeof params.what === 'string' ? params.what : '',
+            type,
             paragraphs: asStringArray(params.paragraphs),
             moves: asStringArray(params.moves),
+            question: typeof params.question === 'string' ? params.question : undefined,
+            correct,
+            hint: typeof params.hint === 'string' ? params.hint : undefined,
+            quizType: (params.quizType as QuizState['type']) || 'click-square',
+            signal: options?.signal,
           });
+          if (result.quiz) {
+            return quizClickToolResponse(result.quiz, {
+              lesson: result.lesson,
+              step: result.step,
+              totalSteps: result.totalSteps,
+              screen: result.screen,
+              recapWritten: result.recapWritten,
+              recapExpected: result.recapExpected,
+              nextTools: result.nextTools,
+            });
+          }
           return {
             success: result.success,
             message: result.message,
@@ -447,7 +531,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-lesson-recap',
         description:
-          'Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons such as a chess exam — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
+          'Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons such as a chess exam or riddle — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
           COACH_NOTATION_RULE +
           ' ' +
           WAIT_TURN_RULE,
@@ -676,7 +760,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'ask-quiz',
         description:
-          'Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss teaches the correct square on the board and in the coach. A timeout does not reveal the answer — tell the student to write it in this chat. ' +
+          'Prefer add-lesson-step with type riddle so the puzzle is stored on the catalog lesson. Use this tool only for a one-off quiz that is not a lesson step. Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss teaches the correct square on the board and in the coach. A timeout does not reveal the answer — tell the student to write it in this chat. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -717,28 +801,7 @@ export function useModelContextTools(actions: ChessActions) {
             correct,
             hint: typeof params.hint === 'string' ? params.hint : undefined,
           }, options);
-          if (result.timedOut) {
-            return {
-              success: false,
-              message:
-                'Time ran out. Do not reveal the answer. You are no longer tracking the board click. The coach already told the student to write the answer in this chat. Wait for that written answer.',
-              data: result,
-            };
-          }
-          if (!result.correct) {
-            return {
-              success: false,
-              message: result.square
-                ? `Clicked ${result.square}. The coach panel and board already teach the correct square(s). Explain why that answer is right, then call how_to_ask_the_user.`
-                : 'Quiz cancelled.',
-              data: result,
-            };
-          }
-          return {
-            success: true,
-            message: `Correct: ${result.square}. The coach already showed Correct! Do not mark the answer on the board.`,
-            data: result,
-          };
+          return quizClickToolResponse(result);
         },
       },
       {
@@ -798,7 +861,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'how_to_offer_a_hint',
         description:
-          'Returns instructions for offering an opt-in Give me a hint visualization button in this chat. Takes no arguments. Call this instead of how_to_ask_the_user while the student is solving, before ask-quiz. Do not spoil the solution in coach text or in this chat until they tap the button. Follow the returned prompt, then call ask-quiz.',
+          'Returns instructions for offering an opt-in Give me a hint visualization button in this chat. Takes no arguments. Call this instead of how_to_ask_the_user while the student is solving, before add-lesson-step type riddle (or ask-quiz for a one-off). Do not spoil the solution in coach text or in this chat until they tap the button. Follow the returned prompt, then add the riddle step.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const accent = readBoardChatAccent();
@@ -829,7 +892,7 @@ export function useModelContextTools(actions: ChessActions) {
     ];
 
     const toolNames = tools.map(t => t.name);
-    const longRunning = new Set(["ask-quiz", "play-line"]);
+    const longRunning = new Set(["ask-quiz", "play-line", "add-lesson-step"]);
     const wrappedTools = tools.map((tool) => ({
       ...tool,
       execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {
