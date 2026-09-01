@@ -17,7 +17,7 @@ import {
   openCodexPrompt,
   sharePromptWithHost,
 } from "../../utils/codexPrompt";
-import { CopiedCheckIcon } from "../LessonCoach/LessonCoachIcons";
+import { CopiedCheckIcon, CopyIcon } from "../LessonCoach/LessonCoachIcons";
 import "../LessonCoach/LessonCoach.css";
 import "../../board-themes.css";
 import "./AboutPage.css";
@@ -163,6 +163,7 @@ function ExamplePrompts() {
                 className={
                   copiedId === prompt ? "about-example is-copied" : "about-example"
                 }
+                title="Copy prompt"
                 aria-describedby={
                   copiedId === prompt ? "about-copied-tip" : undefined
                 }
@@ -179,6 +180,9 @@ function ExamplePrompts() {
                   }, 5500);
                 }}
               >
+                <span className="about-example-copy" aria-hidden="true">
+                  <CopyIcon />
+                </span>
                 {prompt}
               </button>
               {copiedId === prompt ? (

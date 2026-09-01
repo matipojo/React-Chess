@@ -60,9 +60,10 @@ describe("LessonCoach empty state", () => {
     );
     try {
       const { getByRole, queryByRole } = render(<LessonCoach coach={null} />);
-      expect(
-        getByRole("button", { name: "show me Scholar's Mate" })
-      ).toBeTruthy();
+      const button = getByRole("button", { name: "show me Scholar's Mate" });
+      expect(button).toBeTruthy();
+      expect(button.getAttribute("title")).toBe("Copy prompt");
+      expect(button.querySelector(".lesson-coach-example-copy")).toBeTruthy();
       expect(queryByRole("link", { name: "show me Scholar's Mate" })).toBeNull();
     } finally {
       restore();

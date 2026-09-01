@@ -8,7 +8,7 @@ import {
   openCodexPrompt,
   sharePromptWithHost,
 } from "../../utils/codexPrompt";
-import { CopiedCheckIcon } from "./LessonCoachIcons";
+import { CopiedCheckIcon, CopyIcon } from "./LessonCoachIcons";
 
 export default function LessonCoachEmpty() {
   const [copiedId, setCopiedId] = useState<string>("");
@@ -43,6 +43,7 @@ export default function LessonCoachEmpty() {
                       ? "lesson-coach-example is-copied"
                       : "lesson-coach-example"
                   }
+                  title="Copy prompt"
                   aria-describedby={
                     copiedId === prompt ? "lesson-coach-copied-tip" : undefined
                   }
@@ -58,6 +59,9 @@ export default function LessonCoachEmpty() {
                     window.setTimeout(() => setCopiedId(""), 5500);
                   }}
                 >
+                  <span className="lesson-coach-example-copy" aria-hidden="true">
+                    <CopyIcon />
+                  </span>
                   {prompt}
                 </button>
                 {copiedId === prompt ? (

@@ -41,7 +41,10 @@ describe("AboutPage", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     try {
       const { getByRole, getAllByRole } = renderAbout();
-      getByRole("button", { name: "teach me the Italian Game" }).click();
+      const button = getByRole("button", { name: "teach me the Italian Game" });
+      expect(button.getAttribute("title")).toBe("Copy prompt");
+      expect(button.querySelector(".about-example-copy")).toBeTruthy();
+      button.click();
       await waitFor(() => {
         expect(writeText).toHaveBeenCalledWith("teach me the Italian Game");
       });

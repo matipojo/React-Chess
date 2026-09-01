@@ -191,6 +191,7 @@
 .about-example {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   background: #efe8f8;
   color: var(--about-accent-strong);
   border: 1px solid var(--about-line);
@@ -201,6 +202,16 @@
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+}
+
+.about-example-copy {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.about-example-copy svg {
+  width: 13px;
+  height: 13px;
 }
 
 .about-example:hover,
