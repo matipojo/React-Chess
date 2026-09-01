@@ -7,7 +7,12 @@ import {
   ITALIAN_GAME_ARROWS,
   ITALIAN_GAME_FEN,
 } from "./aboutDemo";
-import { ABOUT_HASH, PLAY_HASH } from "../../utils/appRoute";
+import {
+  ABOUT_PATH,
+  CHESS_PATH,
+  TRIANGLES_PATH,
+  appHref,
+} from "../../utils/appRoute";
 import {
   buildCodexPromptHref,
   CODEX_UNAVAILABLE_MESSAGE,
@@ -138,42 +143,44 @@ function ExamplePrompts() {
   const openInCodex = isCodexHost();
 
   return (
-    <div className="about-examples">
-      {ABOUT_EXAMPLE_PROMPTS.map((prompt) =>
-        openInCodex ? (
-          <a
-            key={prompt}
-            className="about-example"
-            href={buildCodexPromptHref(prompt)}
-            onClick={(event) => {
-              event.preventDefault();
-              openCodexPrompt(prompt);
-            }}
-          >
-            {prompt}
-          </a>
-        ) : (
-          <button
-            key={prompt}
-            type="button"
-            className="about-example"
-            onClick={async () => {
-              const result = await shareLessonPrompt(prompt);
-              if (result !== "copied") {
-                return;
-              }
-              setCopiedId(prompt);
-              setStatus(CODEX_UNAVAILABLE_MESSAGE);
-              window.setTimeout(() => {
-                setCopiedId("");
-                setStatus("");
-              }, 2500);
-            }}
-          >
-            {copiedId === prompt ? "Copied" : prompt}
-          </button>
-        )
-      )}
+    <div>
+      <div className="about-examples">
+        {ABOUT_EXAMPLE_PROMPTS.map((prompt) =>
+          openInCodex ? (
+            <a
+              key={prompt}
+              className="about-example"
+              href={buildCodexPromptHref(prompt)}
+              onClick={(event) => {
+                event.preventDefault();
+                openCodexPrompt(prompt);
+              }}
+            >
+              {prompt}
+            </a>
+          ) : (
+            <button
+              key={prompt}
+              type="button"
+              className="about-example"
+              onClick={async () => {
+                const result = await shareLessonPrompt(prompt);
+                if (result !== "copied") {
+                  return;
+                }
+                setCopiedId(prompt);
+                setStatus(CODEX_UNAVAILABLE_MESSAGE);
+                window.setTimeout(() => {
+                  setCopiedId("");
+                  setStatus("");
+                }, 2500);
+              }}
+            >
+              {copiedId === prompt ? "Copied" : prompt}
+            </button>
+          )
+        )}
+      </div>
       {status ? (
         <p className="about-prompt-status" role="status">
           {status}
@@ -201,11 +208,11 @@ export default function AboutPage() {
   return (
     <div className="about-page">
       <header className="about-header">
-        <a className="about-brand" href={ABOUT_HASH}>
+        <a className="about-brand" href={appHref(ABOUT_PATH)}>
           <LogoMark />
           <span>Living Learning Surfaces</span>
         </a>
-        <a className="about-header-link" href={PLAY_HASH}>
+        <a className="about-header-link" href={appHref(CHESS_PATH)}>
           Open the board
         </a>
       </header>
@@ -378,16 +385,16 @@ export default function AboutPage() {
         <section className="about-section">
           <h2>The pattern is broader</h2>
           <div className="about-subjects">
-            <a className="about-subject is-active" href={PLAY_HASH}>
+            <a className="about-subject is-active" href={appHref(CHESS_PATH)}>
               <img src={pieceSrc("knight_w")} alt="" />
               <strong>Chess</strong>
               <span>Working demo. Available now.</span>
             </a>
-            <div className="about-subject is-soon">
+            <a className="about-subject is-active" href={appHref(TRIANGLES_PATH)}>
               <span className="about-subject-icon">△</span>
               <strong>Geometry</strong>
-              <span>Coming later</span>
-            </div>
+              <span>Working demo. Available now.</span>
+            </a>
             <div className="about-subject is-soon">
               <span className="about-subject-icon">⎋</span>
               <strong>Circuits</strong>

@@ -219,6 +219,7 @@ export function useTriangleLessons() {
       message: `Created triangle lesson ${created.number}: ${created.title}. Screen: Goal. Next: add-lesson-step with lesson: ${created.number}. Use GAN in why/what (${COACH_GAN_RULE})`,
       lesson: created.number as number,
       title: created.title,
+      screen: "goal" as const,
     };
   }, [pushSnapshot, wipe]);
 

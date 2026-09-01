@@ -14,6 +14,7 @@ import { compactPaintDetail, paintFingerprint } from "../../lessons/debugSnapsho
 
 export type ChessboardHandle = {
   animateMove: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => void;
+  cancelMoveAnimation: () => void;
 };
 
 interface Props {
@@ -49,6 +50,7 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
   piecesRef.current = pieces;
   const simpleHandAnimationRef = useRef<SimpleHandAnimationRef>(null);
   const pendingAnimationCallbackRef = useRef<(() => void) | null>(null);
+  const startAnimationTimerRef = useRef<number | null>(null);
   const lastPaintFingerprintRef = useRef("");
 
   useLayoutEffect(() => {
@@ -86,17 +88,31 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     callback?.();
   };
 
+  const cancelMoveAnimation = () => {
+    if (startAnimationTimerRef.current !== null) {
+      window.clearTimeout(startAnimationTimerRef.current);
+      startAnimationTimerRef.current = null;
+    }
+    simpleHandAnimationRef.current?.cancel();
+    handleAnimationComplete();
+  };
+
   React.useImperativeHandle(ref, () => ({
     animateMove: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => {
+      if (startAnimationTimerRef.current !== null || pendingAnimationCallbackRef.current) {
+        cancelMoveAnimation();
+      }
       if (simpleHandAnimationRef.current) {
         pendingAnimationCallbackRef.current = onComplete ?? null;
-        setTimeout(() => {
+        startAnimationTimerRef.current = window.setTimeout(() => {
+          startAnimationTimerRef.current = null;
           simpleHandAnimationRef.current?.playMove(from, to, team);
         }, 100);
       } else {
         onComplete?.();
       }
     },
+    cancelMoveAnimation,
   }));
 
   function tileSize(chessboard: HTMLDivElement) {

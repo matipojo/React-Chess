@@ -45,7 +45,10 @@ function isSavedLesson(value: unknown): value is SavedLesson {
     typeof item.title === "string" &&
     typeof item.body === "string" &&
     typeof item.savedAt === "number" &&
-    (item.kind === "game" || item.kind === "piece" || item.kind === "custom")
+    (item.kind === "game" ||
+      item.kind === "piece" ||
+      item.kind === "custom" ||
+      item.kind === "showme")
   );
 }
 
@@ -147,6 +150,7 @@ export function createCatalogLesson(
     title: string;
     body?: string;
     paragraphs?: string[];
+    kind?: SavedLesson["kind"];
   },
   storageKey = USER_CATALOG_KEY
 ): SavedLesson {
@@ -154,7 +158,7 @@ export function createCatalogLesson(
   upsertUserLesson(
     {
       id: customLessonId(number),
-      kind: "custom",
+      kind: args.kind || "custom",
       title: args.title.trim() || "Lesson",
       body: args.body || "",
       paragraphs: args.paragraphs,

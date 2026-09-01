@@ -1,6 +1,6 @@
 export const EXAMPLE_LESSON_PROMPTS = [
-  "how does a knight move?",
-  "show Scholar's Mate",
+  "show me Scholar's Mate",
+  "teach me the Italian",
   "quiz me on forks",
 ];
 

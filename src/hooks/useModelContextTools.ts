@@ -12,9 +12,8 @@ import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '.
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
-import { parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
-import { Figure } from '../geometry/types';
-import { COACH_GAN_RULE } from '../geometry/notation';
+import { parseLessonFormat, parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
+import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
 type ToolResponse = {
   success: boolean;
@@ -27,11 +26,18 @@ type LessonActions = {
   enterLearnMode: () => void;
   exitLearnMode: () => void;
   setCoach: (coach: CoachState) => { lesson: number; step: number; totalSteps: number };
-  createLesson: (args: { title: string; paragraphs?: string[] }) => {
+  createLesson: (args: {
+    title: string;
+    paragraphs?: string[];
+    type?: string;
+    moves?: string[];
+    fen?: string;
+  }) => {
     success: boolean;
     message: string;
     lesson: number;
     title: string;
+    screen: "goal" | "showme";
   };
   addLessonStep: (args: {
     lesson?: number;
@@ -80,7 +86,7 @@ type LessonActions = {
   annotateBoard: (highlights?: BoardHighlight[], arrows?: BoardArrow[]) => void;
   clearLesson: () => void;
   setPosition: (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => { success: boolean; message: string };
-  loadGame: (id: string) => { success: boolean; message: string; data: unknown };
+  loadGame: (id: string) => { success: boolean; message: string; data: unknown } | Promise<{ success: boolean; message: string; data: unknown }>;
   gotoMove: (ply: number) => { success: boolean; message: string; data: unknown };
   playLine: (moves?: string[], count?: number) => Promise<{ success: boolean; message: string; data: unknown }>;
   demonstratePiece: (piece: string, square?: string, color?: string) => { success: boolean; message: string; data: unknown };
@@ -88,30 +94,31 @@ type LessonActions = {
   listLessons: () => unknown;
 };
 
-export type LearningArea = "chess" | "triangles";
-
-type TriangleToolApi = {
-  getFigure: () => Figure;
-  applyGan: (gan: string) => Promise<{ success: boolean; message: string }>;
-  setFigure: (args: { tfn?: string; template?: string }) => {
-    success: boolean;
-    message: string;
-    data?: unknown;
-  };
-  movePoint: (name: string, position: { x: number; y: number }) => { success: boolean; message: string };
-  rotateFigure: (around: string, deg: number, target?: string) => Promise<{ success: boolean; message: string }>;
-  markFigure: (gan: string) => Promise<{ success: boolean; message: string }>;
-  measure: (id: string) => unknown;
-  summary: () => unknown;
-  createLesson: LessonActions["createLesson"];
-  addLessonStep: LessonActions["addLessonStep"];
-  addLessonSteps: LessonActions["addLessonSteps"];
-  applyLessonRecap: LessonActions["applyLessonRecap"];
-  setCoach: LessonActions["setCoach"];
-  askQuiz: LessonActions["askQuiz"];
-  listLessons: LessonActions["listLessons"];
-  clearLesson: LessonActions["clearLesson"];
-};
+export const CHESS_TOOL_NAMES = [
+  "get-board-state",
+  "make-move",
+  "get-possible-moves",
+  "restart-game",
+  "promote-pawn",
+  "enter-learn-mode",
+  "exit-learn-mode",
+  "list-lessons",
+  "set-position",
+  "create-lesson",
+  "add-lesson-step",
+  "set-lesson-recap",
+  "set-coach",
+  "annotate-board",
+  "clear-lesson",
+  "load-game",
+  "goto-move",
+  "play-line",
+  "demonstrate-piece",
+  "ask-quiz",
+  "set-page-background",
+  "how_to_offer_a_hint",
+  "how_to_ask_the_user",
+] as const;
 
 type ChessActions = {
   getBoard: () => Board;
@@ -121,9 +128,6 @@ type ChessActions = {
   animateMove?: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => void;
   lessons: LessonActions;
   setPageBackground: (cssUrl: string | null) => { persisted: boolean };
-  getArea: () => LearningArea;
-  setArea: (area: LearningArea) => void;
-  triangles: TriangleToolApi;
 };
 
 function compactToolParams(params: Record<string, unknown>): Record<string, unknown> {
@@ -193,180 +197,7 @@ export function useModelContextTools(actions: ChessActions) {
       return;
     }
 
-    const catalog = () =>
-      actionsRef.current.getArea() === "triangles"
-        ? actionsRef.current.triangles
-        : actionsRef.current.lessons;
-
     const tools = [
-      {
-        name: "set-learning-area",
-        description:
-          'Switch the visible learning area. "chess" is the chessboard. "triangles" is the Euclidean figure canvas for bagrut triangle geometry. Call this before triangle lessons. ' +
-          COACH_GAN_RULE,
-        inputSchema: {
-          type: "object",
-          properties: {
-            area: { type: "string", enum: ["chess", "triangles"] },
-          },
-          required: ["area"],
-        },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const area = String(params.area || "").trim().toLowerCase();
-          if (area !== "chess" && area !== "triangles") {
-            return { success: false, message: 'area must be "chess" or "triangles".', data: null };
-          }
-          actionsRef.current.setArea(area);
-          return {
-            success: true,
-            message: area === "triangles"
-              ? "Triangle area is on. Use apply-gan, set-figure, create-lesson. " + COACH_GAN_RULE
-              : "Chess area is on. Use make-move, create-lesson, algebraic LAN.",
-            data: { area },
-          };
-        },
-      },
-      {
-        name: "get-figure-state",
-        description:
-          "Retrieves the current triangle figure: points, segments, triangles, circles, marks, and measures. Switches to the triangles area.",
-        inputSchema: { type: "object", properties: {} },
-        execute: async (): Promise<ToolResponse> => {
-          actionsRef.current.setArea("triangles");
-          const summary = actionsRef.current.triangles.summary();
-          return { success: true, message: "Figure state retrieved", data: summary };
-        },
-      },
-      {
-        name: "apply-gan",
-        description:
-          "Execute one GAN construction on the triangle figure and animate it. Examples: △ABC, h(C,AB), m(A,BC), b(A), circ(ABC), inc(ABC), mark(90,C), fit(△ABC ≅ △DEF), rot(A,90,△ABC). Semicolons run a sequence. Switches to triangles. " +
-          COACH_GAN_RULE,
-        inputSchema: {
-          type: "object",
-          properties: {
-            gan: {
-              type: "string",
-              description: 'GAN command, e.g. "h(C,AB)" or "△ABC; mark(90,C)"',
-            },
-          },
-          required: ["gan"],
-        },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          actionsRef.current.setArea("triangles");
-          const gan = String(params.gan || "").trim();
-          if (!gan) {
-            return { success: false, message: "Provide a GAN string.", data: null };
-          }
-          const result = await actionsRef.current.triangles.applyGan(gan);
-          return {
-            success: result.success,
-            message: result.message,
-            data: actionsRef.current.triangles.summary(),
-          };
-        },
-      },
-      {
-        name: "set-figure",
-        description:
-          'Load a triangle figure from a template (scalene, right-at-C, isosceles-AB=AC, 30-60-90, equilateral, ssa-ambiguous) or a TFN string. Switches to triangles.',
-        inputSchema: {
-          type: "object",
-          properties: {
-            template: { type: "string", description: "Named template, e.g. right-at-C" },
-            tfn: { type: "string", description: "TFN snapshot from serialize, e.g. A(0,0) B(4,0) C(0,3) △ABC" },
-          },
-        },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          actionsRef.current.setArea("triangles");
-          const result = actionsRef.current.triangles.setFigure({
-            template: typeof params.template === "string" ? params.template : undefined,
-            tfn: typeof params.tfn === "string" ? params.tfn : undefined,
-          });
-          return { success: result.success, message: result.message, data: result.data || null };
-        },
-      },
-      {
-        name: "move-point",
-        description: "Move a free point on the triangle figure. Constrained points follow. Switches to triangles.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            point: { type: "string", description: "Point name, e.g. C" },
-            x: { type: "number" },
-            y: { type: "number" },
-          },
-          required: ["point", "x", "y"],
-        },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          actionsRef.current.setArea("triangles");
-          const point = String(params.point || "").trim();
-          const result = actionsRef.current.triangles.movePoint(point, {
-            x: Number(params.x),
-            y: Number(params.y),
-          });
-          return { success: result.success, message: result.message, data: actionsRef.current.triangles.summary() };
-        },
-      },
-      {
-        name: "rotate-figure",
-        description: "Rotate named points or a triangle about a point by degrees (CCW positive). Example: around A, deg 90, target △ABC.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            around: { type: "string" },
-            deg: { type: "number" },
-            target: { type: "string", description: "△ABC or ABC or a point name" },
-          },
-          required: ["around", "deg"],
-        },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          actionsRef.current.setArea("triangles");
-          const result = await actionsRef.current.triangles.rotateFigure(
-            String(params.around || ""),
-            Number(params.deg),
-            typeof params.target === "string" ? params.target : undefined
-          );
-          return { success: result.success, message: result.message, data: actionsRef.current.triangles.summary() };
-        },
-      },
-      {
-        name: "mark-figure",
-        description:
-          "Mark the figure with GAN: mark(90,C), mark(=,AB,AC), mark(∠,BAC,EDF), mark(||,MN,BC), lab(AB=5), highlight(H). Switches to triangles.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            gan: { type: "string" },
-          },
-          required: ["gan"],
-        },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          actionsRef.current.setArea("triangles");
-          const result = await actionsRef.current.triangles.markFigure(String(params.gan || ""));
-          return { success: result.success, message: result.message, data: actionsRef.current.triangles.summary() };
-        },
-      },
-      {
-        name: "measure-figure",
-        description: "Read a measure without drawing: AB, ∠A, △ABC, R, AB:DE. Switches to triangles.",
-        inputSchema: {
-          type: "object",
-          properties: {
-            id: { type: "string", description: "GAN object to measure" },
-          },
-          required: ["id"],
-        },
-        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          actionsRef.current.setArea("triangles");
-          const measured = actionsRef.current.triangles.measure(String(params.id || ""));
-          return {
-            success: Boolean(measured),
-            message: measured ? "Measured" : "Could not measure that object",
-            data: measured,
-          };
-        },
-      },
       {
         name: 'get-board-state',
         description: 'Retrieves the current state of the chess board including piece positions, current turn, total moves, game status, and whether learn mode is on.',
@@ -550,12 +381,12 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'list-lessons',
-        description: 'Lists famous games, piece tutorials, and saved catalog lessons. Lesson screens: Goal (create-lesson), teaching Steps (add-lesson-step), Riddle (add-lesson-step type riddle), Recap (set-lesson-recap, not a step, skip for one-step exams/riddles). After two or more steps, add another step or write the recap. ' + COACH_NOTATION_RULE,
+        description: 'Lists famous games, piece tutorials, and saved catalog lessons. create-lesson type: lesson (Goal then add-lesson-step) or showme (one explanation; the line auto-plays with Pause, Stop, and Replay). Riddle: add-lesson-step type riddle. ' + COACH_NOTATION_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => ({
           success: true,
           message: 'Available lessons',
-          data: catalog().listLessons(),
+          data: actionsRef.current.lessons.listLessons(),
         }),
       },
       {
@@ -592,22 +423,35 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson. In triangles area, GAN tokens stay Latin (△ABC, h(C,AB)). In chess, moves use long algebraic. Goal copy only. Next: add-lesson-step. ' +
-          COACH_NOTATION_RULE +
-          ' ' +
-          COACH_GAN_RULE,
+          'Create a new catalog lesson. type lesson (default): does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn; then add-lesson-step. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
+          COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
+            type: {
+              type: 'string',
+              enum: ['lesson', 'showme'],
+              description:
+                'lesson = Goal then add-lesson-step. showme = one explanation; the line auto-plays with Pause, Stop, and Replay. Pass this enum; do not infer it by matching chat wording.',
+            },
             title: {
               type: 'string',
-              description: 'Lesson topic shown for the whole lesson, e.g. "Italian Opening". Not the name of a single move.',
+              description: 'Lesson topic shown for the whole lesson, e.g. "Italian Opening" or "Scholar\'s Mate".',
             },
             paragraphs: {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Optional intro. What this lesson will teach, in 1–3 short paragraphs. Any moves must be long algebraic (e2-e4, Ng1-f3), not short SAN.',
+                'type lesson: optional intro (long algebraic for any moves, e.g. e2-e4). type showme: the single explanation of the line the student will watch.',
+            },
+            moves: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Required for type showme. Planned line as from:to, e.g. ["e2:e4", "e7:e5"]. The line auto-plays in this order.',
+            },
+            fen: {
+              type: 'string',
+              description: 'Optional starting FEN for type showme. Default is the starting position.',
             },
           },
           required: ['title'],
@@ -617,9 +461,13 @@ export function useModelContextTools(actions: ChessActions) {
           if (!title) {
             return { success: false, message: 'Provide a lesson title.', data: null };
           }
-          const result = catalog().createLesson({
+          const format = parseLessonFormat(params.type);
+          const result = actionsRef.current.lessons.createLesson({
             title,
             paragraphs: asStringArray(params.paragraphs),
+            type: format,
+            moves: asStringArray(params.moves),
+            fen: typeof params.fen === 'string' ? params.fen : undefined,
           });
           return {
             success: result.success,
@@ -627,8 +475,9 @@ export function useModelContextTools(actions: ChessActions) {
             data: {
               lesson: result.lesson,
               title: result.title,
-              screen: 'goal',
-              nextTools: ['add-lesson-step'],
+              screen: result.screen,
+              type: format,
+              nextTools: result.screen === 'showme' ? ['how_to_ask_the_user'] : ['add-lesson-step'],
             },
           };
         },
@@ -636,7 +485,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -693,7 +542,7 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {
           const type = parseLessonStepType(params.type);
           const correct = asStringArray(params.correct);
-          const result = await catalog().addLessonStep({
+          const result = await actionsRef.current.lessons.addLessonStep({
             lesson: asPositiveInt(params.lesson),
             title: String(params.title || ''),
             why: typeof params.why === 'string' ? params.why : '',
@@ -773,7 +622,7 @@ export function useModelContextTools(actions: ChessActions) {
               data: null,
             };
           }
-          const result = catalog().applyLessonRecap({
+          const result = actionsRef.current.lessons.applyLessonRecap({
             lesson: asPositiveInt(params.lesson),
             title: summary.title || (typeof params.title === 'string' ? params.title : undefined),
             paragraphs: summary.paragraphs,
@@ -828,14 +677,14 @@ export function useModelContextTools(actions: ChessActions) {
             typeof params.body === 'string' ? params.body : '',
             ...extra,
           ]);
-          if (notationError && actionsRef.current.getArea() !== "triangles") {
+          if (notationError) {
             return { success: false, message: notationError, data: null };
           }
           const copy = normalizeCoachCopy({
             body: typeof params.body === 'string' ? params.body : '',
             paragraphs: extra.length ? extra : what || why ? [] : asStringArray(params.paragraphs),
           });
-          const result = catalog().setCoach({
+          const result = actionsRef.current.lessons.setCoach({
             title: String(params.title || ''),
             body: copy.body,
             paragraphs: copy.paragraphs,
@@ -884,15 +733,8 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
           const highlights = Array.isArray(params.highlights) ? params.highlights as BoardHighlight[] : undefined;
           const arrows = Array.isArray(params.arrows) ? params.arrows as BoardArrow[] : undefined;
-          if (actionsRef.current.getArea() === "triangles") {
-            const ids = (highlights || []).map((item) => item.square);
-            if (ids.length) {
-              await actionsRef.current.triangles.markFigure("highlight(" + ids.join(",") + ")");
-            }
-            return { success: true, message: "Figure highlights updated", data: { highlights: ids.length } };
-          }
           actionsRef.current.lessons.annotateBoard(highlights, arrows);
-          return { success: true, message: 'Board annotations updated', data: { highlights: highlights ? highlights.length : 0, arrows: arrows ? arrows.length : 0 } };
+          return { success: true, message: 'Board annotations updated', data: { highlights: highlights.length, arrows: arrows.length } };
         },
       },
       {
@@ -900,7 +742,7 @@ export function useModelContextTools(actions: ChessActions) {
         description: 'Clear coach text, highlights, arrows, and any pending quiz. Stays in learn mode.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
-          catalog().clearLesson();
+          actionsRef.current.lessons.clearLesson();
           return { success: true, message: 'Lesson overlay cleared', data: null };
         },
       },
@@ -934,7 +776,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'play-line',
-        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
+        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. For create-lesson type showme, the line auto-plays; the student uses Pause, Stop, and Replay on the coach (do not call this tool to start that demo). Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -1021,10 +863,10 @@ export function useModelContextTools(actions: ChessActions) {
             String(params.question || ''),
             typeof params.hint === 'string' ? params.hint : '',
           ]);
-          if (notationError && actionsRef.current.getArea() !== "triangles") {
+          if (notationError) {
             return { success: false, message: notationError, data: null };
           }
-          const result = await catalog().askQuiz({
+          const result = await actionsRef.current.lessons.askQuiz({
             question: String(params.question || ''),
             type: (params.type as QuizState['type']) || 'click-square',
             correct,
@@ -1121,7 +963,7 @@ export function useModelContextTools(actions: ChessActions) {
     ];
 
     const toolNames = tools.map(t => t.name);
-    const longRunning = new Set(["ask-quiz", "play-line", "add-lesson-step", "apply-gan", "rotate-figure", "mark-figure"]);
+    const longRunning = new Set(["ask-quiz", "play-line", "add-lesson-step"]);
     const wrappedTools = tools.map((tool) => ({
       ...tool,
       execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {

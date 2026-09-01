@@ -24,7 +24,10 @@ describe("AboutPage", () => {
     expect(getByText("Italian Game")).toBeTruthy();
     expect(getByText("3. Bc4")).toBeTruthy();
     expect(getByRole("link", { name: "Open the board" }).getAttribute("href")).toBe(
-      "#/"
+      "/chess"
+    );
+    expect(getByRole("link", { name: /Geometry/ }).getAttribute("href")).toBe(
+      "/triangles"
     );
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelectorAll(".chess-piece").length).toBe(32);

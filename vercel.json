@@ -1,0 +1,9 @@
+{
+  "framework": "create-react-app",
+  "buildCommand": "CI=false PUBLIC_URL=/ npm run build",
+  "outputDirectory": "build",
+  "installCommand": "npm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

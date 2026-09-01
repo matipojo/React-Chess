@@ -5,6 +5,7 @@ import BoardThemePicker from './components/BoardThemePicker/BoardThemePicker';
 import ChangeBackgroundButton from './components/ChangeBackgroundButton/ChangeBackgroundButton';
 import ModelContextBanner from './components/ModelContextBanner/ModelContextBanner';
 import Referee from './components/Referee/Referee';
+import TriangleSurface from './components/TriangleSurface/TriangleSurface';
 import { BoardThemeProvider, useBoardTheme } from './hooks/useBoardTheme';
 import { useAppRoute } from './hooks/useAppRoute';
 import { cssBackgroundImage } from './utils/pageBackground';
@@ -29,7 +30,7 @@ function AppShell() {
       }
     >
       <ModelContextBanner />
-      <Referee />
+      {route === "triangles" ? <TriangleSurface /> : <Referee />}
       <div className="page-chrome">
         <BoardThemePicker />
         <ChangeBackgroundButton />

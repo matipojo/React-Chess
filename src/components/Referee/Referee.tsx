@@ -14,19 +14,16 @@ import { PieceType, TeamType } from "../../Types";
 import Chessboard, { ChessboardHandle } from "../Chessboard/Chessboard";
 import BoardUndoBar from "../BoardUndoBar/BoardUndoBar";
 import LessonCoach from "../LessonCoach/LessonCoach";
-import LessonCatalogMenu from "../LessonCatalogMenu/LessonCatalogMenu";
 import { Howl } from "howler";
-import { useModelContextTools, LearningArea } from "../../hooks/useModelContextTools";
+import { useModelContextTools } from "../../hooks/useModelContextTools";
 import { useChessLessons } from "../../hooks/useChessLessons";
-import { useTriangleLessons } from "../../hooks/useTriangleLessons";
-import GeometryCanvas from "../GeometryCanvas/GeometryCanvas";
-import { TRIANGLE_EXAMPLE_PROMPTS } from "../../geometry/notation";
-import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 import { logLessonDebug } from "../../lessons/debugLog";
 import { shouldShowLessonNav } from "../../lessons/lessonCopy";
+import { getFamousGame } from "../../lessons/catalog";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
+import AppHeader from "../AppHeader/AppHeader";
 import "./Referee.css";
 
 const moveSound = new Howl({
@@ -46,16 +43,6 @@ export default function Referee() {
   const [board, setBoard] = useState<Board>(initialBoard.clone());
   const [promotionPawn, setPromotionPawn] = useState<Piece>();
   const [peekSquares, setPeekSquares] = useState<string[]>([]);
-  const [area, setArea] = useState<LearningArea>(() => {
-    if (typeof window === "undefined") {
-      return "chess";
-    }
-    return new URLSearchParams(window.location.search).get("area") === "triangles"
-      ? "triangles"
-      : "chess";
-  });
-  const areaRef = useRef(area);
-  areaRef.current = area;
   const modalRef = useRef<HTMLDivElement>(null);
   const checkmateModalRef = useRef<HTMLDivElement>(null);
   const chessboardHandleRef = useRef<ChessboardHandle>(null);
@@ -204,28 +191,18 @@ export default function Referee() {
     chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
   }, []);
 
+  const cancelMoveAnimation = useCallback(() => {
+    chessboardHandleRef.current?.cancelMoveAnimation();
+  }, []);
+
   const lessons = useChessLessons({
     boardRef,
     setBoard,
     playMoveSync,
     animateMove,
+    cancelMoveAnimation,
     hideCheckmate,
   });
-  const triangles = useTriangleLessons();
-
-  const setLearningArea = useCallback((next: LearningArea) => {
-    setArea(next);
-    if (typeof window === "undefined") {
-      return;
-    }
-    const url = new URL(window.location.href);
-    if (next === "triangles") {
-      url.searchParams.set("area", "triangles");
-    } else {
-      url.searchParams.delete("area");
-    }
-    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-  }, []);
 
   function playMove(playedPiece: Piece, destination: Position): boolean {
     const from = coordinatesToNotation(playedPiece.position.x, playedPiece.position.y);
@@ -260,42 +237,29 @@ export default function Referee() {
     setPageBackground: (cssUrl: string | null) => ({
       persisted: setCustomBackground(cssUrl),
     }),
-    getArea: () => areaRef.current,
-    setArea: setLearningArea,
-    triangles: {
-      getFigure: triangles.getFigure,
-      applyGan: triangles.applyGan,
-      setFigure: triangles.setFigure,
-      movePoint: triangles.movePoint,
-      rotateFigure: triangles.rotateFigure,
-      markFigure: triangles.markFigure,
-      measure: triangles.measure,
-      summary: triangles.summary,
-      createLesson: triangles.createLesson,
-      addLessonStep: triangles.addLessonStep,
-      addLessonSteps: triangles.addLessonSteps,
-      applyLessonRecap: triangles.applyLessonRecap,
-      setCoach: triangles.setCoach,
-      askQuiz: triangles.askQuiz,
-      listLessons: triangles.listLessons,
-      clearLesson: triangles.clearLesson,
-    },
   });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const piece = params.get("piece");
     const game = params.get("game");
+    const showme = params.get("showme");
     lessons.enterLearnMode();
-    const areaParam = params.get("area");
-    if (areaParam === "triangles") {
-      setLearningArea("triangles");
-    }
     if (piece) {
       try {
         lessons.demonstratePiece(piece);
       } catch {
         // ignore invalid demo links
+      }
+    } else if (showme) {
+      const famous = getFamousGame(showme);
+      if (famous) {
+        lessons.createLesson({
+          type: "showme",
+          title: famous.name,
+          paragraphs: [famous.hook],
+          moves: famous.moves,
+        });
       }
     } else if (game) {
       lessons.loadGame(game);
@@ -329,87 +293,43 @@ export default function Referee() {
     [board]
   );
 
-  const isTriangles = area === "triangles";
   const loaded = lessons.loadedLine.current;
-  const lessonOpen = isTriangles
-    ? Boolean(triangles.coach || triangles.quiz)
-    : Boolean(lessons.coach || lessons.quiz || lessons.wait);
+  const lessonOpen = Boolean(lessons.coach || lessons.quiz || lessons.wait);
   const waitingOnUser = Boolean(lessons.wait && !lessons.wait.timedOut);
-  const generatingNext = isTriangles
-    ? Boolean(triangles.awaitingContinuation)
-    : Boolean(lessons.awaitingContinuation && !waitingOnUser);
-  const quizPending = isTriangles
-    ? Boolean(triangles.quiz && !triangles.quiz.answered)
-    : Boolean(lessons.quiz && !lessons.quiz.answered);
-  const canStep = isTriangles
-    ? !triangles.animating && !quizPending
-    : !lessons.animating && !quizPending;
+  const generatingNext = Boolean(lessons.awaitingContinuation && !waitingOnUser);
+  const quizPending = Boolean(lessons.quiz && !lessons.quiz.answered);
+  const canStep = !lessons.animating && !quizPending;
   const showStepNav = shouldShowLessonNav({
-    expectsRecap: isTriangles ? triangles.expectsRecap : lessons.expectsRecap,
+    expectsRecap: lessons.expectsRecap,
     generatingNext,
-    hasLineMoves: Boolean(!isTriangles && loaded && loaded.moves.length > 0),
+    hasLineMoves: Boolean(loaded && loaded.moves.length > 0),
+    isShowme: lessons.coach?.phase === "showme",
   });
-  const historyIndex = isTriangles ? triangles.historyIndex : lessons.historyIndex;
-  const historyLength = isTriangles ? triangles.historyLength : lessons.historyLength;
-  const canBack = canStep && !waitingOnUser && historyIndex > 0;
+  const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
   const canFirst = canBack;
   const canNext =
     canStep &&
     !generatingNext &&
-    (historyIndex < historyLength - 1 ||
-      (!isTriangles && !!loaded && loaded.ply < loaded.moves.length) ||
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length) ||
       waitingOnUser);
   const canLast =
     canStep &&
     !waitingOnUser &&
     !generatingNext &&
-    (historyIndex < historyLength - 1 ||
-      (!isTriangles && !!loaded && loaded.ply < loaded.moves.length));
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length));
 
   return (
     <>
-      <header className="app-header">
-        <div className="app-header-nav">
-          <h1 className="app-header-title">Generative Learning</h1>
-          <div className="area-switch" role="tablist" aria-label="Learning area">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!isTriangles}
-              className={!isTriangles ? "area-switch-tab is-active" : "area-switch-tab"}
-              onClick={() => setLearningArea("chess")}
-            >
-              Chess
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={isTriangles}
-              className={isTriangles ? "area-switch-tab is-active" : "area-switch-tab"}
-              onClick={() => setLearningArea("triangles")}
-            >
-              Triangles
-            </button>
-          </div>
-          <a className="app-header-link" href="#/about">
-            About
-          </a>
-        </div>
-        <div className="app-header-actions">
-          <LessonCatalogMenu
-            lessons={isTriangles ? triangles.userLessons : lessons.userLessons}
-            onOpen={(id) => {
-              if (isTriangles) {
-                triangles.openSavedLesson(id);
-              } else {
-                lessons.openSavedLesson(id);
-              }
-            }}
-            onRemove={isTriangles ? triangles.deleteSavedLesson : lessons.deleteSavedLesson}
-          />
-          <LessonDebugConsole />
-        </div>
-      </header>
+      <AppHeader
+        area="chess"
+        lessons={lessons.userLessons}
+        onOpenLesson={(id) => {
+          lessons.openSavedLesson(id);
+        }}
+        onRemoveLesson={lessons.deleteSavedLesson}
+      />
       <div id="app">
         <div className="referee referee-learn">
           <div className="referee-board">
@@ -444,90 +364,84 @@ export default function Referee() {
                 </div>
               </div>
             </div>
-            {isTriangles ? (
-              <GeometryCanvas
-                figure={triangles.figure}
-                peekIds={peekSquares}
-                locked={triangles.animating}
-                quiz={Boolean(triangles.quiz && !triangles.quiz.answered)}
-                animation={triangles.animation}
-                onPointMove={(name, position) => {
-                  triangles.movePoint(name, position);
-                }}
-                onObjectClick={
-                  triangles.quiz && !triangles.quiz.answered
-                    ? triangles.onObjectClick
-                    : undefined
-                }
-              />
-            ) : (
-              <Chessboard
-                ref={chessboardHandleRef}
-                playMove={playMove}
-                pieces={board.pieces}
-                highlights={lessons.highlights}
-                peekSquares={peekSquares}
-                arrows={[...lessons.arrows, ...peekArrows]}
-                interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
-                locked={lessons.animating}
-                onSquareClick={lessons.onSquareClick}
-              />
-            )}
-            {!isTriangles && (
-              <BoardUndoBar
-                canUndo={lessons.canUndoLearnMove}
-                canRedo={lessons.canRedoLearnMove}
-                onUndo={lessons.undoLearnMove}
-                onRedo={lessons.redoLearnMove}
-              />
-            )}
+            <Chessboard
+              ref={chessboardHandleRef}
+              playMove={playMove}
+              pieces={board.pieces}
+              highlights={lessons.highlights}
+              peekSquares={peekSquares}
+              arrows={[...lessons.arrows, ...peekArrows]}
+              interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
+              locked={
+                lessons.animating ||
+                lessons.showmePlayback === "playing" ||
+                lessons.showmePlayback === "paused"
+              }
+              onSquareClick={lessons.onSquareClick}
+            />
+            <BoardUndoBar
+              canUndo={lessons.canUndoLearnMove}
+              canRedo={lessons.canRedoLearnMove}
+              onUndo={lessons.undoLearnMove}
+              onRedo={lessons.redoLearnMove}
+            />
           </div>
           <LessonCoach
-              coach={isTriangles ? triangles.coach : lessons.coach}
-              quizQuestion={
-                isTriangles
-                  ? triangles.quiz
-                    ? triangles.quiz.question
-                    : undefined
-                  : lessons.quiz
-                    ? lessons.quiz.question
-                    : undefined
-              }
-              quizFeedback={isTriangles ? triangles.quizFeedback : lessons.quizFeedback}
-              quizSecondsLeft={isTriangles ? triangles.quizSecondsLeft : lessons.quizSecondsLeft}
-              waitPrompt={!isTriangles && lessons.wait ? lessons.wait.prompt : undefined}
-              waitChoices={!isTriangles && lessons.wait ? lessons.wait.choices : undefined}
-              waitTimedOut={Boolean(!isTriangles && lessons.wait?.timedOut)}
+              coach={lessons.coach}
+              quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
+              quizFeedback={lessons.quizFeedback}
+              quizSecondsLeft={lessons.quizSecondsLeft}
+              waitPrompt={lessons.wait ? lessons.wait.prompt : undefined}
+              waitChoices={lessons.wait ? lessons.wait.choices : undefined}
+              waitTimedOut={Boolean(lessons.wait?.timedOut)}
               onWaitChoice={lessons.onWaitChoice}
               onHoverSquares={setPeekSquares}
               resolvePeekSquares={resolvePeekSquares}
-              onBack={showStepNav ? (isTriangles ? triangles.stepBack : lessons.stepBack) : undefined}
-              onNext={showStepNav ? (isTriangles ? triangles.stepNext : lessons.stepNext) : undefined}
-              onFirst={showStepNav ? (isTriangles ? triangles.stepFirst : lessons.stepFirst) : undefined}
-              onLast={showStepNav ? (isTriangles ? triangles.stepLast : lessons.stepLast) : undefined}
-              onReset={showStepNav ? (isTriangles ? triangles.stepFirst : lessons.stepFirst) : undefined}
-              onFinish={lessonOpen ? (isTriangles ? triangles.endLesson : lessons.endLesson) : undefined}
+              onBack={showStepNav ? lessons.stepBack : undefined}
+              onNext={showStepNav ? lessons.stepNext : undefined}
+              onFirst={showStepNav ? lessons.stepFirst : undefined}
+              onLast={showStepNav ? lessons.stepLast : undefined}
+              onReset={showStepNav ? lessons.stepFirst : undefined}
+              onFinish={lessonOpen ? lessons.endLesson : undefined}
               canBack={canBack}
               canNext={canNext}
               canFirst={canFirst}
               canLast={canLast}
               canReset={canFirst}
               nextGenerating={generatingNext}
-              playMoves={isTriangles ? triangles.coachPlayMoves : lessons.coachPlayMoves}
+              playMoves={lessons.coachPlayMoves}
               onPlayMove={(notation) => {
-                if (isTriangles) {
-                  void triangles.playCoachMove(notation);
-                } else {
-                  void lessons.playCoachMove(notation);
-                }
+                void lessons.playCoachMove(notation);
               }}
-              playBusy={isTriangles ? triangles.animating : lessons.animating}
-              historyIndex={historyIndex}
-              historyLength={historyLength}
-              linkMode={isTriangles ? "triangles" : "chess"}
-              knownIds={isTriangles ? triangles.knownIds : undefined}
-              examplePrompts={isTriangles ? TRIANGLE_EXAMPLE_PROMPTS : undefined}
-              whatLabel={isTriangles ? "Do" : "Move"}
+              onPlayLine={
+                lessons.coach?.phase === "showme"
+                  ? () => {
+                      void lessons.playShowMeLine();
+                    }
+                  : undefined
+              }
+              onPauseLine={
+                lessons.coach?.phase === "showme"
+                  ? () => lessons.pauseShowMeLine()
+                  : undefined
+              }
+              onStopLine={
+                lessons.coach?.phase === "showme"
+                  ? () => lessons.stopShowMeLine()
+                  : undefined
+              }
+              onReplayLine={
+                lessons.coach?.phase === "showme"
+                  ? () => {
+                      void lessons.replayShowMeLine();
+                    }
+                  : undefined
+              }
+              showmePlayback={lessons.showmePlayback}
+              showmePly={lessons.showmePly}
+              playBusy={lessons.animating}
+              historyIndex={lessons.historyIndex}
+              historyLength={lessons.historyLength}
             />
         </div>
       </div>
