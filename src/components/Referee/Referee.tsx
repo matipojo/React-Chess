@@ -306,7 +306,12 @@ export default function Referee() {
   return (
     <>
       <header className="app-header">
-        <h1 className="app-header-title">Generative Learning</h1>
+        <div className="app-header-nav">
+          <h1 className="app-header-title">Generative Learning</h1>
+          <a className="app-header-link" href="#/about">
+            About
+          </a>
+        </div>
         <div className="app-header-actions">
           <LessonCatalogMenu
             lessons={lessons.userLessons}
