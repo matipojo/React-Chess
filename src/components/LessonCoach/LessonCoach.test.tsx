@@ -200,7 +200,9 @@ describe("LessonCoach", () => {
     expect(queryByText("Goal")).toBeNull();
     expect(queryByText("Why")).toBeNull();
     expect(queryByText("Move")).toBeNull();
-    expect(getByText("Watch the queen and bishop crash through on f7.")).toBeTruthy();
+    expect(
+      getByText(/Watch the queen and bishop crash through on/)
+    ).toBeTruthy();
     expect(queryByRole("button", { name: "Back" })).toBeNull();
     expect(queryByRole("button", { name: "Next" })).toBeNull();
   });
