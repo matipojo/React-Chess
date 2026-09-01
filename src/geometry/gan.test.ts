@@ -1,11 +1,11 @@
 import { applyGan, commandSatisfied, parseGanCommand } from "./gan";
 import { defaultScalene, emptyFigure, moveFreePoint } from "./figure";
+import { ganAnswerIsCorrect, idsMatchHighlight, isAngleHighlighted } from "./hitTest";
 import { measureFigure } from "./measure";
-import { startFigure } from "./templates";
-import { parseTfn, serializeTfn } from "./tfn";
-import { extractPlayableGan, tokenizeGanText } from "./text-links";
 import { coachPlayGan } from "./stepPlay";
-import { ganAnswerIsCorrect } from "./hitTest";
+import { startFigure } from "./templates";
+import { extractPlayableGan, parseGanRef, tokenizeGanText } from "./text-links";
+import { parseTfn, serializeTfn } from "./tfn";
 
 describe("GAN parse", () => {
   it("parses triangle, altitude, median, bisector, and circles", () => {
@@ -109,6 +109,24 @@ describe("GAN text links", () => {
     expect(extractPlayableGan(text)).toEqual(["△ABC", "h(C,AB)", "mark(90,C)"]);
   });
 
+  it("links vertices, sides, and angles in Hebrew naming copy", () => {
+    const text = "הקודקודים הם A, B, C. הצלעות הן AB, BC, CA. הזוויות הן ∠A, ∠B, ∠C.";
+    const refs = tokenizeGanText(text, ["A", "B", "C"]).filter((part) => part.type === "ref");
+    expect(refs.map((part) => (part.type === "ref" ? part.value : ""))).toEqual([
+      "A",
+      "B",
+      "C",
+      "AB",
+      "BC",
+      "CA",
+      "∠A",
+      "∠B",
+      "∠C",
+    ]);
+    expect(parseGanRef("∠A").ids).toEqual(["∠A"]);
+    expect(parseGanRef("∠BAC").ids).toEqual(["∠BAC", "∠A"]);
+  });
+
   it("does not treat SAS as a segment", () => {
     const refs = tokenizeGanText("Use SAS on △ABC and △DEF.");
     expect(refs.filter((part) => part.type === "ref").map((part) => part.type === "ref" && part.value)).toEqual([
@@ -137,8 +155,23 @@ describe("play status", () => {
 describe("riddle answers", () => {
   it("accepts equivalent angle and segment ids", () => {
     expect(ganAnswerIsCorrect(["∠C"], "∠C")).toBe(true);
+    expect(ganAnswerIsCorrect(["∠C"], "∠ACB")).toBe(true);
+    expect(ganAnswerIsCorrect(["∠C"], "C")).toBe(true);
     expect(ganAnswerIsCorrect(["AB"], "BA")).toBe(true);
     expect(ganAnswerIsCorrect(["△ABC"], "△CAB")).toBe(true);
     expect(ganAnswerIsCorrect(["H"], "C")).toBe(false);
+  });
+});
+
+describe("angle highlights", () => {
+  it("matches ∠A with ∠BAC and ∠CAB", () => {
+    expect(idsMatchHighlight("∠A", ["∠A"])).toBe(true);
+    expect(idsMatchHighlight("∠A", ["∠BAC"])).toBe(true);
+    expect(idsMatchHighlight("∠BAC", ["∠A"])).toBe(true);
+    expect(idsMatchHighlight("∠CAB", ["∠BAC"])).toBe(true);
+    expect(idsMatchHighlight("∠B", ["∠A"])).toBe(false);
+    expect(idsMatchHighlight("AB", ["∠A"])).toBe(false);
+    expect(isAngleHighlighted("A", "B", "C", ["∠A"])).toBe(true);
+    expect(isAngleHighlighted("B", "A", "C", ["∠A"])).toBe(false);
   });
 });

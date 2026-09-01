@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { circleGeometry, pointVec, segmentKey } from "../../geometry/figure";
-import { idsMatchHighlight } from "../../geometry/hitTest";
+import { circleGeometry, oppositeVertex, pointVec, segmentKey } from "../../geometry/figure";
+import { idsMatchHighlight, isAngleHighlighted } from "../../geometry/hitTest";
 import { dist, midpoint, unit, sub, add, scale } from "../../geometry/math";
 import { Figure, FigureAnimation, Vec } from "../../geometry/types";
 import "./GeometryCanvas.css";
@@ -69,21 +69,35 @@ function rightAnglePath(vertex: Vec, a: Vec, b: Vec): string {
   return `M ${p1.x} ${-p1.y} L ${p2.x} ${-p2.y} L ${p3.x} ${-p3.y}`;
 }
 
+function angleSweep(ua: Vec, ub: Vec): 0 | 1 {
+  return ua.x * ub.y - ua.y * ub.x < 0 ? 0 : 1;
+}
+
 function angleArc(vertex: Vec, left: Vec, right: Vec, arcs: number): string {
   const ua = unit(sub(left, vertex));
   const ub = unit(sub(right, vertex));
   const r = 0.38;
   const paths: string[] = [];
+  const sweep = angleSweep(ua, ub);
   for (let i = 0; i < arcs; i++) {
     const rr = r + i * 0.08;
     const a1 = add(vertex, scale(ua, rr));
     const a2 = add(vertex, scale(ub, rr));
-    const sweep = ua.x * ub.y - ua.y * ub.x < 0 ? 0 : 1;
     paths.push(
       `M ${a1.x} ${-a1.y} A ${rr} ${rr} 0 0 ${sweep} ${a2.x} ${-a2.y}`
     );
   }
   return paths.join(" ");
+}
+
+function angleSector(vertex: Vec, left: Vec, right: Vec): string {
+  const ua = unit(sub(left, vertex));
+  const ub = unit(sub(right, vertex));
+  const r = 0.48;
+  const a1 = add(vertex, scale(ua, r));
+  const a2 = add(vertex, scale(ub, r));
+  const sweep = angleSweep(ua, ub);
+  return `M ${vertex.x} ${-vertex.y} L ${a1.x} ${-a1.y} A ${r} ${r} 0 0 ${sweep} ${a2.x} ${-a2.y} Z`;
 }
 
 export default function GeometryCanvas({
@@ -102,6 +116,17 @@ export default function GeometryCanvas({
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const highlights = figure.highlights.concat(peekIds);
+  const hotAngles = figure.triangles.flatMap((t) =>
+    t
+      .map((vertex) => {
+        const opp = oppositeVertex(t, vertex);
+        if (!opp || !isAngleHighlighted(vertex, opp[0], opp[1], highlights)) {
+          return null;
+        }
+        return { vertex, left: opp[0], right: opp[1] };
+      })
+      .filter((item): item is { vertex: string; left: string; right: string } => Boolean(item))
+  );
 
   useEffect(() => {
     if (!animation) {
@@ -324,6 +349,20 @@ export default function GeometryCanvas({
               />
             );
           })}
+        {hotAngles.map((ang) => {
+          const v = pointVec(figure, ang.vertex);
+          const a = pointVec(figure, ang.left);
+          const b = pointVec(figure, ang.right);
+          if (!v || !a || !b) {
+            return null;
+          }
+          return (
+            <g key={"hot-ang-" + ang.vertex + ang.left + ang.right} data-angle={"∠" + ang.vertex}>
+              <path className="geometry-angle is-hot" d={angleSector(v, a, b)} />
+              <path className="geometry-angle-arc is-hot" d={angleArc(v, a, b, 1)} fill="none" />
+            </g>
+          );
+        })}
         {figure.strokes.map((s, index) => {
           const a = pointVec(figure, s.a);
           const b = pointVec(figure, s.b);
@@ -331,9 +370,15 @@ export default function GeometryCanvas({
             return null;
           }
           const id = s.a + s.b;
+          const angleLeg = hotAngles.some(
+            (ang) =>
+              segmentKey(s.a, s.b) === segmentKey(ang.vertex, ang.left) ||
+              segmentKey(s.a, s.b) === segmentKey(ang.vertex, ang.right)
+          );
           const active =
             idsMatchHighlight(id, highlights) ||
-            idsMatchHighlight(segmentKey(s.a, s.b), highlights);
+            idsMatchHighlight(segmentKey(s.a, s.b), highlights) ||
+            angleLeg;
           const cls = [
             "geometry-stroke",
             s.dashed || s.construction ? "is-dashed" : "",
@@ -375,10 +420,11 @@ export default function GeometryCanvas({
           if (!v || !a || !b) {
             return null;
           }
+          const hot = isAngleHighlighted(r.vertex, r.a, r.b, highlights);
           return (
             <path
               key={"rt" + index}
-              className="geometry-mark"
+              className={hot ? "geometry-mark is-hot" : "geometry-mark"}
               d={rightAnglePath(v, a, b)}
             />
           );
@@ -397,10 +443,11 @@ export default function GeometryCanvas({
             if (!v || !a || !b) {
               return null;
             }
+            const hot = isAngleHighlighted(vertex, rest[0], rest[1], highlights);
             return (
               <path
                 key={"ang" + gi + ang}
-                className="geometry-mark"
+                className={hot ? "geometry-mark is-hot" : "geometry-mark"}
                 d={angleArc(v, a, b, g.arcs)}
                 fill="none"
               />
@@ -444,7 +491,9 @@ export default function GeometryCanvas({
         })}
         {names.map((name) => {
           const p = figure.points[name];
-          const active = idsMatchHighlight(name, highlights);
+          const active =
+            idsMatchHighlight(name, highlights) ||
+            hotAngles.some((ang) => ang.vertex === name);
           return (
             <g key={name} className={active ? "geometry-point is-hot" : "geometry-point"}>
               <circle cx={p.x} cy={-p.y} r={p.free ? 0.09 : 0.07} />

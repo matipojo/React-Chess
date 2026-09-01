@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import GeometryLinkedText from "./GeometryLinkedText";
 
 describe("GeometryLinkedText", () => {
@@ -17,5 +17,20 @@ describe("GeometryLinkedText", () => {
     expect(refs).toEqual(["h(C,AB)", "△ABC"]);
     getByLabelText("Play h(C,AB)").click();
     expect(onPlay).toHaveBeenCalledWith("h(C,AB)");
+  });
+
+  it("peeks ∠A when hovering an angle token", () => {
+    const onHover = jest.fn();
+    const { getByText } = render(
+      <GeometryLinkedText
+        text="הזוויות הן ∠A, ∠B, ∠C."
+        knownIds={["A", "B", "C"]}
+        onHoverIds={onHover}
+      />
+    );
+    fireEvent.pointerEnter(getByText("∠A"));
+    expect(onHover).toHaveBeenCalledWith(["∠A"]);
+    fireEvent.pointerEnter(getByText("∠B"));
+    expect(onHover).toHaveBeenCalledWith(["∠B"]);
   });
 });

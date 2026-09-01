@@ -31,6 +31,7 @@ const GAN_REF = new RegExp(
     "[A-Z]\\([+-]?\\d+(?:\\.\\d+)?,\\s*[+-]?\\d+(?:\\.\\d+)?\\)",
     "[A-Z]{2}\\s*(?:∩|\\|\\||⊥)\\s*[A-Z]{2}",
     "[A-Z]{2}",
+    "[A-Z]",
   ].join("|"),
   "g"
 );
@@ -55,6 +56,12 @@ export function parseGanRef(raw: string): { ids: string[]; playable: boolean; co
   const ids = ganIdsForCommand(compact);
   if (ids.length) {
     return { ids, playable, command: compact };
+  }
+  if (/^∠[A-Z]$/.test(compact)) {
+    return { ids: [compact], playable: false, command: compact };
+  }
+  if (/^∠[A-Z]{3}$/.test(compact)) {
+    return { ids: [compact, "∠" + compact[2]], playable: false, command: compact };
   }
   if (/^[A-Z]{2}$/.test(compact) && !SKIP.test(compact)) {
     return { ids: [compact, compact[0], compact[1]], playable: false, command: compact };

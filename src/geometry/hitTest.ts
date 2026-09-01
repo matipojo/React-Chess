@@ -82,6 +82,46 @@ export function normalizeGanId(value: string): string {
   return value.trim().replace(/\s/g, "");
 }
 
+export type ParsedAngleId = {
+  vertex: string;
+  left?: string;
+  right?: string;
+};
+
+export function parseAngleId(id: string): ParsedAngleId | null {
+  const n = normalizeGanId(id);
+  if (!n.startsWith("∠")) {
+    return null;
+  }
+  const rest = n.slice(1);
+  if (/^[A-Z]$/.test(rest)) {
+    return { vertex: rest };
+  }
+  if (/^[A-Z]{3}$/.test(rest)) {
+    return { vertex: rest[1], left: rest[0], right: rest[2] };
+  }
+  return null;
+}
+
+export function sameAngleId(a: string, b: string): boolean {
+  const pa = parseAngleId(a);
+  const pb = parseAngleId(b);
+  if (!pa || !pb || pa.vertex !== pb.vertex) {
+    return false;
+  }
+  if (!pa.left || !pa.right || !pb.left || !pb.right) {
+    return true;
+  }
+  return (
+    (pa.left === pb.left && pa.right === pb.right) ||
+    (pa.left === pb.right && pa.right === pb.left)
+  );
+}
+
+function isSegmentId(id: string): boolean {
+  return /^[A-Z]{2}$/.test(id);
+}
+
 export function ganAnswerIsCorrect(correct: string[], clicked: string): boolean {
   const dest = normalizeGanId(clicked);
   for (let i = 0; i < correct.length; i++) {
@@ -92,12 +132,18 @@ export function ganAnswerIsCorrect(correct: string[], clicked: string): boolean 
     if (token === dest) {
       return true;
     }
-    if (token.replace("∠", "") === dest.replace("∠", "") && (token[0] === "∠" || dest[0] === "∠")) {
-      if (token.replace("∠", "") === dest.replace("∠", "")) {
-        return true;
-      }
+    if (sameAngleId(token, dest)) {
+      return true;
     }
-    if (token.length === 2 && dest.length === 2 && segmentKey(token[0], token[1]) === segmentKey(dest[0], dest[1])) {
+    const tokenAngle = parseAngleId(token);
+    const destAngle = parseAngleId(dest);
+    if (tokenAngle && dest === tokenAngle.vertex) {
+      return true;
+    }
+    if (destAngle && token === destAngle.vertex) {
+      return true;
+    }
+    if (isSegmentId(token) && isSegmentId(dest) && segmentKey(token[0], token[1]) === segmentKey(dest[0], dest[1])) {
       return true;
     }
     if (token.replace("△", "").split("").sort().join("") === dest.replace("△", "").split("").sort().join("") && (token.indexOf("△") >= 0 || dest.indexOf("△") >= 0)) {
@@ -114,11 +160,27 @@ export function idsMatchHighlight(id: string, highlights: string[]): boolean {
     if (h === needle) {
       return true;
     }
-    if (h.length === 2 && needle.length === 2 && segmentKey(h[0], h[1]) === segmentKey(needle[0], needle[1])) {
+    if (sameAngleId(h, needle)) {
+      return true;
+    }
+    if (isSegmentId(h) && isSegmentId(needle) && segmentKey(h[0], h[1]) === segmentKey(needle[0], needle[1])) {
       return true;
     }
     return h.replace("△", "") === needle.replace("△", "") && (h.indexOf("△") >= 0 || needle.indexOf("△") >= 0);
   });
+}
+
+export function angleHighlightIds(vertex: string, left: string, right: string): string[] {
+  return ["∠" + vertex, "∠" + left + vertex + right, "∠" + right + vertex + left];
+}
+
+export function isAngleHighlighted(
+  vertex: string,
+  left: string,
+  right: string,
+  highlights: string[]
+): boolean {
+  return angleHighlightIds(vertex, left, right).some((id) => idsMatchHighlight(id, highlights));
 }
 
 export { triangleAtVertex };

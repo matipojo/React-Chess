@@ -43,10 +43,27 @@
 }
 
 .geometry-stroke.is-hot,
-.geometry-circle.is-hot {
+.geometry-circle.is-hot,
+.geometry-angle-arc.is-hot,
+.geometry-mark.is-hot {
   stroke: #81d4fa;
   stroke-width: 0.08;
   filter: drop-shadow(0 0 0.08px #81d4fa);
+}
+
+.geometry-angle.is-hot {
+  fill: rgba(129, 212, 250, 0.38);
+  stroke: none;
+}
+
+.geometry-angle-arc.is-hot {
+  fill: none;
+  stroke-width: 0.055;
+}
+
+.geometry-mark.is-hot {
+  stroke-width: 0.05;
+  fill: none;
 }
 
 .geometry-circle {
