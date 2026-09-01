@@ -12,7 +12,7 @@ import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '.
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
-import { parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
+import { parseLessonFormat, parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
 type ToolResponse = {
@@ -26,11 +26,18 @@ type LessonActions = {
   enterLearnMode: () => void;
   exitLearnMode: () => void;
   setCoach: (coach: CoachState) => { lesson: number; step: number; totalSteps: number };
-  createLesson: (args: { title: string; paragraphs?: string[] }) => {
+  createLesson: (args: {
+    title: string;
+    paragraphs?: string[];
+    type?: string;
+    moves?: string[];
+    fen?: string;
+  }) => {
     success: boolean;
     message: string;
     lesson: number;
     title: string;
+    screen: "goal" | "showme";
   };
   addLessonStep: (args: {
     lesson?: number;
@@ -79,7 +86,7 @@ type LessonActions = {
   annotateBoard: (highlights?: BoardHighlight[], arrows?: BoardArrow[]) => void;
   clearLesson: () => void;
   setPosition: (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => { success: boolean; message: string };
-  loadGame: (id: string) => { success: boolean; message: string; data: unknown };
+  loadGame: (id: string) => { success: boolean; message: string; data: unknown } | Promise<{ success: boolean; message: string; data: unknown }>;
   gotoMove: (ply: number) => { success: boolean; message: string; data: unknown };
   playLine: (moves?: string[], count?: number) => Promise<{ success: boolean; message: string; data: unknown }>;
   demonstratePiece: (piece: string, square?: string, color?: string) => { success: boolean; message: string; data: unknown };
@@ -348,7 +355,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'list-lessons',
-        description: 'Lists famous games, piece tutorials, and saved catalog lessons. Lesson screens: Goal (create-lesson), teaching Steps (add-lesson-step), Riddle (add-lesson-step type riddle), Recap (set-lesson-recap, not a step, skip for one-step exams/riddles). After two or more steps, add another step or write the recap. ' + COACH_NOTATION_RULE,
+        description: 'Lists famous games, piece tutorials, and saved catalog lessons. create-lesson type: lesson (Goal then add-lesson-step) or showme (one explanation; the line auto-plays with Pause, Stop, and Replay). Riddle: add-lesson-step type riddle. ' + COACH_NOTATION_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => ({
           success: true,
@@ -390,20 +397,35 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson. Does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn. Not a numbered step and not a recap. Call once per topic. Next: add-lesson-step (type step or riddle). The student opens the lesson from My lessons. Do not call create-lesson again for the same topic. ' +
+          'Create a new catalog lesson. type lesson (default): does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn; then add-lesson-step. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
           properties: {
+            type: {
+              type: 'string',
+              enum: ['lesson', 'showme'],
+              description:
+                'lesson = Goal then add-lesson-step. showme = one explanation; the line auto-plays with Pause, Stop, and Replay. Pass this enum; do not infer it by matching chat wording.',
+            },
             title: {
               type: 'string',
-              description: 'Lesson topic shown for the whole lesson, e.g. "Italian Opening". Not the name of a single move.',
+              description: 'Lesson topic shown for the whole lesson, e.g. "Italian Opening" or "Scholar\'s Mate".',
             },
             paragraphs: {
               type: 'array',
               items: { type: 'string' },
               description:
-                'Optional intro. What this lesson will teach, in 1–3 short paragraphs. Any moves must be long algebraic (e2-e4, Ng1-f3), not short SAN.',
+                'type lesson: optional intro (long algebraic for any moves, e.g. e2-e4). type showme: the single explanation of the line the student will watch.',
+            },
+            moves: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Required for type showme. Planned line as from:to, e.g. ["e2:e4", "e7:e5"]. The line auto-plays in this order.',
+            },
+            fen: {
+              type: 'string',
+              description: 'Optional starting FEN for type showme. Default is the starting position.',
             },
           },
           required: ['title'],
@@ -413,9 +435,13 @@ export function useModelContextTools(actions: ChessActions) {
           if (!title) {
             return { success: false, message: 'Provide a lesson title.', data: null };
           }
+          const format = parseLessonFormat(params.type);
           const result = actionsRef.current.lessons.createLesson({
             title,
             paragraphs: asStringArray(params.paragraphs),
+            type: format,
+            moves: asStringArray(params.moves),
+            fen: typeof params.fen === 'string' ? params.fen : undefined,
           });
           return {
             success: result.success,
@@ -423,8 +449,9 @@ export function useModelContextTools(actions: ChessActions) {
             data: {
               lesson: result.lesson,
               title: result.title,
-              screen: 'goal',
-              nextTools: ['add-lesson-step'],
+              screen: result.screen,
+              type: format,
+              nextTools: result.screen === 'showme' ? ['how_to_ask_the_user'] : ['add-lesson-step'],
             },
           };
         },
@@ -432,7 +459,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -723,7 +750,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'play-line',
-        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
+        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. For create-lesson type showme, the line auto-plays; the student uses Pause, Stop, and Replay on the coach (do not call this tool to start that demo). Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
         inputSchema: {
           type: 'object',
           properties: {

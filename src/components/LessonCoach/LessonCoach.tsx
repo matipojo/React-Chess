@@ -17,7 +17,10 @@ import {
   openCodexPrompt,
   sharePromptWithHost,
 } from "../../utils/codexPrompt";
-import "./LessonCoach.css";
+import {
+  showmeControls,
+  ShowMePlayback,
+} from "../../lessons/showMe";
 
 function uncoveredMoveText(
   what: string | undefined,
@@ -43,6 +46,41 @@ function ResetIcon() {
       <path
         fill="currentColor"
         d="M12 5V2L7 7l5 5V9c2.76 0 5 2.24 5 5a5 5 0 0 1-9.9 1H6.02A7 7 0 0 0 19 14c0-3.87-3.13-7-7-7z"
+      />
+    </svg>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M8 5.14v14l11-7-11-7z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M6 6h12v12H6z" />
+    </svg>
+  );
+}
+
+function ReplayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
       />
     </svg>
   );
@@ -88,6 +126,12 @@ type Props = {
   canReset?: boolean;
   playMoves?: CoachPlayMove[];
   onPlayMove?: (notation: string) => void;
+  onPlayLine?: () => void;
+  onPauseLine?: () => void;
+  onStopLine?: () => void;
+  onReplayLine?: () => void;
+  showmePlayback?: ShowMePlayback;
+  showmePly?: number;
   playBusy?: boolean;
   nextGenerating?: boolean;
   historyIndex?: number;
@@ -118,6 +162,12 @@ export default function LessonCoach({
   canReset,
   playMoves,
   onPlayMove,
+  onPlayLine,
+  onPauseLine,
+  onStopLine,
+  onReplayLine,
+  showmePlayback = "idle",
+  showmePly = 0,
   playBusy,
   nextGenerating,
   historyIndex,
@@ -171,9 +221,9 @@ export default function LessonCoach({
             )}
           </div>
           <p>
-            Everything you learn here is created in the chat. Tell the agent
-            what you want to study, and it builds a lesson with steps that match
-            your request.
+            Everything you learn here is created in the chat. Ask the agent
+            to teach you a topic and it builds a lesson with steps. Ask it to
+            show you a line and it plays the moves live with one explanation.
           </p>
           <p>
             When you are ready, it can also quiz you on any topic you have
@@ -196,6 +246,11 @@ export default function LessonCoach({
     : [];
 
   const leftoverMoves = coach ? uncoveredMoveText(coach.what, playMoves) : "";
+  const playback = showmeControls(
+    showmePlayback,
+    showmePly,
+    coach?.moves?.length || 0
+  );
   const slideCount = lessonSlideCounter({
     step: coach?.step,
     totalSteps: coach?.totalSteps,
@@ -239,7 +294,7 @@ export default function LessonCoach({
         <div className="lesson-coach-heading">
           <div className="lesson-coach-heading-text">
             <p className="lesson-coach-kicker">Learn</p>
-            {coach?.lessonTitle && coach.phase !== "goal" && (
+            {coach?.lessonTitle && coach.phase !== "goal" && coach.phase !== "showme" && (
               <p className="lesson-coach-topic">
                 <ChessLinkedText
                   text={coach.lessonTitle}
@@ -282,11 +337,14 @@ export default function LessonCoach({
             {coach.phase === "riddle" && (
               <p className="lesson-coach-recap-label">Riddle</p>
             )}
+            {coach.phase === "showme" && (
+              <p className="lesson-coach-recap-label">Show me</p>
+            )}
             {coach.phase === "recap" && (
               <p className="lesson-coach-recap-label">Recap</p>
             )}
             <div className="lesson-coach-body">
-              {coach.why && (
+              {coach.phase !== "showme" && coach.why && (
                 <p className="lesson-coach-why">
                   <span className="lesson-coach-field-label">Why</span>
                   <ChessLinkedText
@@ -296,7 +354,7 @@ export default function LessonCoach({
                   />
                 </p>
               )}
-              {(coach.what || leftoverMoves) && (
+              {coach.phase !== "showme" && (coach.what || leftoverMoves) && (
                 <p className="lesson-coach-what">
                   <span className="lesson-coach-field-label">Move</span>
                   {coach.what && (
@@ -333,6 +391,57 @@ export default function LessonCoach({
                   </p>
                 );
               })}
+              {coach.phase === "showme" &&
+                (onPlayLine || onPauseLine || onStopLine || onReplayLine) && (
+                <div className="lesson-coach-playback" dir="ltr">
+                  {onStopLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-playback-stop"
+                      onClick={onStopLine}
+                      disabled={!playback.stop}
+                      aria-label="Stop the line"
+                      title="Stop"
+                    >
+                      <StopIcon />
+                    </button>
+                  )}
+                  {playback.primary === "play" && onPlayLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-play-line lesson-coach-playback-play"
+                      onClick={onPlayLine}
+                      aria-label="Play the line"
+                      title="Play"
+                    >
+                      <PlayIcon />
+                    </button>
+                  )}
+                  {playback.primary === "pause" && onPauseLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-play-line lesson-coach-playback-pause"
+                      onClick={onPauseLine}
+                      aria-label="Pause the line"
+                      title="Pause"
+                    >
+                      <PauseIcon />
+                    </button>
+                  )}
+                  {onReplayLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-playback-replay"
+                      onClick={onReplayLine}
+                      disabled={!playback.replay}
+                      aria-label="Replay the line"
+                      title="Replay"
+                    >
+                      <ReplayIcon />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}

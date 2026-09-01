@@ -8,6 +8,8 @@ import {
   parseSummaryDraft,
   shouldShowLessonNav,
   teachingSteps,
+  coachFromShowme,
+  isShowmePhase,
 } from "./lessonCopy";
 
 describe("lesson copy", () => {
@@ -134,6 +136,31 @@ describe("lesson copy", () => {
         hasLineMoves: true,
       })
     ).toBe(true);
+    expect(
+      shouldShowLessonNav({
+        expectsRecap: false,
+        generatingNext: false,
+        hasLineMoves: true,
+        isShowme: true,
+      })
+    ).toBe(false);
+  });
+
+  it("builds one show-me explanation without why, what, or step numbers", () => {
+    const coach = coachFromShowme({
+      title: "Scholar's Mate",
+      paragraphs: ["Watch the queen and bishop crash through on f7."],
+      lesson: 4,
+      moves: ["e2:e4", "h5:f7"],
+    });
+    expect(isShowmePhase(coach.phase)).toBe(true);
+    expect(coach.what).toBeUndefined();
+    expect(coach.why).toBeUndefined();
+    expect(coach.step).toBeUndefined();
+    expect(coach.paragraphs).toEqual([
+      "Watch the queen and bishop crash through on f7.",
+    ]);
+    expect(coach.moves).toEqual(["e2:e4", "h5:f7"]);
   });
 
   it("builds a compact slide fraction for multi-slide lessons", () => {

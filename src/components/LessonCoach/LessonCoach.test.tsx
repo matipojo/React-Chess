@@ -12,10 +12,10 @@ describe("LessonCoach", () => {
       )
     ).toBeTruthy();
     expect(
-      getByText(/it can also quiz you on any topic you have already covered/)
+      getByText(/Ask it to show you a line and it plays the moves live/)
     ).toBeTruthy();
-    expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
-    expect(getByRole("button", { name: "show Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "teach me the Italian" })).toBeTruthy();
     expect(getByRole("button", { name: "quiz me on forks" })).toBeTruthy();
   });
 
@@ -28,8 +28,8 @@ describe("LessonCoach", () => {
     try {
       const { getByRole } = render(<LessonCoach coach={null} />);
       expect(
-        getByRole("link", { name: "how does a knight move?" }).getAttribute("href")
-      ).toBe("codex://new?prompt=how%20does%20a%20knight%20move%3F");
+        getByRole("link", { name: "show me Scholar's Mate" }).getAttribute("href")
+      ).toBe("codex://new?prompt=show%20me%20Scholar's%20Mate");
     } finally {
       Object.defineProperty(navigator, "userAgent", {
         configurable: true,
@@ -50,13 +50,13 @@ describe("LessonCoach", () => {
     window.open = open;
     try {
       const { getByRole } = render(<LessonCoach coach={null} />);
-      const link = getByRole("link", { name: "how does a knight move?" });
+      const link = getByRole("link", { name: "show me Scholar's Mate" });
       expect(link.getAttribute("href")).toBe(
-        "codex://new?prompt=how%20does%20a%20knight%20move%3F"
+        "codex://new?prompt=show%20me%20Scholar's%20Mate"
       );
       link.click();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=how%20does%20a%20knight%20move%3F",
+        "codex://new?prompt=show%20me%20Scholar's%20Mate",
         "_blank",
         "noopener"
       );
@@ -78,8 +78,8 @@ describe("LessonCoach", () => {
     });
     try {
       const { getByRole, queryByRole } = render(<LessonCoach coach={null} />);
-      expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
-      expect(queryByRole("link", { name: "how does a knight move?" })).toBeNull();
+      expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
+      expect(queryByRole("link", { name: "show me Scholar's Mate" })).toBeNull();
     } finally {
       Object.defineProperty(navigator, "userAgent", {
         configurable: true,
@@ -230,6 +230,101 @@ describe("LessonCoach", () => {
     expect(getByText("Click the fork square.")).toBeTruthy();
     expect(queryByRole("button", { name: "Back" })).toBeNull();
     expect(queryByRole("button", { name: "Next" })).toBeNull();
+  });
+
+  it("labels a show-me demo and offers play, stop, and replay", () => {
+    const onPlayLine = jest.fn();
+    const onPauseLine = jest.fn();
+    const onStopLine = jest.fn();
+    const onReplayLine = jest.fn();
+    const coach = {
+      lessonTitle: "Scholar's Mate",
+      title: "Scholar's Mate",
+      body: "Watch the queen and bishop crash through on f7.",
+      paragraphs: ["Watch the queen and bishop crash through on f7."],
+      phase: "showme" as const,
+      lesson: 4,
+      moves: ["e2:e4", "e7:e5", "d1:h5"],
+    };
+    const { getByText, queryByText, queryByRole, getByRole, rerender } = render(
+      <LessonCoach
+        coach={coach}
+        onPlayLine={onPlayLine}
+        onPauseLine={onPauseLine}
+        onStopLine={onStopLine}
+        onReplayLine={onReplayLine}
+      />
+    );
+    expect(getByText("Show me")).toBeTruthy();
+    expect(queryByText("Step")).toBeNull();
+    expect(queryByText("Goal")).toBeNull();
+    expect(queryByText("Why")).toBeNull();
+    expect(queryByText("Move")).toBeNull();
+    expect(
+      getByText(/Watch the queen and bishop crash through on/)
+    ).toBeTruthy();
+    expect(queryByRole("button", { name: "Back" })).toBeNull();
+    expect(queryByRole("button", { name: "Next" })).toBeNull();
+    const play = getByRole("button", { name: "Play the line" });
+    expect(getByRole("button", { name: "Stop the line" })).toHaveProperty(
+      "disabled",
+      true
+    );
+    getByRole("button", { name: "Replay the line" });
+    play.click();
+    expect(onPlayLine).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <LessonCoach
+        coach={coach}
+        showmePlayback="playing"
+        showmePly={1}
+        onPlayLine={onPlayLine}
+        onPauseLine={onPauseLine}
+        onStopLine={onStopLine}
+        onReplayLine={onReplayLine}
+      />
+    );
+    expect(queryByRole("button", { name: "Play the line" })).toBeNull();
+    const pause = getByRole("button", { name: "Pause the line" });
+    expect(getByRole("button", { name: "Stop the line" })).toHaveProperty(
+      "disabled",
+      false
+    );
+    pause.click();
+    expect(onPauseLine).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <LessonCoach
+        coach={coach}
+        showmePlayback="paused"
+        showmePly={1}
+        onPlayLine={onPlayLine}
+        onPauseLine={onPauseLine}
+        onStopLine={onStopLine}
+        onReplayLine={onReplayLine}
+      />
+    );
+    getByRole("button", { name: "Play the line" }).click();
+    expect(onPlayLine).toHaveBeenCalledTimes(2);
+    getByRole("button", { name: "Stop the line" }).click();
+    expect(onStopLine).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <LessonCoach
+        coach={coach}
+        showmePlayback="idle"
+        showmePly={3}
+        onPlayLine={onPlayLine}
+        onPauseLine={onPauseLine}
+        onStopLine={onStopLine}
+        onReplayLine={onReplayLine}
+      />
+    );
+    expect(queryByRole("button", { name: "Play the line" })).toBeNull();
+    expect(queryByRole("button", { name: "Pause the line" })).toBeNull();
+    getByRole("button", { name: "Replay the line" }).click();
+    expect(onReplayLine).toHaveBeenCalledTimes(1);
   });
 
   it("renders wait-for-user choices and reports the clicked action", () => {

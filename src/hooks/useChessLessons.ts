@@ -21,7 +21,7 @@ import {
   WaitForUserResult,
   WaitForUserState,
 } from "../lessons/types";
-import { createCatalogLesson, findUserLesson, findUserLessonByNumber, lessonSteps, readUserCatalog, removeUserLesson, setLessonRecap, upsertLessonStep, upsertUserLesson } from "../lessons/userCatalog";
+import { createCatalogLesson, customLessonId, findUserLesson, findUserLessonByNumber, lessonSteps, readUserCatalog, removeUserLesson, setLessonRecap, upsertLessonStep, upsertUserLesson } from "../lessons/userCatalog";
 import {
   boardFromFen,
   boardFromPlacements,
@@ -53,10 +53,14 @@ import {
 import { continueWaitChoice, WAIT_TIMEOUT_MS } from "../lessons/waitForUser";
 import {
   coachFromDraft,
+  coachFromShowme,
   isRecapPhase,
+  isShowmeLesson,
+  isShowmePhase,
   lessonExpectsRecap,
   LessonStepDraft,
   LessonSummaryDraft,
+  parseLessonFormat,
   parseLessonStepType,
   teachingSteps,
 } from "../lessons/lessonCopy";
@@ -65,6 +69,7 @@ import {
   coachPlayMoves,
   resolveStepMoves,
 } from "../lessons/stepPlay";
+import { resolveShowMeLesson, ShowMePlayback } from "../lessons/showMe";
 import {
   canRedoExperiment,
   canUndoExperiment,
@@ -98,6 +103,7 @@ type Args = {
     team: "w" | "b",
     onComplete?: () => void
   ) => void;
+  cancelMoveAnimation?: () => void;
   hideCheckmate: () => void;
 };
 
@@ -113,6 +119,7 @@ export function useChessLessons({
   setBoard,
   playMoveSync,
   animateMove,
+  cancelMoveAnimation,
   hideCheckmate,
 }: Args) {
   const [learnMode, setLearnMode] = useState(true);
@@ -144,6 +151,19 @@ export function useChessLessons({
   const waitRef = useRef<WaitForUserState | null>(persistedWait);
   const lastQuizRef = useRef<QuizState | null>(persistedQuiz);
   const playChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const showmeGenRef = useRef(0);
+  const showmePlaybackRef = useRef<ShowMePlayback>("idle");
+  const showmePlyRef = useRef(0);
+  const showmePauseWaitRef = useRef<(() => void) | null>(null);
+  const showmeRunRef = useRef<Promise<unknown>>(Promise.resolve());
+  const playShowMeLineRef = useRef<(options?: { fromStart?: boolean }) => Promise<{
+    success: boolean;
+    message: string;
+    data: unknown;
+  }>>();
+  const animTokenRef = useRef(0);
+  const [showmePlayback, setShowmePlayback] = useState<ShowMePlayback>("idle");
+  const [showmePly, setShowmePly] = useState(0);
   const highlightsRef = useRef<BoardHighlight[]>([]);
   const arrowsRef = useRef<BoardArrow[]>([]);
   const coachRef = useRef<CoachState | null>(null);
@@ -616,6 +636,17 @@ export function useChessLessons({
       activeLessonNumberRef.current = null;
       lastQuizRef.current = null;
       coachRef.current = null;
+      showmeGenRef.current += 1;
+      animTokenRef.current += 1;
+      const resumeShowMe = showmePauseWaitRef.current;
+      showmePauseWaitRef.current = null;
+      resumeShowMe?.();
+      showmePlaybackRef.current = "idle";
+      setShowmePlayback("idle");
+      showmePlyRef.current = 0;
+      setShowmePly(0);
+      cancelMoveAnimation?.();
+      setAnimating(false);
       cancelQuiz();
       setWait(null);
       clearAnnotations();
@@ -627,7 +658,7 @@ export function useChessLessons({
         applyBoard(startingLearnBoard());
       }
     },
-    [applyBoard, cancelQuiz, clearAnnotations, discardParkedLesson, hideCheckmate, resetHistory, setWait]
+    [applyBoard, cancelMoveAnimation, cancelQuiz, clearAnnotations, discardParkedLesson, hideCheckmate, resetHistory, setWait]
   );
 
   const setCoach = useCallback((next: CoachState) => {
@@ -858,12 +889,13 @@ export function useChessLessons({
   );
 
   const animateThenPlay = useCallback(
-    (from: Position, to: Position) => {
+    (from: Position, to: Position, options?: { isCancelled?: () => boolean }) => {
       const piece = boardRef.current.pieces.find((p) => p.samePosition(from));
       if (!piece) {
         return Promise.resolve(false);
       }
       const team = piece.team as "w" | "b";
+      const token = ++animTokenRef.current;
       logLessonDebug("visual", "hand-animate", {
         from: coordinatesToNotation(from.x, from.y),
         to: coordinatesToNotation(to.x, to.y),
@@ -873,8 +905,19 @@ export function useChessLessons({
       setAnimating(true);
       return new Promise<boolean>((resolve) => {
         animateMove(from, to, team, () => {
+          const stale = animTokenRef.current !== token;
+          const cancelled = options?.isCancelled?.() === true;
+          if (stale || cancelled) {
+            if (animTokenRef.current === token) {
+              setAnimating(false);
+            }
+            resolve(false);
+            return;
+          }
           const success = playMoveSync(from, to);
-          setAnimating(false);
+          if (animTokenRef.current === token) {
+            setAnimating(false);
+          }
           resolve(success);
         });
       });
@@ -1018,6 +1061,261 @@ export function useChessLessons({
     },
     [animateThenPlay, boardRef, clearAnnotations, enterLearnMode, ensureStartingSnapshot, pushSnapshot, updateCurrentSnapshot]
   );
+
+  const presentShowMeLesson = useCallback(
+    (args: {
+      title: string;
+      body: string;
+      paragraphs: string[];
+      moves: string[];
+      fen?: string;
+      lesson?: number;
+    }) => {
+      wipeLearnSession();
+      if (args.fen) {
+        try {
+          applyBoard(boardFromFen(args.fen, true));
+        } catch (error) {
+          return {
+            success: false,
+            message: `${error}`,
+            lesson: 0,
+            title: args.title,
+            screen: "showme" as const,
+          };
+        }
+      }
+
+      const existing =
+        typeof args.lesson === "number" ? findUserLessonByNumber(args.lesson) : undefined;
+      const created =
+        existing && isShowmeLesson(existing)
+          ? existing
+          : createCatalogLesson({
+              title: args.title,
+              body: args.body,
+              paragraphs: args.paragraphs,
+              kind: "showme",
+            });
+      const lessonNumber = created.number as number;
+      activeLessonNumberRef.current = lessonNumber;
+      const fromFen = boardToFen(boardRef.current);
+      const coach = coachFromShowme({
+        title: args.title,
+        body: args.body,
+        paragraphs: args.paragraphs,
+        lesson: lessonNumber,
+        moves: args.moves,
+        fromFen,
+      });
+      coachRef.current = coach;
+      setCoachState(coach);
+      persistLesson({
+        id: customLessonId(lessonNumber),
+        kind: "showme",
+        title: args.title,
+        body: args.body,
+        paragraphs: args.paragraphs,
+        number: lessonNumber,
+        moves: args.moves,
+        fen: fromFen,
+        steps: [],
+      });
+      pushSnapshot();
+      logLessonDebug("visual", "create-lesson-showme", {
+        lesson: lessonNumber,
+        title: args.title,
+        moves: args.moves.length,
+      });
+      const result = {
+        success: true,
+        message: `Created showme lesson ${lessonNumber}: ${args.title}. One explanation. The line auto-plays; Pause, Stop, and Replay are on the coach. Next: how_to_ask_the_user.`,
+        lesson: lessonNumber,
+        title: args.title,
+        screen: "showme" as const,
+      };
+      void playShowMeLineRef.current?.({ fromStart: true });
+      return result;
+    },
+    [applyBoard, persistLesson, pushSnapshot, wipeLearnSession]
+  );
+
+  const rewindShowMeBoard = useCallback(() => {
+    const current = coachRef.current;
+    try {
+      if (current?.fromFen) {
+        applyBoard(boardFromFen(current.fromFen, true));
+        return true;
+      }
+    } catch {
+      // fall back to the starting learn position
+    }
+    applyBoard(startingLearnBoard());
+    return true;
+  }, [applyBoard]);
+
+  const playShowMeLine = useCallback((options?: { fromStart?: boolean }) => {
+    const coach = coachRef.current;
+    if (!coach || !isShowmePhase(coach.phase) || !coach.moves || !coach.moves.length) {
+      return Promise.resolve({
+        success: false,
+        message: "No showme line to play.",
+        data: null as unknown,
+      });
+    }
+
+    if (!options?.fromStart && showmePlaybackRef.current === "paused") {
+      showmePlaybackRef.current = "playing";
+      setShowmePlayback("playing");
+      const resume = showmePauseWaitRef.current;
+      showmePauseWaitRef.current = null;
+      resume?.();
+      logLessonDebug("visual", "showme-resume", { lesson: coach.lesson, ply: showmePlyRef.current });
+      return Promise.resolve({
+        success: true,
+        message: "Resumed the line.",
+        data: { ply: showmePlyRef.current },
+      });
+    }
+
+    if (!options?.fromStart && showmePlaybackRef.current === "playing") {
+      return Promise.resolve({
+        success: true,
+        message: "Already playing.",
+        data: { ply: showmePlyRef.current },
+      });
+    }
+
+    const planned = coach.moves;
+    const startPly =
+      options?.fromStart || showmePlyRef.current >= planned.length
+        ? 0
+        : showmePlyRef.current;
+    const myGen = ++showmeGenRef.current;
+    animTokenRef.current += 1;
+    const resume = showmePauseWaitRef.current;
+    showmePauseWaitRef.current = null;
+    resume?.();
+    cancelMoveAnimation?.();
+
+    const previous = showmeRunRef.current;
+    const run = (async () => {
+      await previous;
+      if (showmeGenRef.current !== myGen) {
+        return {
+          success: false,
+          message: "Replaced by a newer playback.",
+          data: null as unknown,
+        };
+      }
+      if (startPly === 0) {
+        rewindShowMeBoard();
+      }
+      showmePlyRef.current = startPly;
+      setShowmePly(startPly);
+      showmePlaybackRef.current = "playing";
+      setShowmePlayback("playing");
+      logLessonDebug("visual", "play-showme-line", {
+        lesson: coach.lesson,
+        moves: planned.length,
+        fromPly: startPly,
+      });
+
+      const moves = coachRef.current?.moves || planned;
+      for (let i = startPly; i < moves.length; i++) {
+        while (
+          showmePlaybackRef.current === "paused" &&
+          showmeGenRef.current === myGen
+        ) {
+          await new Promise<void>((resolve) => {
+            showmePauseWaitRef.current = resolve;
+          });
+        }
+        if (showmeGenRef.current !== myGen) {
+          return {
+            success: false,
+            message: "Stopped.",
+            data: { ply: showmePlyRef.current },
+          };
+        }
+
+        const parsed = parseMoveOrCastle(moves[i], boardRef.current.currentTeam);
+        const fromCoords = chessNotationToCoordinates(parsed.from);
+        const toCoords = chessNotationToCoordinates(parsed.to);
+        const from = new Position(fromCoords.x, fromCoords.y);
+        const to = new Position(toCoords.x, toCoords.y);
+        const ok = await animateThenPlay(from, to, {
+          isCancelled: () => showmeGenRef.current !== myGen,
+        });
+        if (showmeGenRef.current !== myGen) {
+          return {
+            success: false,
+            message: "Stopped.",
+            data: { ply: showmePlyRef.current },
+          };
+        }
+        if (!ok) {
+          showmePlaybackRef.current = "idle";
+          setShowmePlayback("idle");
+          return {
+            success: false,
+            message: `Stopped at ${moves[i]}`,
+            data: { ply: i },
+          };
+        }
+        showmePlyRef.current = i + 1;
+        setShowmePly(i + 1);
+        clearAnnotations();
+      }
+
+      if (showmeGenRef.current === myGen) {
+        showmePlaybackRef.current = "idle";
+        setShowmePlayback("idle");
+      }
+      return {
+        success: true,
+        message: `Played ${moves.length} move(s)`,
+        data: { played: moves.length },
+      };
+    })();
+
+    showmeRunRef.current = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }, [animateThenPlay, cancelMoveAnimation, clearAnnotations, rewindShowMeBoard]);
+
+  playShowMeLineRef.current = playShowMeLine;
+
+  const pauseShowMeLine = useCallback(() => {
+    if (showmePlaybackRef.current !== "playing") {
+      return;
+    }
+    showmePlaybackRef.current = "paused";
+    setShowmePlayback("paused");
+    logLessonDebug("visual", "showme-pause", { ply: showmePlyRef.current });
+  }, []);
+
+  const stopShowMeLine = useCallback(() => {
+    showmeGenRef.current += 1;
+    animTokenRef.current += 1;
+    const resume = showmePauseWaitRef.current;
+    showmePauseWaitRef.current = null;
+    resume?.();
+    showmePlaybackRef.current = "idle";
+    setShowmePlayback("idle");
+    showmePlyRef.current = 0;
+    setShowmePly(0);
+    cancelMoveAnimation?.();
+    setAnimating(false);
+    rewindShowMeBoard();
+    logLessonDebug("visual", "showme-stop", { lesson: coachRef.current?.lesson });
+  }, [cancelMoveAnimation, rewindShowMeBoard]);
+
+  const replayShowMeLine = useCallback(() => {
+    return playShowMeLine({ fromStart: true });
+  }, [playShowMeLine]);
 
   const demonstratePiece = useCallback(
     (pieceName: string, square?: string, color?: string) => {
@@ -1191,6 +1489,16 @@ export function useChessLessons({
         };
       }
       resolveWait({ action: item.id, source: "catalog", label: item.title });
+      if (isShowmeLesson(item)) {
+        return presentShowMeLesson({
+          title: item.title,
+          body: item.body,
+          paragraphs: item.paragraphs || [],
+          moves: item.moves || [],
+          fen: item.fen,
+          lesson: item.number,
+        });
+      }
       restoringRef.current = true;
       try {
         if (item.kind === "game") {
@@ -1211,7 +1519,7 @@ export function useChessLessons({
         restoringRef.current = false;
       }
     },
-    [applyFamousGame, demonstratePiece, resolveWait, restoreCustomLesson]
+    [applyFamousGame, demonstratePiece, presentShowMeLesson, resolveWait, restoreCustomLesson]
   );
 
   const loadGame = useCallback(
@@ -1450,7 +1758,14 @@ export function useChessLessons({
     resolveWait({ action: choice.id, source: "choice", label: choice.label });
   }, [animating, playLine, publishHistory, resolveWait, restoreSnapshot]);
 
-  const createLesson = useCallback((args: { title: string; paragraphs?: string[] }) => {
+  const createLesson = useCallback((args: {
+    title: string;
+    paragraphs?: string[];
+    type?: string;
+    moves?: string[];
+    fen?: string;
+  }) => {
+    const format = parseLessonFormat(args.type);
     const notationError = coachNotationViolation([args.title, ...(args.paragraphs || [])]);
     if (notationError) {
       return {
@@ -1458,8 +1773,28 @@ export function useChessLessons({
         message: notationError,
         lesson: 0,
         title: args.title,
+        screen: format === "showme" ? ("showme" as const) : ("goal" as const),
       };
     }
+    if (format === "showme") {
+      const resolved = resolveShowMeLesson({
+        title: args.title,
+        paragraphs: args.paragraphs,
+        moves: args.moves,
+        fen: args.fen,
+      });
+      if (!resolved.ok) {
+        return {
+          success: false,
+          message: resolved.message,
+          lesson: 0,
+          title: "",
+          screen: "showme" as const,
+        };
+      }
+      return presentShowMeLesson(resolved);
+    }
+
     const copy = normalizeCoachCopy({ body: "", paragraphs: args.paragraphs || [] });
     const created = createCatalogLesson({
       title: args.title,
@@ -1477,8 +1812,9 @@ export function useChessLessons({
       message: `Created catalog lesson ${created.number}: ${created.title}. Goal screen is stored; the live session was not changed. Next: add-lesson-step with lesson: ${created.number}. The student opens it from My lessons.`,
       lesson: created.number as number,
       title: created.title,
+      screen: "goal" as const,
     };
-  }, [rememberDraftLesson]);
+  }, [presentShowMeLesson, rememberDraftLesson]);
 
   const addLessonStep = useCallback(
     async (args: {
@@ -1548,6 +1884,12 @@ export function useChessLessons({
       const existing = findUserLessonByNumber(lessonNumber);
       if (!existing) {
         return failed(`No lesson ${lessonNumber}. Call create-lesson first.`, lessonNumber);
+      }
+      if (isShowmeLesson(existing)) {
+        return failed(
+          `Lesson ${lessonNumber} is a show-me demo (one explanation, live play). For a stepped lesson, call create-lesson.`,
+          lessonNumber
+        );
       }
       rememberDraftLesson(lessonNumber);
       const lessonTitle = existing.title;
@@ -1634,6 +1976,13 @@ export function useChessLessons({
           lesson: lessonNumber,
         };
       }
+      if (isShowmeLesson(existing)) {
+        return {
+          success: false,
+          message: `Lesson ${lessonNumber} is a show-me demo. There is no recap. Call how_to_ask_the_user.`,
+          lesson: lessonNumber,
+        };
+      }
       if (!args.paragraphs.length) {
         return {
           success: false,
@@ -1710,7 +2059,7 @@ export function useChessLessons({
 
   const playCoachMove = useCallback(async (notation: string) => {
     const coach = coachRef.current;
-    if (!coach || isRecapPhase(coach.phase)) {
+    if (!coach || isRecapPhase(coach.phase) || isShowmePhase(coach.phase) || coach.phase === "riddle") {
       return { success: false, message: "No move to play on this screen." };
     }
     const moves = resolveStepMoves(coach.what, coach.moves);
@@ -1757,6 +2106,13 @@ export function useChessLessons({
         "click-piece — user clicks a piece",
       ],
       notation: COACH_NOTATION_RULE,
+      learningTypes: {
+        lesson:
+          "create-lesson type lesson (default) — Goal, then add-lesson-step Why/Move beats.",
+        showme:
+          "create-lesson type showme — one explanation; the planned line auto-plays with Pause, Stop, and Replay on the coach.",
+        riddle: "add-lesson-step type riddle — a puzzle on a catalog lesson.",
+      },
     };
   }, [userLessons]);
 
@@ -1782,6 +2138,8 @@ export function useChessLessons({
     quizSecondsLeft,
     wait,
     animating,
+    showmePlayback,
+    showmePly,
     historyIndex,
     historyLength,
     userLessons,
@@ -1799,6 +2157,10 @@ export function useChessLessons({
     loadGame,
     gotoMove,
     playLine,
+    playShowMeLine,
+    pauseShowMeLine,
+    stopShowMeLine,
+    replayShowMeLine,
     demonstratePiece,
     askQuiz,
     waitForUser,
@@ -1822,7 +2184,10 @@ export function useChessLessons({
     stepLast,
     playCoachMove,
     coachPlayMoves:
-      coach && !isRecapPhase(coach.phase)
+      coach &&
+      !isRecapPhase(coach.phase) &&
+      !isShowmePhase(coach.phase) &&
+      coach.phase !== "riddle"
         ? coachPlayMoves({
             board: boardRef.current,
             moves: resolveStepMoves(coach.what, coach.moves),
