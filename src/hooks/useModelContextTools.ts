@@ -13,7 +13,8 @@ import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
 import { parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
-import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
+import { Figure } from '../geometry/types';
+import { COACH_GAN_RULE } from '../geometry/notation';
 
 type ToolResponse = {
   success: boolean;
@@ -87,6 +88,31 @@ type LessonActions = {
   listLessons: () => unknown;
 };
 
+export type LearningArea = "chess" | "triangles";
+
+type TriangleToolApi = {
+  getFigure: () => Figure;
+  applyGan: (gan: string) => Promise<{ success: boolean; message: string }>;
+  setFigure: (args: { tfn?: string; template?: string }) => {
+    success: boolean;
+    message: string;
+    data?: unknown;
+  };
+  movePoint: (name: string, position: { x: number; y: number }) => { success: boolean; message: string };
+  rotateFigure: (around: string, deg: number, target?: string) => Promise<{ success: boolean; message: string }>;
+  markFigure: (gan: string) => Promise<{ success: boolean; message: string }>;
+  measure: (id: string) => unknown;
+  summary: () => unknown;
+  createLesson: LessonActions["createLesson"];
+  addLessonStep: LessonActions["addLessonStep"];
+  addLessonSteps: LessonActions["addLessonSteps"];
+  applyLessonRecap: LessonActions["applyLessonRecap"];
+  setCoach: LessonActions["setCoach"];
+  askQuiz: LessonActions["askQuiz"];
+  listLessons: LessonActions["listLessons"];
+  clearLesson: LessonActions["clearLesson"];
+};
+
 type ChessActions = {
   getBoard: () => Board;
   playMove: (piece: Piece, destination: Position) => boolean;
@@ -95,6 +121,9 @@ type ChessActions = {
   animateMove?: (from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => void;
   lessons: LessonActions;
   setPageBackground: (cssUrl: string | null) => { persisted: boolean };
+  getArea: () => LearningArea;
+  setArea: (area: LearningArea) => void;
+  triangles: TriangleToolApi;
 };
 
 function compactToolParams(params: Record<string, unknown>): Record<string, unknown> {
@@ -164,7 +193,180 @@ export function useModelContextTools(actions: ChessActions) {
       return;
     }
 
+    const catalog = () =>
+      actionsRef.current.getArea() === "triangles"
+        ? actionsRef.current.triangles
+        : actionsRef.current.lessons;
+
     const tools = [
+      {
+        name: "set-learning-area",
+        description:
+          'Switch the visible learning area. "chess" is the chessboard. "triangles" is the Euclidean figure canvas for bagrut triangle geometry. Call this before triangle lessons. ' +
+          COACH_GAN_RULE,
+        inputSchema: {
+          type: "object",
+          properties: {
+            area: { type: "string", enum: ["chess", "triangles"] },
+          },
+          required: ["area"],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const area = String(params.area || "").trim().toLowerCase();
+          if (area !== "chess" && area !== "triangles") {
+            return { success: false, message: 'area must be "chess" or "triangles".', data: null };
+          }
+          actionsRef.current.setArea(area);
+          return {
+            success: true,
+            message: area === "triangles"
+              ? "Triangle area is on. Use apply-gan, set-figure, create-lesson. " + COACH_GAN_RULE
+              : "Chess area is on. Use make-move, create-lesson, algebraic LAN.",
+            data: { area },
+          };
+        },
+      },
+      {
+        name: "get-figure-state",
+        description:
+          "Retrieves the current triangle figure: points, segments, triangles, circles, marks, and measures. Switches to the triangles area.",
+        inputSchema: { type: "object", properties: {} },
+        execute: async (): Promise<ToolResponse> => {
+          actionsRef.current.setArea("triangles");
+          const summary = actionsRef.current.triangles.summary();
+          return { success: true, message: "Figure state retrieved", data: summary };
+        },
+      },
+      {
+        name: "apply-gan",
+        description:
+          "Execute one GAN construction on the triangle figure and animate it. Examples: △ABC, h(C,AB), m(A,BC), b(A), circ(ABC), inc(ABC), mark(90,C), fit(△ABC ≅ △DEF), rot(A,90,△ABC). Semicolons run a sequence. Switches to triangles. " +
+          COACH_GAN_RULE,
+        inputSchema: {
+          type: "object",
+          properties: {
+            gan: {
+              type: "string",
+              description: 'GAN command, e.g. "h(C,AB)" or "△ABC; mark(90,C)"',
+            },
+          },
+          required: ["gan"],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          actionsRef.current.setArea("triangles");
+          const gan = String(params.gan || "").trim();
+          if (!gan) {
+            return { success: false, message: "Provide a GAN string.", data: null };
+          }
+          const result = await actionsRef.current.triangles.applyGan(gan);
+          return {
+            success: result.success,
+            message: result.message,
+            data: actionsRef.current.triangles.summary(),
+          };
+        },
+      },
+      {
+        name: "set-figure",
+        description:
+          'Load a triangle figure from a template (scalene, right-at-C, isosceles-AB=AC, 30-60-90, equilateral, ssa-ambiguous) or a TFN string. Switches to triangles.',
+        inputSchema: {
+          type: "object",
+          properties: {
+            template: { type: "string", description: "Named template, e.g. right-at-C" },
+            tfn: { type: "string", description: "TFN snapshot from serialize, e.g. A(0,0) B(4,0) C(0,3) △ABC" },
+          },
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          actionsRef.current.setArea("triangles");
+          const result = actionsRef.current.triangles.setFigure({
+            template: typeof params.template === "string" ? params.template : undefined,
+            tfn: typeof params.tfn === "string" ? params.tfn : undefined,
+          });
+          return { success: result.success, message: result.message, data: result.data || null };
+        },
+      },
+      {
+        name: "move-point",
+        description: "Move a free point on the triangle figure. Constrained points follow. Switches to triangles.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            point: { type: "string", description: "Point name, e.g. C" },
+            x: { type: "number" },
+            y: { type: "number" },
+          },
+          required: ["point", "x", "y"],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          actionsRef.current.setArea("triangles");
+          const point = String(params.point || "").trim();
+          const result = actionsRef.current.triangles.movePoint(point, {
+            x: Number(params.x),
+            y: Number(params.y),
+          });
+          return { success: result.success, message: result.message, data: actionsRef.current.triangles.summary() };
+        },
+      },
+      {
+        name: "rotate-figure",
+        description: "Rotate named points or a triangle about a point by degrees (CCW positive). Example: around A, deg 90, target △ABC.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            around: { type: "string" },
+            deg: { type: "number" },
+            target: { type: "string", description: "△ABC or ABC or a point name" },
+          },
+          required: ["around", "deg"],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          actionsRef.current.setArea("triangles");
+          const result = await actionsRef.current.triangles.rotateFigure(
+            String(params.around || ""),
+            Number(params.deg),
+            typeof params.target === "string" ? params.target : undefined
+          );
+          return { success: result.success, message: result.message, data: actionsRef.current.triangles.summary() };
+        },
+      },
+      {
+        name: "mark-figure",
+        description:
+          "Mark the figure with GAN: mark(90,C), mark(=,AB,AC), mark(∠,BAC,EDF), mark(||,MN,BC), lab(AB=5), highlight(H). Switches to triangles.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            gan: { type: "string" },
+          },
+          required: ["gan"],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          actionsRef.current.setArea("triangles");
+          const result = await actionsRef.current.triangles.markFigure(String(params.gan || ""));
+          return { success: result.success, message: result.message, data: actionsRef.current.triangles.summary() };
+        },
+      },
+      {
+        name: "measure-figure",
+        description: "Read a measure without drawing: AB, ∠A, △ABC, R, AB:DE. Switches to triangles.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "GAN object to measure" },
+          },
+          required: ["id"],
+        },
+        execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          actionsRef.current.setArea("triangles");
+          const measured = actionsRef.current.triangles.measure(String(params.id || ""));
+          return {
+            success: Boolean(measured),
+            message: measured ? "Measured" : "Could not measure that object",
+            data: measured,
+          };
+        },
+      },
       {
         name: 'get-board-state',
         description: 'Retrieves the current state of the chess board including piece positions, current turn, total moves, game status, and whether learn mode is on.',
@@ -353,7 +555,7 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (): Promise<ToolResponse> => ({
           success: true,
           message: 'Available lessons',
-          data: actionsRef.current.lessons.listLessons(),
+          data: catalog().listLessons(),
         }),
       },
       {
@@ -390,8 +592,10 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson. Does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn. Not a numbered step and not a recap. Call once per topic. Next: add-lesson-step (type step or riddle). The student opens the lesson from My lessons. Do not call create-lesson again for the same topic. ' +
-          COACH_NOTATION_RULE,
+          'Create a new catalog lesson. In triangles area, GAN tokens stay Latin (△ABC, h(C,AB)). In chess, moves use long algebraic. Goal copy only. Next: add-lesson-step. ' +
+          COACH_NOTATION_RULE +
+          ' ' +
+          COACH_GAN_RULE,
         inputSchema: {
           type: 'object',
           properties: {
@@ -413,7 +617,7 @@ export function useModelContextTools(actions: ChessActions) {
           if (!title) {
             return { success: false, message: 'Provide a lesson title.', data: null };
           }
-          const result = actionsRef.current.lessons.createLesson({
+          const result = catalog().createLesson({
             title,
             paragraphs: asStringArray(params.paragraphs),
           });
@@ -489,7 +693,7 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {
           const type = parseLessonStepType(params.type);
           const correct = asStringArray(params.correct);
-          const result = await actionsRef.current.lessons.addLessonStep({
+          const result = await catalog().addLessonStep({
             lesson: asPositiveInt(params.lesson),
             title: String(params.title || ''),
             why: typeof params.why === 'string' ? params.why : '',
@@ -569,7 +773,7 @@ export function useModelContextTools(actions: ChessActions) {
               data: null,
             };
           }
-          const result = actionsRef.current.lessons.applyLessonRecap({
+          const result = catalog().applyLessonRecap({
             lesson: asPositiveInt(params.lesson),
             title: summary.title || (typeof params.title === 'string' ? params.title : undefined),
             paragraphs: summary.paragraphs,
@@ -624,14 +828,14 @@ export function useModelContextTools(actions: ChessActions) {
             typeof params.body === 'string' ? params.body : '',
             ...extra,
           ]);
-          if (notationError) {
+          if (notationError && actionsRef.current.getArea() !== "triangles") {
             return { success: false, message: notationError, data: null };
           }
           const copy = normalizeCoachCopy({
             body: typeof params.body === 'string' ? params.body : '',
             paragraphs: extra.length ? extra : what || why ? [] : asStringArray(params.paragraphs),
           });
-          const result = actionsRef.current.lessons.setCoach({
+          const result = catalog().setCoach({
             title: String(params.title || ''),
             body: copy.body,
             paragraphs: copy.paragraphs,
@@ -680,8 +884,15 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
           const highlights = Array.isArray(params.highlights) ? params.highlights as BoardHighlight[] : undefined;
           const arrows = Array.isArray(params.arrows) ? params.arrows as BoardArrow[] : undefined;
+          if (actionsRef.current.getArea() === "triangles") {
+            const ids = (highlights || []).map((item) => item.square);
+            if (ids.length) {
+              await actionsRef.current.triangles.markFigure("highlight(" + ids.join(",") + ")");
+            }
+            return { success: true, message: "Figure highlights updated", data: { highlights: ids.length } };
+          }
           actionsRef.current.lessons.annotateBoard(highlights, arrows);
-          return { success: true, message: 'Board annotations updated', data: { highlights: highlights.length, arrows: arrows.length } };
+          return { success: true, message: 'Board annotations updated', data: { highlights: highlights ? highlights.length : 0, arrows: arrows ? arrows.length : 0 } };
         },
       },
       {
@@ -689,7 +900,7 @@ export function useModelContextTools(actions: ChessActions) {
         description: 'Clear coach text, highlights, arrows, and any pending quiz. Stays in learn mode.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
-          actionsRef.current.lessons.clearLesson();
+          catalog().clearLesson();
           return { success: true, message: 'Lesson overlay cleared', data: null };
         },
       },
@@ -810,10 +1021,10 @@ export function useModelContextTools(actions: ChessActions) {
             String(params.question || ''),
             typeof params.hint === 'string' ? params.hint : '',
           ]);
-          if (notationError) {
+          if (notationError && actionsRef.current.getArea() !== "triangles") {
             return { success: false, message: notationError, data: null };
           }
-          const result = await actionsRef.current.lessons.askQuiz({
+          const result = await catalog().askQuiz({
             question: String(params.question || ''),
             type: (params.type as QuizState['type']) || 'click-square',
             correct,
@@ -910,7 +1121,7 @@ export function useModelContextTools(actions: ChessActions) {
     ];
 
     const toolNames = tools.map(t => t.name);
-    const longRunning = new Set(["ask-quiz", "play-line", "add-lesson-step"]);
+    const longRunning = new Set(["ask-quiz", "play-line", "add-lesson-step", "apply-gan", "rotate-figure", "mark-figure"]);
     const wrappedTools = tools.map((tool) => ({
       ...tool,
       execute: async (params: Record<string, unknown>, options?: { signal?: AbortSignal }): Promise<ToolResponse> => {

@@ -9,6 +9,7 @@ import {
 } from "../../lessons/waitForUser";
 import { detectTextDirection } from "../../utils/text-direction";
 import ChessLinkedText from "./ChessLinkedText";
+import GeometryLinkedText from "./GeometryLinkedText";
 import { ChessRefPart } from "../../utils/chess-text-links";
 import {
   buildCodexPromptHref,
@@ -64,6 +65,40 @@ function SkipEndIcon() {
   );
 }
 
+function LessonLinkedText(props: {
+  mode: "chess" | "triangles";
+  text: string;
+  knownIds?: string[];
+  onHoverSquares?: (ids: string[]) => void;
+  resolvePeekSquares?: (ref: ChessRefPart) => string[];
+  playMoves?: CoachPlayMove[];
+  onPlayMove?: (notation: string) => void;
+  playBusy?: boolean;
+}) {
+  if (props.mode === "triangles") {
+    return (
+      <GeometryLinkedText
+        text={props.text}
+        knownIds={props.knownIds}
+        onHoverIds={props.onHoverSquares}
+        playMoves={props.playMoves}
+        onPlayMove={props.onPlayMove}
+        playBusy={props.playBusy}
+      />
+    );
+  }
+  return (
+    <ChessLinkedText
+      text={props.text}
+      onHoverSquares={props.onHoverSquares}
+      resolvePeekSquares={props.resolvePeekSquares}
+      playMoves={props.playMoves}
+      onPlayMove={props.onPlayMove}
+      playBusy={props.playBusy}
+    />
+  );
+}
+
 type Props = {
   coach: CoachState | null;
   quizQuestion?: string;
@@ -92,6 +127,10 @@ type Props = {
   nextGenerating?: boolean;
   historyIndex?: number;
   historyLength?: number;
+  linkMode?: "chess" | "triangles";
+  knownIds?: string[];
+  examplePrompts?: string[];
+  whatLabel?: string;
 };
 
 export default function LessonCoach({
@@ -122,6 +161,10 @@ export default function LessonCoach({
   nextGenerating,
   historyIndex,
   historyLength,
+  linkMode = "chess",
+  knownIds,
+  examplePrompts,
+  whatLabel,
 }: Props) {
   const [copiedId, setCopiedId] = useState<string>("");
   const waiting = Boolean(waitPrompt && waitChoices && waitChoices.length > 0);
@@ -135,7 +178,7 @@ export default function LessonCoach({
           <p className="lesson-coach-kicker">Generative Learning</p>
           <h2>Your turn, generate your lesson</h2>
           <div className="lesson-coach-examples">
-            {EXAMPLE_LESSON_PROMPTS.map((prompt) =>
+            {(examplePrompts || EXAMPLE_LESSON_PROMPTS).map((prompt) =>
               openInCodex ? (
                 <a
                   key={prompt}
@@ -241,8 +284,10 @@ export default function LessonCoach({
             <p className="lesson-coach-kicker">Learn</p>
             {coach?.lessonTitle && coach.phase !== "goal" && (
               <p className="lesson-coach-topic">
-                <ChessLinkedText
-                  text={coach.lessonTitle}
+                  <LessonLinkedText
+                    mode={linkMode}
+                    knownIds={knownIds}
+                    text={coach.lessonTitle}
                   onHoverSquares={onHoverSquares}
                   resolvePeekSquares={resolvePeekSquares}
                 />
@@ -250,7 +295,9 @@ export default function LessonCoach({
             )}
             {coach && (
               <h2>
-                <ChessLinkedText
+                <LessonLinkedText
+                  mode={linkMode}
+                  knownIds={knownIds}
                   text={coach.title}
                   onHoverSquares={onHoverSquares}
                   resolvePeekSquares={resolvePeekSquares}
@@ -289,7 +336,9 @@ export default function LessonCoach({
               {coach.why && (
                 <p className="lesson-coach-why">
                   <span className="lesson-coach-field-label">Why</span>
-                  <ChessLinkedText
+                    <LessonLinkedText
+                    mode={linkMode}
+                    knownIds={knownIds}
                     text={coach.why}
                     onHoverSquares={onHoverSquares}
                     resolvePeekSquares={resolvePeekSquares}
@@ -298,9 +347,11 @@ export default function LessonCoach({
               )}
               {(coach.what || leftoverMoves) && (
                 <p className="lesson-coach-what">
-                  <span className="lesson-coach-field-label">Move</span>
+                  <span className="lesson-coach-field-label">{whatLabel || "Move"}</span>
                   {coach.what && (
-                    <ChessLinkedText
+                    <LessonLinkedText
+                      mode={linkMode}
+                      knownIds={knownIds}
                       text={coach.what}
                       onHoverSquares={onHoverSquares}
                       resolvePeekSquares={resolvePeekSquares}
@@ -310,7 +361,9 @@ export default function LessonCoach({
                     />
                   )}
                   {leftoverMoves ? (
-                    <ChessLinkedText
+                    <LessonLinkedText
+                      mode={linkMode}
+                      knownIds={knownIds}
                       text={leftoverMoves}
                       onHoverSquares={onHoverSquares}
                       resolvePeekSquares={resolvePeekSquares}
@@ -325,7 +378,9 @@ export default function LessonCoach({
                 const { dir: paragraphDir } = detectTextDirection(paragraph);
                 return (
                   <p key={index} dir={paragraphDir}>
-                    <ChessLinkedText
+                    <LessonLinkedText
+                      mode={linkMode}
+                      knownIds={knownIds}
                       text={paragraph}
                       onHoverSquares={onHoverSquares}
                       resolvePeekSquares={resolvePeekSquares}
@@ -347,7 +402,9 @@ export default function LessonCoach({
               )}
             </div>
             <p>
-              <ChessLinkedText
+              <LessonLinkedText
+                mode={linkMode}
+                knownIds={knownIds}
                 text={quizQuestion}
                 onHoverSquares={onHoverSquares}
                 resolvePeekSquares={resolvePeekSquares}
@@ -355,7 +412,9 @@ export default function LessonCoach({
             </p>
             {quizFeedback && (
               <p className="lesson-coach-feedback">
-                <ChessLinkedText
+                <LessonLinkedText
+                  mode={linkMode}
+                  knownIds={knownIds}
                   text={quizFeedback}
                   onHoverSquares={onHoverSquares}
                   resolvePeekSquares={resolvePeekSquares}
@@ -368,7 +427,9 @@ export default function LessonCoach({
           <div className="lesson-coach-wait">
             <p className="lesson-coach-quiz-label">Your turn</p>
             <p>
-              <ChessLinkedText
+              <LessonLinkedText
+                mode={linkMode}
+                knownIds={knownIds}
                 text={waitPrompt || ""}
                 onHoverSquares={onHoverSquares}
                 resolvePeekSquares={resolvePeekSquares}
@@ -408,7 +469,9 @@ export default function LessonCoach({
                         onWaitChoice?.(choice.id, choice.label);
                       }}
                     >
-                      <ChessLinkedText
+                      <LessonLinkedText
+                        mode={linkMode}
+                        knownIds={knownIds}
                         text={choice.label}
                         onHoverSquares={onHoverSquares}
                         resolvePeekSquares={resolvePeekSquares}

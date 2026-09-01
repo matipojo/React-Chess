@@ -92,6 +92,7 @@ export type SavedLessonStep = {
   kind?: "step" | "riddle" | "recap" | "summary";
   moves?: string[];
   fen?: string;
+  tfn?: string;
   highlights?: BoardHighlight[];
   arrows?: BoardArrow[];
   quiz?: QuizState;
@@ -123,6 +124,7 @@ export type SavedLesson = {
   square?: string;
   color?: string;
   fen?: string;
+  tfn?: string;
   highlights?: BoardHighlight[];
   arrows?: BoardArrow[];
   quiz?: QuizState;

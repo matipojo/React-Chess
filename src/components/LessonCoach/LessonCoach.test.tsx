@@ -19,6 +19,26 @@ describe("LessonCoach", () => {
     expect(getByRole("button", { name: "quiz me on forks" })).toBeTruthy();
   });
 
+  it("shows triangle example prompts when the triangles area is open", () => {
+    const { getByRole, queryByRole } = render(
+      <LessonCoach
+        coach={null}
+        linkMode="triangles"
+        examplePrompts={[
+          "show a right triangle and the altitude to the hypotenuse",
+          "teach SAS congruence with two triangles",
+          "quiz me on the centroid",
+        ]}
+      />
+    );
+    expect(
+      getByRole("button", {
+        name: "show a right triangle and the altitude to the hypotenuse",
+      })
+    ).toBeTruthy();
+    expect(queryByRole("button", { name: "how does a knight move?" })).toBeNull();
+  });
+
   it("opens example prompts with codex:// when the host is Codex", () => {
     const original = navigator.userAgent;
     Object.defineProperty(navigator, "userAgent", {

@@ -64,6 +64,7 @@ export function contentStep(step: SavedLessonStep): SavedLessonStep {
     kind,
     moves: step.moves && step.moves.length ? [...step.moves] : undefined,
     fen: step.fen,
+    tfn: step.tfn,
     highlights: cloneMarks(step.highlights),
     arrows: cloneArrows(step.arrows),
     quiz: contentQuiz(step.quiz),
@@ -93,6 +94,7 @@ export function contentLesson(
         }
       : undefined,
     fen: (teaching[0] && teaching[0].fen) || lesson.fen,
+    tfn: (teaching[0] && teaching[0].tfn) || lesson.tfn,
     highlights: hasBeats ? undefined : cloneMarks(lesson.highlights),
     arrows: hasBeats ? undefined : cloneArrows(lesson.arrows),
     quiz: hasBeats ? undefined : contentQuiz(lesson.quiz),

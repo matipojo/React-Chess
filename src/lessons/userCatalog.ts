@@ -3,6 +3,7 @@ import { contentLesson, contentStep } from "./lessonDocument";
 import { SavedLesson, SavedLessonStep } from "./types";
 
 export const USER_CATALOG_KEY = "webmcp-chess-user-lessons";
+export const TRIANGLE_CATALOG_KEY = "webmcp-triangle-user-lessons";
 
 export function lessonSlug(title: string): string {
   const slug = title
@@ -54,6 +55,7 @@ function legacyAsStep(item: SavedLesson): SavedLessonStep {
     body: item.body,
     paragraphs: item.paragraphs,
     fen: item.fen,
+    tfn: item.tfn,
     highlights: item.highlights,
     arrows: item.arrows,
     quiz: item.quiz,
@@ -67,8 +69,8 @@ export function lessonSteps(item: SavedLesson): SavedLessonStep[] {
   return [legacyAsStep(item)];
 }
 
-function writeCatalog(lessons: SavedLesson[]) {
-  localStorage.setItem(USER_CATALOG_KEY, JSON.stringify(lessons));
+function writeCatalog(lessons: SavedLesson[], storageKey = USER_CATALOG_KEY) {
+  localStorage.setItem(storageKey, JSON.stringify(lessons));
 }
 
 function assignLessonNumbers(lessons: SavedLesson[]): SavedLesson[] {
@@ -105,9 +107,9 @@ function assignLessonNumbers(lessons: SavedLesson[]): SavedLesson[] {
   });
 }
 
-export function readUserCatalog(): SavedLesson[] {
+export function readUserCatalog(storageKey = USER_CATALOG_KEY): SavedLesson[] {
   try {
-    const raw = localStorage.getItem(USER_CATALOG_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) {
       return [];
     }
@@ -125,9 +127,13 @@ export function readUserCatalog(): SavedLesson[] {
   }
 }
 
-export function nextLessonNumber(lessons = readUserCatalog()): number {
+export function nextLessonNumber(
+  lessons?: SavedLesson[],
+  storageKey = USER_CATALOG_KEY
+): number {
+  const list = lessons || readUserCatalog(storageKey);
   let max = 0;
-  for (const item of lessons) {
+  for (const item of list) {
     const n = item.number || parseCustomLessonNumber(item.id) || 0;
     if (n > max) {
       max = n;
@@ -136,37 +142,47 @@ export function nextLessonNumber(lessons = readUserCatalog()): number {
   return max + 1;
 }
 
-export function createCatalogLesson(args: {
-  title: string;
-  body?: string;
-  paragraphs?: string[];
-}): SavedLesson {
-  const number = nextLessonNumber();
-  upsertUserLesson({
-    id: customLessonId(number),
-    kind: "custom",
-    title: args.title.trim() || "Lesson",
-    body: args.body || "",
-    paragraphs: args.paragraphs,
-    number,
-    steps: [],
-  });
-  return findUserLessonByNumber(number)!;
+export function createCatalogLesson(
+  args: {
+    title: string;
+    body?: string;
+    paragraphs?: string[];
+  },
+  storageKey = USER_CATALOG_KEY
+): SavedLesson {
+  const number = nextLessonNumber(undefined, storageKey);
+  upsertUserLesson(
+    {
+      id: customLessonId(number),
+      kind: "custom",
+      title: args.title.trim() || "Lesson",
+      body: args.body || "",
+      paragraphs: args.paragraphs,
+      number,
+      steps: [],
+    },
+    storageKey
+  );
+  return findUserLessonByNumber(number, storageKey)!;
 }
 
 export function upsertUserLesson(
-  lesson: Omit<SavedLesson, "savedAt">
+  lesson: Omit<SavedLesson, "savedAt">,
+  storageKey = USER_CATALOG_KEY
 ): SavedLesson[] {
   const nextItem: SavedLesson = { ...contentLesson(lesson), savedAt: Date.now() };
-  const current = readUserCatalog().filter((item) => item.id !== nextItem.id);
+  const current = readUserCatalog(storageKey).filter((item) => item.id !== nextItem.id);
   current.unshift(nextItem);
-  writeCatalog(current);
+  writeCatalog(current, storageKey);
   return current;
 }
 
-export function findUserLesson(id: string): SavedLesson | undefined {
+export function findUserLesson(
+  id: string,
+  storageKey = USER_CATALOG_KEY
+): SavedLesson | undefined {
   const needle = id.toLowerCase().trim();
-  return readUserCatalog().find(
+  return readUserCatalog(storageKey).find(
     (item) =>
       item.id.toLowerCase() === needle ||
       item.title.toLowerCase() === needle ||
@@ -175,8 +191,11 @@ export function findUserLesson(id: string): SavedLesson | undefined {
   );
 }
 
-export function findUserLessonByNumber(lessonNumber: number): SavedLesson | undefined {
-  return readUserCatalog().find(
+export function findUserLessonByNumber(
+  lessonNumber: number,
+  storageKey = USER_CATALOG_KEY
+): SavedLesson | undefined {
+  return readUserCatalog(storageKey).find(
     (item) =>
       item.number === lessonNumber ||
       parseCustomLessonNumber(item.id) === lessonNumber
@@ -198,10 +217,12 @@ export type UpsertLessonStepInput = {
   piece?: string;
   square?: string;
   color?: string;
+  storageKey?: string;
 };
 
 export function upsertLessonStep(input: UpsertLessonStepInput): SavedLesson[] {
-  const existing = findUserLessonByNumber(input.lessonNumber);
+  const storageKey = input.storageKey || USER_CATALOG_KEY;
+  const existing = findUserLessonByNumber(input.lessonNumber, storageKey);
   const steps = existing ? lessonSteps(existing) : [];
   const incoming = contentStep(input.step);
 
@@ -258,30 +279,37 @@ export function upsertLessonStep(input: UpsertLessonStepInput): SavedLesson[] {
     color: input.color !== undefined ? input.color : existing?.color,
   };
 
-  return upsertUserLesson(nextItem);
+  return upsertUserLesson(nextItem, storageKey);
 }
 
 export function setLessonRecap(
   lessonNumber: number,
-  recap: { title?: string; paragraphs: string[]; body?: string }
+  recap: { title?: string; paragraphs: string[]; body?: string },
+  storageKey = USER_CATALOG_KEY
 ): SavedLesson[] {
-  const existing = findUserLessonByNumber(lessonNumber);
+  const existing = findUserLessonByNumber(lessonNumber, storageKey);
   if (!existing) {
-    return readUserCatalog();
+    return readUserCatalog(storageKey);
   }
   const { savedAt: _savedAt, ...rest } = existing;
-  return upsertUserLesson({
-    ...rest,
-    recap: {
-      title: recap.title,
-      paragraphs: recap.paragraphs,
-      body: recap.body || recap.paragraphs.join("\n\n"),
+  return upsertUserLesson(
+    {
+      ...rest,
+      recap: {
+        title: recap.title,
+        paragraphs: recap.paragraphs,
+        body: recap.body || recap.paragraphs.join("\n\n"),
+      },
     },
-  });
+    storageKey
+  );
 }
 
-export function removeUserLesson(id: string): SavedLesson[] {
-  const current = readUserCatalog().filter((item) => item.id !== id);
-  writeCatalog(current);
+export function removeUserLesson(
+  id: string,
+  storageKey = USER_CATALOG_KEY
+): SavedLesson[] {
+  const current = readUserCatalog(storageKey).filter((item) => item.id !== id);
+  writeCatalog(current, storageKey);
   return current;
 }
