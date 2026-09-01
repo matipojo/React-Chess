@@ -487,6 +487,7 @@ export function useTriangleLessons(options?: {
             window.clearTimeout(animTimerRef.current);
             animTimerRef.current = null;
           }
+          applyFigure(result.figure);
           resolve();
         };
         playPointerRef.current!(animation, done);
@@ -497,8 +498,10 @@ export function useTriangleLessons(options?: {
       await new Promise((resolve) => {
         animTimerRef.current = window.setTimeout(resolve, 2100);
       });
+      applyFigure(result.figure);
+    } else {
+      applyFigure(result.figure);
     }
-    applyFigure(result.figure);
     setAnimation(null);
     setAnimating(false);
     return { success: true, message: `Played ${notation}`, created: result.created };

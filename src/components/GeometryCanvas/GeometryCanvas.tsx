@@ -187,11 +187,11 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
     }
     const done = completeRef.current;
     completeRef.current = null;
+    done?.();
     if (mountedRef.current) {
       setActiveAnimation(null);
       setPreviewT(0);
     }
-    done?.();
   };
 
   const cancelAnimation = () => {

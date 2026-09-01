@@ -24,6 +24,16 @@ type Props = {
   onAnimationComplete?: () => void;
 };
 
+function mediaUrl(src: string) {
+  if (!src || /^(data:|blob:|https?:)/i.test(src)) {
+    return src;
+  }
+  if (src.startsWith("/")) {
+    return src;
+  }
+  return `/${src.replace(/^\.\//, "")}`;
+}
+
 function setHandPosition(hand: HTMLDivElement, point: ScreenPoint) {
   hand.style.left = `${point.x}px`;
   hand.style.top = `${point.y - HAND_OFFSET_Y}px`;
@@ -33,7 +43,7 @@ function setHandSprite(hand: HTMLDivElement, grabbing: boolean) {
   hand.className = grabbing ? "simple-hand-animation grabbing" : "simple-hand-animation";
   const img = hand.querySelector("img");
   if (img) {
-    img.src = grabbing ? closedHand : openHand;
+    img.src = mediaUrl(grabbing ? closedHand : openHand);
     img.alt = grabbing ? "grabbing hand" : "open hand";
   }
 }
@@ -116,7 +126,7 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
       setHandPosition(hand, start);
 
       const img = document.createElement("img");
-      img.src = openHand;
+      img.src = mediaUrl(openHand);
       img.alt = "open hand";
       img.draggable = false;
       hand.appendChild(img);

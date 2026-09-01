@@ -1,6 +1,6 @@
 .simple-hand-animation {
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   position: relative;
   will-change: left, top;
   pointer-events: none;
@@ -11,9 +11,9 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 40px;
-  height: 40px;
-  background: rgba(255, 192, 203, 0.5);
+  width: 58px;
+  height: 58px;
+  background: rgba(255, 192, 203, 0.55);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   z-index: 1;
@@ -23,10 +23,11 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 32px;
-  height: 32px;
+  width: 48px;
+  height: 48px;
   transform: translate(-50%, -50%);
   z-index: 2;
   pointer-events: none;
   user-select: none;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
 }
