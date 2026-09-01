@@ -484,11 +484,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  min-width: 4.75rem;
   padding: 10px 18px;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .lesson-coach-play-line {

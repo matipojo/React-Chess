@@ -1230,6 +1230,20 @@ export function useChessLessons({
     [applyBoard, persistLesson, pushSnapshot, wipeLearnSession]
   );
 
+  const rewindShowMeBoard = useCallback(() => {
+    const current = coachRef.current;
+    try {
+      if (current?.fromFen) {
+        applyBoard(boardFromFen(current.fromFen, true));
+        return true;
+      }
+    } catch {
+      // fall back to the starting learn position
+    }
+    applyBoard(startingLearnBoard());
+    return true;
+  }, [applyBoard]);
+
   const playShowMeLine = useCallback((options?: { fromStart?: boolean }) => {
     const coach = coachRef.current;
     if (!coach || !isShowmePhase(coach.phase) || !coach.moves || !coach.moves.length) {
@@ -1274,19 +1288,6 @@ export function useChessLessons({
     resume?.();
     cancelMoveAnimation?.();
 
-    const rewind = () => {
-      const current = coachRef.current;
-      if (!current?.fromFen) {
-        return true;
-      }
-      try {
-        applyBoard(boardFromFen(current.fromFen, true));
-        return true;
-      } catch (error) {
-        return `${error}`;
-      }
-    };
-
     const previous = showmeRunRef.current;
     const run = (async () => {
       await previous;
@@ -1298,16 +1299,7 @@ export function useChessLessons({
         };
       }
       if (startPly === 0) {
-        const rewound = rewind();
-        if (rewound !== true) {
-          showmePlaybackRef.current = "idle";
-          setShowmePlayback("idle");
-          return {
-            success: false,
-            message: rewound,
-            data: null as unknown,
-          };
-        }
+        rewindShowMeBoard();
       }
       showmePlyRef.current = startPly;
       setShowmePly(startPly);
@@ -1382,7 +1374,7 @@ export function useChessLessons({
       () => undefined
     );
     return run;
-  }, [animateThenPlay, applyBoard, cancelMoveAnimation, clearAnnotations]);
+  }, [animateThenPlay, cancelMoveAnimation, clearAnnotations, rewindShowMeBoard]);
 
   playShowMeLineRef.current = playShowMeLine;
 
@@ -1407,16 +1399,9 @@ export function useChessLessons({
     setShowmePly(0);
     cancelMoveAnimation?.();
     setAnimating(false);
-    const coach = coachRef.current;
-    if (coach?.fromFen) {
-      try {
-        applyBoard(boardFromFen(coach.fromFen, true));
-      } catch {
-        // keep the current board if the saved FEN cannot be parsed
-      }
-    }
-    logLessonDebug("visual", "showme-stop", { lesson: coach?.lesson });
-  }, [applyBoard, cancelMoveAnimation]);
+    rewindShowMeBoard();
+    logLessonDebug("visual", "showme-stop", { lesson: coachRef.current?.lesson });
+  }, [cancelMoveAnimation, rewindShowMeBoard]);
 
   const replayShowMeLine = useCallback(() => {
     return playShowMeLine({ fromStart: true });
