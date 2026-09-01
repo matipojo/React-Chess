@@ -59,6 +59,7 @@ import {
   lessonExpectsRecap,
   LessonStepDraft,
   LessonSummaryDraft,
+  parseLessonStepType,
   teachingSteps,
 } from "../lessons/lessonCopy";
 import {
@@ -224,7 +225,12 @@ export function useChessLessons({
       paragraphs: coach && coach.paragraphs ? [...coach.paragraphs] : undefined,
       what: coach ? coach.what : undefined,
       why: coach ? coach.why : undefined,
-      kind: isRecapPhase(coach?.phase) ? "recap" : "step",
+      kind:
+        isRecapPhase(coach?.phase)
+          ? "recap"
+          : coach?.phase === "riddle"
+            ? "riddle"
+            : "step",
       moves: coach && coach.moves ? [...coach.moves] : undefined,
       fen: coach && coach.fromFen ? coach.fromFen : extras.fen,
       highlights: extras.highlights,
@@ -1480,62 +1486,67 @@ export function useChessLessons({
   }, []);
 
   const addLessonStep = useCallback(
-    (args: {
+    async (args: {
       lesson?: number;
       title: string;
-      why: string;
-      what: string;
+      why?: string;
+      what?: string;
+      type?: string;
       paragraphs?: string[];
       moves?: string[];
+      question?: string;
+      correct?: string[];
+      hint?: string;
+      quizType?: QuizState["type"];
+      signal?: AbortSignal;
     }) => {
+      const type = parseLessonStepType(args.type);
+      const isRiddle = type === "riddle";
+      const question = (args.question || "").trim();
+      const correct = (args.correct || []).map((item) => item.trim()).filter(Boolean);
       const draft: LessonStepDraft = {
         title: args.title,
-        why: args.why,
-        what: args.what,
+        why: args.why || "",
+        what: args.what || "",
+        type,
         paragraphs: args.paragraphs,
         moves: args.moves,
+        question,
+        correct,
+        hint: args.hint,
+        quizType: args.quizType,
       };
-      if (!draft.title.trim() || !draft.why.trim() || !draft.what.trim()) {
-        return {
-          success: false,
-          message: "Each step needs title, why (situation/goal), and what (the move).",
-          lesson: 0,
-          step: 0,
-          totalSteps: 0,
-          screen: "step" as const,
-          nextTools: ["add-lesson-step", "set-lesson-recap"],
-          recapWritten: false,
-          recapExpected: true,
-        };
+      const failed = (message: string, lesson = 0) => ({
+        success: false,
+        message,
+        lesson,
+        step: 0,
+        totalSteps: 0,
+        screen: isRiddle ? ("riddle" as const) : ("step" as const),
+        nextTools: isRiddle
+          ? ["add-lesson-step"]
+          : ["add-lesson-step", "set-lesson-recap"],
+        recapWritten: false,
+        recapExpected: !isRiddle,
+      });
+      if (isRiddle) {
+        if (!question || !correct.length) {
+          return failed("A riddle needs question and at least one correct square.");
+        }
+        if (!draft.title.trim()) {
+          draft.title = "Riddle";
+        }
+      } else if (!draft.title.trim() || !draft.why.trim() || !draft.what.trim()) {
+        return failed("Each step needs title, why (situation/goal), and what (the move).");
       }
       enterLearnMode();
       const lessonNumber = args.lesson || activeLessonNumberRef.current;
       if (!lessonNumber) {
-        return {
-          success: false,
-          message: "Call create-lesson first, then add-lesson-step with that lesson number.",
-          lesson: 0,
-          step: 0,
-          totalSteps: 0,
-          screen: "step" as const,
-          nextTools: ["add-lesson-step", "set-lesson-recap"],
-          recapWritten: false,
-          recapExpected: true,
-        };
+        return failed("Call create-lesson first, then add-lesson-step with that lesson number.");
       }
       const existing = findUserLessonByNumber(lessonNumber);
       if (!existing) {
-        return {
-          success: false,
-          message: `No lesson ${lessonNumber}. Call create-lesson first.`,
-          lesson: lessonNumber,
-          step: 0,
-          totalSteps: 0,
-          screen: "step" as const,
-          nextTools: ["add-lesson-step", "set-lesson-recap"],
-          recapWritten: false,
-          recapExpected: true,
-        };
+        return failed(`No lesson ${lessonNumber}. Call create-lesson first.`, lessonNumber);
       }
       if (activeLessonNumberRef.current !== lessonNumber) {
         restoreCustomLesson(existing);
@@ -1544,7 +1555,7 @@ export function useChessLessons({
       const lessonTitle = existing.title;
       const startTeaching = teachingSteps(lessonSteps(existing)).length;
       const totalTeaching = startTeaching + 1;
-      const moves = resolveStepMoves(draft.what, draft.moves);
+      const moves = isRiddle ? [] : resolveStepMoves(draft.what, draft.moves);
       const fromFen = boardToFen(boardRef.current);
       const coach = coachFromDraft(draft, {
         lessonTitle,
@@ -1554,6 +1565,14 @@ export function useChessLessons({
         fromFen,
         moves,
       });
+      const quiz: QuizState | undefined = isRiddle
+        ? {
+            question,
+            type: args.quizType || "click-square",
+            correct,
+            hint: args.hint,
+          }
+        : undefined;
       ensureStartingSnapshot();
       stripTrailingRecapHistory();
       bumpHistoryTotals(totalTeaching);
@@ -1569,9 +1588,10 @@ export function useChessLessons({
           paragraphs: coach.paragraphs,
           what: coach.what,
           why: coach.why,
-          kind: "step",
-          moves,
+          kind: isRiddle ? "riddle" : "step",
+          moves: isRiddle ? undefined : moves,
           fen: fromFen,
+          quiz,
         },
       });
       pushSnapshot();
@@ -1579,25 +1599,44 @@ export function useChessLessons({
         lesson: lessonNumber,
         step: totalTeaching,
         totalSteps: totalTeaching,
+        type,
       });
       const recapExpected = lessonExpectsRecap(totalTeaching);
+      if (quiz) {
+        const quizResult = await askQuiz(quiz, { signal: args.signal });
+        return {
+          success: quizResult.correct,
+          message: recapExpected
+            ? `Added riddle step ${totalTeaching} of lesson ${lessonNumber}.`
+            : `Added riddle step of lesson ${lessonNumber}. No recap and no Back/Next.`,
+          lesson: lessonNumber,
+          step: totalTeaching,
+          totalSteps: totalTeaching,
+          screen: "riddle" as const,
+          nextTools: recapExpected ? ["set-lesson-recap", "how_to_ask_the_user"] : ["how_to_ask_the_user"],
+          recapWritten: false,
+          recapExpected,
+          quiz: quizResult,
+        };
+      }
       return {
         success: true,
         message: recapExpected
           ? `Added teaching step ${totalTeaching} of lesson ${lessonNumber} (not a recap). Next: add-lesson-step for another beat, OR set-lesson-recap if this was the last beat. The student sees Generating... on Next until you do one of those.`
-          : `Added the only teaching step of lesson ${lessonNumber}. No recap and no Back/Next. For a puzzle, call how_to_offer_a_hint then ask-quiz (do not spoil how to solve). Or how_to_ask_the_user, or add-lesson-step if this grows into more beats.`,
+          : `Added the only teaching step of lesson ${lessonNumber}. No recap and no Back/Next. For a riddle, call how_to_offer_a_hint then add-lesson-step with type riddle (do not spoil how to solve). Or how_to_ask_the_user, or add-lesson-step if this grows into more beats.`,
         lesson: lessonNumber,
         step: totalTeaching,
         totalSteps: totalTeaching,
         screen: "step" as const,
         nextTools: recapExpected
           ? ["add-lesson-step", "set-lesson-recap"]
-          : ["add-lesson-step", "ask-quiz"],
+          : ["add-lesson-step"],
         recapWritten: false,
         recapExpected,
       };
     },
     [
+      askQuiz,
       boardRef,
       bumpHistoryTotals,
       currentStepPayload,
@@ -1700,23 +1739,23 @@ export function useChessLessons({
           recapExpected: true,
         };
       }
-      let last = addLessonStep({
-        lesson: args.lesson,
-        title: args.steps[0].title,
-        why: args.steps[0].why,
-        what: args.steps[0].what,
-        paragraphs: args.steps[0].paragraphs,
-        moves: args.steps[0].moves,
-      });
-      for (let i = 1; i < args.steps.length; i++) {
-        last = addLessonStep({
-          lesson: args.lesson || last.lesson,
-          title: args.steps[i].title,
-          why: args.steps[i].why,
-          what: args.steps[i].what,
-          paragraphs: args.steps[i].paragraphs,
-          moves: args.steps[i].moves,
+      const addFromDraft = (draft: LessonStepDraft, lesson?: number) =>
+        addLessonStep({
+          lesson,
+          title: draft.title,
+          why: draft.why,
+          what: draft.what,
+          type: draft.type,
+          paragraphs: draft.paragraphs,
+          moves: draft.moves,
+          question: draft.question,
+          correct: draft.correct,
+          hint: draft.hint,
+          quizType: draft.quizType,
         });
+      let last = await addFromDraft(args.steps[0], args.lesson);
+      for (let i = 1; i < args.steps.length; i++) {
+        last = await addFromDraft(args.steps[i], args.lesson || last.lesson);
       }
       return last;
     },

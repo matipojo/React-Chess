@@ -46,8 +46,15 @@ export function contentQuiz(quiz?: QuizState | null): QuizState | undefined {
   };
 }
 
+export function catalogStepKind(kind?: SavedLessonStep["kind"]): SavedLessonStep["kind"] {
+  if (kind === "recap" || kind === "summary" || kind === "riddle") {
+    return kind;
+  }
+  return "step";
+}
+
 export function contentStep(step: SavedLessonStep): SavedLessonStep {
-  const kind = step.kind === "recap" || step.kind === "summary" ? step.kind : "step";
+  const kind = catalogStepKind(step.kind);
   return {
     title: step.title,
     body: step.body,
@@ -100,7 +107,7 @@ function hasGoalCopy(item: SavedLesson): boolean {
 export function lastTeachingSlideIndex(slides: LessonSessionSlide[]): number {
   let last = 0;
   slides.forEach((slide, index) => {
-    if (slide.coach?.phase === "step") {
+    if (slide.coach?.phase === "step" || slide.coach?.phase === "riddle") {
       last = index;
     }
   });
