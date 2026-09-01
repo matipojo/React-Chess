@@ -1,6 +1,7 @@
 import {
   buildStepParagraphs,
   coachFromDraft,
+  coachFromSavedStep,
   lessonExpectsRecap,
   lessonSlideCounter,
   parseLessonStepType,
@@ -206,5 +207,28 @@ describe("lesson copy", () => {
     expect(coach.what).toBeUndefined();
     expect(coach.why).toBeUndefined();
     expect(coach.body).toBe("");
+  });
+
+  it("keeps a triangle step's TFN as the restored figure", () => {
+    const tfn = "A(-3.2,-1.2) B(-0.4,-1.2) C(-2.4,1.4) D(0.6,-1.2) E(3.4,-1.2) F(1.4,1.4) △ABC △DEF";
+    const step = {
+      title: "Mark sides",
+      body: "",
+      what: "mark(=,AB,DE)",
+      why: "First matching pair.",
+      tfn,
+    };
+    const item = {
+      id: "custom:lesson-1",
+      kind: "custom" as const,
+      title: "SAS Congruence",
+      body: "Compare the triangles.",
+      savedAt: 1,
+      number: 1,
+      steps: [step],
+    };
+    const coach = coachFromSavedStep(item, step, [step]);
+    expect(coach.fromFen).toBe(tfn);
+    expect(coach.phase).toBe("step");
   });
 });

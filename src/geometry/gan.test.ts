@@ -32,6 +32,14 @@ describe("GAN parse", () => {
 });
 
 describe("apply-gan constructions", () => {
+  it("places a second triangle beside △ABC instead of stacking on it", () => {
+    const created = applyGan(startFigure("scalene"), "△DEF");
+    expect(created.error).toBeUndefined();
+    expect(created.figure.triangles).toHaveLength(2);
+    expect(created.figure.points.D.x).toBeGreaterThan(created.figure.points.B.x);
+    expect(created.figure.points.E.x).toBeGreaterThan(created.figure.points.D.x);
+  });
+
   it("creates a triangle and right-angle mark", () => {
     const created = applyGan(emptyFigure(), "A(0,0); B(4,0); C(0,3); △ABC; mark(90,C)");
     expect(created.error).toBeUndefined();
@@ -83,6 +91,16 @@ describe("TFN round-trip", () => {
     const again = parseTfn(tfn);
     expect(again.triangles[0].join("")).toBe("ABC");
     expect(again.rights[0].vertex).toBe("C");
+  });
+
+  it("serializes a pair of triangles and parses them back", () => {
+    const figure = startFigure("two-triangles");
+    const tfn = serializeTfn(figure);
+    expect(tfn).toContain("△ABC");
+    expect(tfn).toContain("△DEF");
+    const again = parseTfn(tfn);
+    expect(again.triangles.map((t) => t.join("")).sort()).toEqual(["ABC", "DEF"]);
+    expect(again.points.D).toBeTruthy();
   });
 });
 

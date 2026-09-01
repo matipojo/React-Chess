@@ -192,7 +192,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-figure",
         description:
-          "Load a triangle figure from a template (scalene, right-at-C, isosceles-AB=AC, 30-60-90, equilateral, ssa-ambiguous) or a TFN string.",
+          "Load a triangle figure from a template (scalene, two-triangles, right-at-C, isosceles-AB=AC, 30-60-90, equilateral, ssa-ambiguous) or a TFN string. If a Goal is open with no steps yet, this figure is stored on the lesson and restored later.",
         inputSchema: {
           type: "object",
           properties: {
@@ -317,7 +317,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "create-lesson",
         description:
-          "Create a new triangle catalog lesson. Goal copy only. Next: add-lesson-step. GAN tokens stay Latin (△ABC, h(C,AB)). " +
+          "Create a new triangle catalog lesson. Goal copy only. Stores the current figure (every triangle and mark) with the Goal so it is restored when the student reopens the lesson. If the Goal names triangles such as △ABC and △DEF, they are placed on the canvas. Next: add-lesson-step. GAN tokens stay Latin (△ABC, h(C,AB)). " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
