@@ -63,7 +63,7 @@ export default function TriangleSurface() {
           return;
         }
         if (demo === "pointer") {
-          await triangles.movePoint("C", { x: start.x + 1.05, y: start.y + 0.55 });
+          await triangles.movePoint("C", { x: 1.55, y: -0.2 });
           return;
         }
         await triangles.applyGan("h(C,AB)");

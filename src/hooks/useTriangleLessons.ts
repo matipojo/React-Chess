@@ -477,7 +477,20 @@ export function useTriangleLessons(options?: {
     if (animation && playPointerRef.current) {
       setAnimation(animation);
       await new Promise<void>((resolve) => {
-        playPointerRef.current!(animation, () => resolve());
+        let settled = false;
+        const done = () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          if (animTimerRef.current) {
+            window.clearTimeout(animTimerRef.current);
+            animTimerRef.current = null;
+          }
+          resolve();
+        };
+        playPointerRef.current!(animation, done);
+        animTimerRef.current = window.setTimeout(done, 4000);
       });
     } else if (animation) {
       setAnimation(animation);

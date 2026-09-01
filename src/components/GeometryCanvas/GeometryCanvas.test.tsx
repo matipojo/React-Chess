@@ -8,12 +8,17 @@ import {
   HAND_START_DELAY_MS,
 } from "../PointerHand/PointerHandAnimation";
 
+function pointCx(container: HTMLElement, name: string) {
+  return container.querySelector(`[data-point="${name}"] circle`)?.getAttribute("cx");
+}
+
 describe("GeometryCanvas pointer", () => {
   beforeEach(() => {
     jest.useFakeTimers();
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
     jest.useRealTimers();
     document.querySelectorAll("[data-pointer-hand]").forEach((node) => node.remove());
   });
@@ -21,10 +26,56 @@ describe("GeometryCanvas pointer", () => {
   it("sends the chess-style hand cursor and drags a point", () => {
     const handle = createRef<GeometryCanvasHandle>();
     const figure = defaultScalene();
-    const { unmount } = render(
+    const { container, unmount } = render(
       <GeometryCanvas ref={handle} figure={figure} />
     );
+    const viewBox = container.querySelector("svg")?.getAttribute("viewBox");
+    const startCx = pointCx(container, "C");
 
+    const done = jest.fn();
+    act(() => {
+      handle.current?.playAnimation(
+        {
+          type: "move",
+          name: "C",
+          from: figure.points.C,
+          to: { x: 1, y: -0.2 },
+        },
+        done
+      );
+    });
+
+    const hand = document.querySelector("[data-pointer-hand]") as HTMLElement;
+    expect(hand).toBeTruthy();
+    expect(hand.querySelector("img")?.getAttribute("alt")).toBe("open hand");
+    expect(document.querySelector(".simple-hand-animation")).toBeTruthy();
+
+    act(() => {
+      jest.advanceTimersByTime(HAND_START_DELAY_MS + HAND_APPROACH_MS);
+    });
+    expect(document.querySelector(".simple-hand-animation.grabbing")).toBeTruthy();
+    expect(document.querySelector("[data-pointer-hand] img")?.getAttribute("alt")).toBe(
+      "grabbing hand"
+    );
+
+    act(() => {
+      jest.advanceTimersByTime(HAND_DRAG_MS / 2);
+    });
+    expect(container.querySelector("svg")?.getAttribute("viewBox")).toBe(viewBox);
+    expect(pointCx(container, "C")).not.toBe(startCx);
+
+    act(() => {
+      jest.advanceTimersByTime(HAND_DRAG_MS / 2);
+    });
+    expect(done).toHaveBeenCalledTimes(1);
+    expect(document.querySelector("[data-pointer-hand]")).toBeNull();
+    unmount();
+  });
+
+  it("still completes the agent move if the hand is cancelled", () => {
+    const handle = createRef<GeometryCanvasHandle>();
+    const figure = defaultScalene();
+    const { unmount } = render(<GeometryCanvas ref={handle} figure={figure} />);
     const done = jest.fn();
     act(() => {
       handle.current?.playAnimation(
@@ -37,19 +88,10 @@ describe("GeometryCanvas pointer", () => {
         done
       );
     });
-
-    expect(document.querySelector("[data-pointer-hand]")).toBeTruthy();
-    expect(document.querySelector(".simple-hand-animation")).toBeTruthy();
-
     act(() => {
-      jest.advanceTimersByTime(HAND_START_DELAY_MS + HAND_APPROACH_MS);
+      handle.current?.cancelAnimation();
     });
-    expect(document.querySelector(".simple-hand-animation.grabbing")).toBeTruthy();
-
-    act(() => {
-      jest.advanceTimersByTime(HAND_DRAG_MS);
-    });
-    expect(done).toHaveBeenCalled();
+    expect(done).toHaveBeenCalledTimes(1);
     expect(document.querySelector("[data-pointer-hand]")).toBeNull();
     unmount();
   });

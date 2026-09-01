@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import "../Chessboard/HandAnimation/SimpleHandAnimation.css";
+import closedHand from "../../assets/cursors/closedhand.svg";
+import openHand from "../../assets/cursors/openhand.svg";
+import "./PointerHandAnimation.css";
 
 export const HAND_APPROACH_MS = 1000;
 export const HAND_DRAG_MS = 1000;
@@ -27,12 +29,24 @@ function setHandPosition(hand: HTMLDivElement, point: ScreenPoint) {
   hand.style.top = `${point.y - HAND_OFFSET_Y}px`;
 }
 
+function setHandSprite(hand: HTMLDivElement, grabbing: boolean) {
+  hand.className = grabbing ? "simple-hand-animation grabbing" : "simple-hand-animation";
+  const img = hand.querySelector("img");
+  if (img) {
+    img.src = grabbing ? closedHand : openHand;
+    img.alt = grabbing ? "grabbing hand" : "open hand";
+  }
+}
+
 const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
   function PointerHandAnimation({ onAnimationComplete }, ref) {
     const handElementRef = useRef<HTMLDivElement | null>(null);
     const timersRef = useRef<number[]>([]);
     const lastRestRef = useRef<ScreenPoint | null>(null);
     const progressRef = useRef<(t: number) => void>();
+    const pendingCompleteRef = useRef<(() => void) | null>(null);
+    const onAnimationCompleteRef = useRef(onAnimationComplete);
+    onAnimationCompleteRef.current = onAnimationComplete;
 
     const clearTimers = () => {
       timersRef.current.forEach((id) => window.clearTimeout(id));
@@ -54,11 +68,26 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
       handElementRef.current = null;
     };
 
-    const cancel = () => {
+    const settle = () => {
+      const done = pendingCompleteRef.current;
+      pendingCompleteRef.current = null;
+      progressRef.current = undefined;
+      if (!done) {
+        return;
+      }
+      done();
+      onAnimationCompleteRef.current?.();
+    };
+
+    const stopVisuals = () => {
       clearTimers();
       cleanupVisuals();
+    };
+
+    const cancel = () => {
+      stopVisuals();
       lastRestRef.current = null;
-      progressRef.current = undefined;
+      settle();
     };
 
     const playDrag = (
@@ -66,12 +95,14 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
       to: ScreenPoint,
       options?: { grab?: boolean; onProgress?: (t: number) => void; onComplete?: () => void }
     ) => {
-      if (timersRef.current.length > 0 || handElementRef.current) {
-        cancel();
+      if (timersRef.current.length > 0 || handElementRef.current || pendingCompleteRef.current) {
+        stopVisuals();
+        settle();
       }
 
       const grab = options?.grab !== false;
       progressRef.current = options?.onProgress;
+      pendingCompleteRef.current = options?.onComplete || null;
       const start = lastRestRef.current || { x: 0, y: window.innerHeight || 800 };
 
       const hand = document.createElement("div");
@@ -81,8 +112,15 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
       hand.style.transform = "translate(-50%, -50%)";
       hand.style.zIndex = "10000";
       hand.style.pointerEvents = "none";
-      hand.style.transition = `all ${HAND_APPROACH_MS}ms ${SMOOTH_EASING}`;
+      hand.style.transition = `left ${HAND_APPROACH_MS}ms ${SMOOTH_EASING}, top ${HAND_APPROACH_MS}ms ${SMOOTH_EASING}`;
       setHandPosition(hand, start);
+
+      const img = document.createElement("img");
+      img.src = openHand;
+      img.alt = "open hand";
+      img.draggable = false;
+      hand.appendChild(img);
+
       document.body.appendChild(hand);
       handElementRef.current = hand;
 
@@ -91,9 +129,9 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
 
         schedule(() => {
           if (grab) {
-            hand.className = "simple-hand-animation grabbing";
+            setHandSprite(hand, true);
           }
-          hand.style.transition = `all ${HAND_DRAG_MS}ms ease-in-out`;
+          hand.style.transition = `left ${HAND_DRAG_MS}ms ease-in-out, top ${HAND_DRAG_MS}ms ease-in-out`;
           setHandPosition(hand, to);
 
           const steps = 20;
@@ -107,24 +145,30 @@ const PointerHandAnimation = React.forwardRef<PointerHandHandle, Props>(
           schedule(() => {
             progressRef.current?.(1);
             lastRestRef.current = to;
-            cleanupVisuals();
-            progressRef.current = undefined;
-            options?.onComplete?.();
-            onAnimationComplete?.();
+            stopVisuals();
+            settle();
           }, HAND_DRAG_MS);
         }, HAND_APPROACH_MS);
       }, HAND_START_DELAY_MS);
     };
 
-    React.useImperativeHandle(ref, () => ({
-      playDrag,
-      cancel,
-    }));
+    const playDragRef = useRef(playDrag);
+    const cancelRef = useRef(cancel);
+    playDragRef.current = playDrag;
+    cancelRef.current = cancel;
+
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        playDrag: (from, to, options) => playDragRef.current(from, to, options),
+        cancel: () => cancelRef.current(),
+      }),
+      []
+    );
 
     useEffect(() => {
       return () => {
-        clearTimers();
-        cleanupVisuals();
+        cancelRef.current();
       };
     }, []);
 

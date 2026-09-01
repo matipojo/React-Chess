@@ -59,8 +59,8 @@ function worldToClient(svg: SVGSVGElement, world: Vec): { x: number; y: number }
   };
 }
 
-function figureBounds(figure: Figure): { minX: number; minY: number; maxX: number; maxY: number } {
-  const pts: Vec[] = Object.keys(figure.points).map((name) => figure.points[name]);
+function figureBounds(figure: Figure, extra: Vec[] = []): { minX: number; minY: number; maxX: number; maxY: number } {
+  const pts: Vec[] = Object.keys(figure.points).map((name) => figure.points[name]).concat(extra);
   figure.circles.forEach((c) => {
     const geo = circleGeometry(figure, c);
     if (!geo) {
@@ -153,7 +153,13 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
     () => previewFigure(figure, liveAnimation, previewT),
     [figure, liveAnimation, previewT]
   );
-  const bounds = useMemo(() => figureBounds(displayFigure), [displayFigure]);
+  const bounds = useMemo(() => {
+    const extra: Vec[] = [];
+    if (liveAnimation && (liveAnimation.type === "move" || liveAnimation.type === "draw")) {
+      extra.push(liveAnimation.from, liveAnimation.to);
+    }
+    return figureBounds(figure, extra);
+  }, [figure, liveAnimation]);
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const highlights = displayFigure.highlights.concat(peekIds);
@@ -169,12 +175,22 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
       : null;
 
   const retryRef = useRef(0);
+  const safetyRef = useRef(0);
+  const figureRef = useRef(figure);
+  figureRef.current = figure;
+  const mountedRef = useRef(true);
 
   const finishPointer = () => {
+    if (safetyRef.current) {
+      window.clearTimeout(safetyRef.current);
+      safetyRef.current = 0;
+    }
     const done = completeRef.current;
     completeRef.current = null;
-    setActiveAnimation(null);
-    setPreviewT(0);
+    if (mountedRef.current) {
+      setActiveAnimation(null);
+      setPreviewT(0);
+    }
     done?.();
   };
 
@@ -184,7 +200,9 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
       retryRef.current = 0;
     }
     pointerRef.current?.cancel();
-    finishPointer();
+    if (completeRef.current) {
+      finishPointer();
+    }
   };
 
   React.useImperativeHandle(ref, () => ({
@@ -194,7 +212,7 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
         retryRef.current = 0;
         const svg = svgRef.current;
         const pointer = pointerRef.current;
-        const path = animationPointerPath(next, figure);
+        const path = animationPointerPath(next, figureRef.current);
         if (!svg || !pointer || !path) {
           if (Date.now() - started > 2000) {
             onComplete?.();
@@ -205,8 +223,7 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
         }
         if (completeRef.current) {
           pointer.cancel();
-          completeRef.current();
-          completeRef.current = null;
+          finishPointer();
         }
         completeRef.current = onComplete || null;
         setActiveAnimation(next);
@@ -216,11 +233,36 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
           onProgress: setPreviewT,
           onComplete: finishPointer,
         });
+        if (safetyRef.current) {
+          window.clearTimeout(safetyRef.current);
+        }
+        safetyRef.current = window.setTimeout(() => {
+          safetyRef.current = 0;
+          pointer.cancel();
+          if (completeRef.current) {
+            finishPointer();
+          }
+        }, 3600);
       };
       attempt();
     },
     cancelAnimation,
   }));
+
+  React.useEffect(() => {
+    mountedRef.current = true;
+    const pointer = pointerRef.current;
+    return () => {
+      mountedRef.current = false;
+      if (retryRef.current) {
+        window.clearTimeout(retryRef.current);
+      }
+      if (safetyRef.current) {
+        window.clearTimeout(safetyRef.current);
+      }
+      pointer?.cancel();
+    };
+  }, []);
 
   function clientToWorld(event: { clientX: number; clientY: number }): Vec | null {
     const svg = svgRef.current;
@@ -533,7 +575,11 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
           const p = displayFigure.points[name];
           const active = idsMatchHighlight(name, highlights);
           return (
-            <g key={name} className={active ? "geometry-point is-hot" : "geometry-point"}>
+            <g
+              key={name}
+              className={active ? "geometry-point is-hot" : "geometry-point"}
+              data-point={name}
+            >
               <circle cx={p.x} cy={-p.y} r={p.free ? 0.09 : 0.07} />
               <text x={p.x + 0.14} y={-p.y - 0.14}>
                 {name}
