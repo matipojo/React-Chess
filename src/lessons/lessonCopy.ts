@@ -46,6 +46,13 @@ export function isRecapPhase(phase?: CoachState["phase"] | "summary"): boolean {
   return phase === "recap" || phase === "summary";
 }
 
+export type LessonFormat = "lesson" | "showme";
+
+/** Built-in lesson type on create-lesson. Exact enum only — not inferred from wording. */
+export function parseLessonFormat(value: unknown): LessonFormat {
+  return value === "showme" ? "showme" : "lesson";
+}
+
 export function isShowmePhase(phase?: CoachState["phase"]): boolean {
   return phase === "showme";
 }
@@ -59,6 +66,8 @@ export function coachFromShowme(args: {
   body?: string;
   paragraphs?: string[];
   lesson?: number;
+  moves?: string[];
+  fromFen?: string;
 }): CoachState {
   const copy = normalizeCoachCopy({
     body: args.body || "",
@@ -71,6 +80,8 @@ export function coachFromShowme(args: {
     paragraphs: copy.paragraphs,
     lesson: args.lesson,
     phase: "showme",
+    moves: args.moves && args.moves.length ? [...args.moves] : undefined,
+    fromFen: args.fromFen,
   };
 }
 

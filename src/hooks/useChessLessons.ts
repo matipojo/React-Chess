@@ -62,6 +62,7 @@ import {
   lessonExpectsRecap,
   LessonStepDraft,
   LessonSummaryDraft,
+  parseLessonFormat,
   parseLessonStepType,
   teachingSteps,
 } from "../lessons/lessonCopy";
@@ -70,7 +71,7 @@ import {
   coachPlayMoves,
   resolveStepMoves,
 } from "../lessons/stepPlay";
-import { resolveShowMeRequest } from "../lessons/showMe";
+import { resolveShowMeLesson } from "../lessons/showMe";
 import {
   canRedoExperiment,
   canUndoExperiment,
@@ -1113,40 +1114,26 @@ export function useChessLessons({
     [animateThenPlay, boardRef, clearAnnotations, enterLearnMode, ensureStartingSnapshot, pushSnapshot, updateCurrentSnapshot]
   );
 
-  const showMe = useCallback(
-    async (args: {
-      title?: string;
-      paragraphs?: string[];
-      body?: string;
-      moves?: string[];
+  const presentShowMeLesson = useCallback(
+    (args: {
+      title: string;
+      body: string;
+      paragraphs: string[];
+      moves: string[];
       fen?: string;
-      game?: string;
       lesson?: number;
     }) => {
-      const resolved = resolveShowMeRequest(args);
-      if (!resolved.ok) {
-        return {
-          success: false,
-          message: resolved.message,
-          lesson: 0,
-          title: "",
-          kind: "showme" as const,
-          data: null as unknown,
-        };
-      }
-
       wipeLearnSession();
-      if (resolved.fen) {
+      if (args.fen) {
         try {
-          applyBoard(boardFromFen(resolved.fen, true));
+          applyBoard(boardFromFen(args.fen, true));
         } catch (error) {
           return {
             success: false,
             message: `${error}`,
             lesson: 0,
-            title: resolved.title,
-            kind: "showme" as const,
-            data: null as unknown,
+            title: args.title,
+            screen: "showme" as const,
           };
         }
       }
@@ -1157,54 +1144,78 @@ export function useChessLessons({
         existing && isShowmeLesson(existing)
           ? existing
           : createCatalogLesson({
-              title: resolved.title,
-              body: resolved.body,
-              paragraphs: resolved.paragraphs,
+              title: args.title,
+              body: args.body,
+              paragraphs: args.paragraphs,
               kind: "showme",
             });
       const lessonNumber = created.number as number;
       activeLessonNumberRef.current = lessonNumber;
       const fromFen = boardToFen(boardRef.current);
       const coach = coachFromShowme({
-        title: resolved.title,
-        body: resolved.body,
-        paragraphs: resolved.paragraphs,
+        title: args.title,
+        body: args.body,
+        paragraphs: args.paragraphs,
         lesson: lessonNumber,
+        moves: args.moves,
+        fromFen,
       });
       coachRef.current = coach;
       setCoachState(coach);
       persistLesson({
         id: customLessonId(lessonNumber),
         kind: "showme",
-        title: resolved.title,
-        body: resolved.body,
-        paragraphs: resolved.paragraphs,
+        title: args.title,
+        body: args.body,
+        paragraphs: args.paragraphs,
         number: lessonNumber,
-        moves: resolved.moves,
+        moves: args.moves,
         fen: fromFen,
-        gameId: resolved.gameId,
         steps: [],
       });
       pushSnapshot();
-      logLessonDebug("visual", "show-me", {
+      logLessonDebug("visual", "create-lesson-showme", {
         lesson: lessonNumber,
-        title: resolved.title,
-        moves: resolved.moves.length,
+        title: args.title,
+        moves: args.moves.length,
       });
-      const played = await playLine(resolved.moves);
       return {
-        success: played.success,
-        message: played.success
-          ? `Showed ${resolved.title} in one screen. The student watched the line play live. Not a stepped lesson. Next: how_to_ask_the_user.`
-          : played.message,
+        success: true,
+        message: `Created showme lesson ${lessonNumber}: ${args.title}. One explanation and one Play button. The student taps Play to run the planned moves in order. Next: how_to_ask_the_user.`,
         lesson: lessonNumber,
-        title: resolved.title,
-        kind: "showme" as const,
-        data: played.data,
+        title: args.title,
+        screen: "showme" as const,
       };
     },
-    [applyBoard, persistLesson, playLine, pushSnapshot, wipeLearnSession]
+    [applyBoard, persistLesson, pushSnapshot, wipeLearnSession]
   );
+
+  const playShowMeLine = useCallback(() => {
+    const coach = coachRef.current;
+    if (!coach || !isShowmePhase(coach.phase) || !coach.moves || !coach.moves.length) {
+      return Promise.resolve({
+        success: false,
+        message: "No showme line to play.",
+        data: null as unknown,
+      });
+    }
+    if (coach.fromFen) {
+      try {
+        applyBoard(boardFromFen(coach.fromFen, true));
+      } catch (error) {
+        return Promise.resolve({
+          success: false,
+          message: `${error}`,
+          data: null as unknown,
+        });
+      }
+    }
+    logLessonDebug("visual", "play-showme-line", {
+      lesson: coach.lesson,
+      moves: coach.moves.length,
+    });
+    return playLine(coach.moves);
+  }, [applyBoard, playLine]);
 
   const demonstratePiece = useCallback(
     (pieceName: string, square?: string, color?: string) => {
@@ -1328,14 +1339,13 @@ export function useChessLessons({
       }
       resolveWait({ action: item.id, source: "catalog", label: item.title });
       if (isShowmeLesson(item)) {
-        return showMe({
+        return presentShowMeLesson({
           title: item.title,
           body: item.body,
-          paragraphs: item.paragraphs,
+          paragraphs: item.paragraphs || [],
           moves: item.moves || [],
           fen: item.fen,
           lesson: item.number,
-          game: item.gameId,
         });
       }
       restoringRef.current = true;
@@ -1358,7 +1368,7 @@ export function useChessLessons({
         restoringRef.current = false;
       }
     },
-    [applyFamousGame, demonstratePiece, resolveWait, restoreCustomLesson, showMe]
+    [applyFamousGame, demonstratePiece, presentShowMeLesson, resolveWait, restoreCustomLesson]
   );
 
   const loadGame = useCallback(
@@ -1606,7 +1616,32 @@ export function useChessLessons({
     resolveWait({ action: choice.id, source: "choice", label: choice.label });
   }, [animating, playLine, publishHistory, resolveWait, restoreSnapshot]);
 
-  const createLesson = useCallback((args: { title: string; paragraphs?: string[] }) => {
+  const createLesson = useCallback((args: {
+    title: string;
+    paragraphs?: string[];
+    type?: string;
+    moves?: string[];
+    fen?: string;
+  }) => {
+    if (parseLessonFormat(args.type) === "showme") {
+      const resolved = resolveShowMeLesson({
+        title: args.title,
+        paragraphs: args.paragraphs,
+        moves: args.moves,
+        fen: args.fen,
+      });
+      if (!resolved.ok) {
+        return {
+          success: false,
+          message: resolved.message,
+          lesson: 0,
+          title: "",
+          screen: "showme" as const,
+        };
+      }
+      return presentShowMeLesson(resolved);
+    }
+
     wipeLearnSession();
     const copy = normalizeCoachCopy({ body: "", paragraphs: args.paragraphs || [] });
     const created = createCatalogLesson({
@@ -1636,8 +1671,9 @@ export function useChessLessons({
       message: `Created lesson ${created.number}: ${created.title}. Previous live lesson was cleared. Screen: Goal (not a step, not a recap). Next: add-lesson-step with lesson: ${created.number}.`,
       lesson: created.number as number,
       title: created.title,
+      screen: "goal" as const,
     };
-  }, [pushSnapshot, wipeLearnSession]);
+  }, [presentShowMeLesson, pushSnapshot, wipeLearnSession]);
 
   const stripTrailingRecapHistory = useCallback(() => {
     const next = [...historyRef.current];
@@ -1999,10 +2035,10 @@ export function useChessLessons({
       ],
       notation: COACH_NOTATION_RULE,
       learningTypes: {
-        showme:
-          'show-me — one explanation, live hand playback. Use when they asked to show me / show me how.',
         lesson:
-          "create-lesson then add-lesson-step — teach me: Goal, Why/Move steps, Recap.",
+          "create-lesson type lesson (default) — Goal, then add-lesson-step Why/Move beats.",
+        showme:
+          "create-lesson type showme — one explanation and one Play button that runs the planned moves in order.",
         riddle: "add-lesson-step type riddle — a puzzle on a catalog lesson.",
       },
     };
@@ -2047,7 +2083,7 @@ export function useChessLessons({
     loadGame,
     gotoMove,
     playLine,
-    showMe,
+    playShowMeLine,
     demonstratePiece,
     askQuiz,
     waitForUser,

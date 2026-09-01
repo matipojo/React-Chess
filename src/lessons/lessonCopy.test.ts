@@ -151,6 +151,7 @@ describe("lesson copy", () => {
       title: "Scholar's Mate",
       paragraphs: ["Watch the queen and bishop crash through on f7."],
       lesson: 4,
+      moves: ["e2:e4", "h5:f7"],
     });
     expect(isShowmePhase(coach.phase)).toBe(true);
     expect(coach.what).toBeUndefined();
@@ -159,6 +160,7 @@ describe("lesson copy", () => {
     expect(coach.paragraphs).toEqual([
       "Watch the queen and bishop crash through on f7.",
     ]);
+    expect(coach.moves).toEqual(["e2:e4", "h5:f7"]);
   });
 
   it("builds a compact slide fraction for multi-slide lessons", () => {

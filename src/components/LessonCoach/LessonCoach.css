@@ -471,6 +471,30 @@
   background: #4a4a4a;
 }
 
+.lesson-coach-play-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0 4px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 8px;
+  background: var(--play, var(--accent));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lesson-coach-play-line:hover:not(:disabled) {
+  background: var(--accent-hover, var(--accent));
+}
+
+.lesson-coach-play-line:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .chess-ref {
   appearance: none;
   -webkit-appearance: none;

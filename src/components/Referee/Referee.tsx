@@ -21,6 +21,7 @@ import { useChessLessons } from "../../hooks/useChessLessons";
 import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 import { logLessonDebug } from "../../lessons/debugLog";
 import { shouldShowLessonNav } from "../../lessons/lessonCopy";
+import { getFamousGame } from "../../lessons/catalog";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
@@ -247,7 +248,15 @@ export default function Referee() {
         // ignore invalid demo links
       }
     } else if (showme) {
-      void lessons.showMe({ game: showme });
+      const famous = getFamousGame(showme);
+      if (famous) {
+        lessons.createLesson({
+          type: "showme",
+          title: famous.name,
+          paragraphs: [famous.hook],
+          moves: famous.moves,
+        });
+      }
     } else if (game) {
       lessons.loadGame(game);
     }
@@ -401,6 +410,13 @@ export default function Referee() {
               onPlayMove={(notation) => {
                 void lessons.playCoachMove(notation);
               }}
+              onPlayLine={
+                lessons.coach?.phase === "showme"
+                  ? () => {
+                      void lessons.playShowMeLine();
+                    }
+                  : undefined
+              }
               playBusy={lessons.animating}
               historyIndex={lessons.historyIndex}
               historyLength={lessons.historyLength}

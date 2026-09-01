@@ -1,40 +1,40 @@
-import { resolveShowMeRequest } from "./showMe";
+import { parseLessonFormat } from "./lessonCopy";
+import { resolveShowMeLesson } from "./showMe";
 
-describe("resolveShowMeRequest", () => {
-  it("fills title, explanation, and moves from a famous game id", () => {
-    const resolved = resolveShowMeRequest({ game: "scholars-mate" });
-    expect(resolved.ok).toBe(true);
-    if (!resolved.ok) {
-      return;
-    }
-    expect(resolved.title).toBe("Scholar's Mate");
-    expect(resolved.gameId).toBe("scholars-mate");
-    expect(resolved.paragraphs).toEqual([
-      "A four-move checkmate that attacks the weak f7 square.",
-    ]);
-    expect(resolved.moves[0]).toBe("e2:e4");
-    expect(resolved.moves[resolved.moves.length - 1]).toBe("h5:f7");
+describe("showme lesson type", () => {
+  it("accepts only the create-lesson enum value showme", () => {
+    expect(parseLessonFormat("showme")).toBe("showme");
+    expect(parseLessonFormat("lesson")).toBe("lesson");
+    expect(parseLessonFormat(undefined)).toBe("lesson");
+    expect(parseLessonFormat("show me")).toBe("lesson");
+    expect(parseLessonFormat("תראה לי")).toBe("lesson");
+    expect(parseLessonFormat("show-me")).toBe("lesson");
   });
 
-  it("keeps the caller's single explanation instead of the famous-game hook", () => {
-    const resolved = resolveShowMeRequest({
-      game: "scholars-mate",
-      paragraphs: ["See how White piles on f7 and the king cannot escape."],
+  it("requires title, one explanation, and the planned moves", () => {
+    const resolved = resolveShowMeLesson({
+      title: "Scholar's Mate",
+      paragraphs: ["Watch the queen and bishop crash through on f7."],
+      moves: ["e2:e4", "e7:e5", "d1:h5", "b8:c6", "f1:c4", "g8:f6", "h5:f7"],
     });
     expect(resolved.ok).toBe(true);
     if (!resolved.ok) {
       return;
     }
-    expect(resolved.paragraphs).toEqual([
-      "See how White piles on f7 and the king cannot escape.",
-    ]);
+    expect(resolved.moves[0]).toBe("e2:e4");
+    expect(resolved.moves[resolved.moves.length - 1]).toBe("h5:f7");
   });
 
-  it("requires moves when there is no famous game", () => {
-    expect(resolveShowMeRequest({ title: "Demo", body: "Watch this." })).toEqual({
+  it("rejects a showme lesson with no move plan", () => {
+    expect(
+      resolveShowMeLesson({
+        title: "Demo",
+        paragraphs: ["Watch this."],
+      })
+    ).toEqual({
       ok: false,
       message:
-        "Provide moves as from:to, or a famous game id, so the pieces can play live.",
+        "A showme lesson needs moves (from:to) for the Play button to run in order.",
     });
   });
 });

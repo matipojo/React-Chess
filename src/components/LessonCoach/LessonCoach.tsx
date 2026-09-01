@@ -83,6 +83,7 @@ type Props = {
   canReset?: boolean;
   playMoves?: CoachPlayMove[];
   onPlayMove?: (notation: string) => void;
+  onPlayLine?: () => void;
   playBusy?: boolean;
   nextGenerating?: boolean;
   historyIndex?: number;
@@ -113,6 +114,7 @@ export default function LessonCoach({
   canReset,
   playMoves,
   onPlayMove,
+  onPlayLine,
   playBusy,
   nextGenerating,
   historyIndex,
@@ -322,6 +324,18 @@ export default function LessonCoach({
                   </p>
                 );
               })}
+              {coach.phase === "showme" && onPlayLine && (
+                <button
+                  type="button"
+                  className="lesson-coach-play-line"
+                  dir="ltr"
+                  onClick={onPlayLine}
+                  disabled={playBusy}
+                  aria-label="Play the line"
+                >
+                  Play
+                </button>
+              )}
             </div>
           </>
         )}

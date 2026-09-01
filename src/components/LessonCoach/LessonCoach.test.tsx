@@ -182,8 +182,9 @@ describe("LessonCoach", () => {
     expect(queryByRole("button", { name: "Next" })).toBeNull();
   });
 
-  it("labels a show-me demo and keeps one explanation without Why/Move or nav", () => {
-    const { getByText, queryByText, queryByRole } = render(
+  it("labels a show-me demo and keeps one Play button for the planned line", () => {
+    const onPlayLine = jest.fn();
+    const { getByText, queryByText, queryByRole, getByRole } = render(
       <LessonCoach
         coach={{
           lessonTitle: "Scholar's Mate",
@@ -192,7 +193,9 @@ describe("LessonCoach", () => {
           paragraphs: ["Watch the queen and bishop crash through on f7."],
           phase: "showme",
           lesson: 4,
+          moves: ["e2:e4", "e7:e5", "d1:h5"],
         }}
+        onPlayLine={onPlayLine}
       />
     );
     expect(getByText("Show me")).toBeTruthy();
@@ -205,6 +208,10 @@ describe("LessonCoach", () => {
     ).toBeTruthy();
     expect(queryByRole("button", { name: "Back" })).toBeNull();
     expect(queryByRole("button", { name: "Next" })).toBeNull();
+    const play = getByRole("button", { name: "Play the line" });
+    expect(play.textContent).toBe("Play");
+    play.click();
+    expect(onPlayLine).toHaveBeenCalledTimes(1);
   });
 
   it("renders wait-for-user choices and reports the clicked action", () => {

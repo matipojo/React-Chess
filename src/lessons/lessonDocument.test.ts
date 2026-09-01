@@ -136,6 +136,7 @@ describe("lesson document vs session", () => {
     expect(slides[0].coach?.phase).toBe("showme");
     expect(slides[0].coach?.what).toBeUndefined();
     expect(slides[0].coach?.why).toBeUndefined();
+    expect(slides[0].coach?.moves).toEqual(["e2:e4", "e7:e5", "d1:h5"]);
     expect(lastTeachingSlideIndex(slides)).toBe(0);
   });
 });

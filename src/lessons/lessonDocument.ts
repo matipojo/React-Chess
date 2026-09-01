@@ -137,6 +137,8 @@ export function projectLessonSession(
           body: item.body,
           paragraphs: item.paragraphs,
           lesson: item.number,
+          moves: item.moves,
+          fromFen: item.fen,
         }),
         highlights: cloneMarks(item.highlights) || [],
         arrows: cloneArrows(item.arrows) || [],
