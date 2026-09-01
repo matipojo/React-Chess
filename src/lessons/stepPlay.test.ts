@@ -11,6 +11,16 @@ describe("step play buttons", () => {
     expect(extractFromToMoves("f1:c4, then g8:f6.")).toEqual(["f1:c4", "g8:f6"]);
   });
 
+  it("extracts play moves from long algebraic What text", () => {
+    expect(extractFromToMoves("1.e2-e4 e7-e5 2.Ng1-f3 Nb8-c6 3.Bf1-c4")).toEqual([
+      "e2:e4",
+      "e7:e5",
+      "g1:f3",
+      "b8:c6",
+      "f1:c4",
+    ]);
+  });
+
   it("marks the first move ready and the second blocked before anything is played", () => {
     const board = startingLearnBoard();
     applyMovesToBoard(board, ["e2:e4", "e7:e5", "g1:f3", "b8:c6"]);

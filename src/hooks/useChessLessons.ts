@@ -8,7 +8,7 @@ import {
   getPieceLesson,
   PIECE_LESSONS,
 } from "../lessons/catalog";
-import { COACH_NOTATION_RULE } from "../lessons/coachNotation";
+import { COACH_NOTATION_RULE, coachNotationViolation } from "../lessons/coachNotation";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
   BoardArrow,
@@ -1499,6 +1499,15 @@ export function useChessLessons({
   }, [animating, playLine, publishHistory, resolveWait, restoreSnapshot]);
 
   const createLesson = useCallback((args: { title: string; paragraphs?: string[] }) => {
+    const notationError = coachNotationViolation([args.title, ...(args.paragraphs || [])]);
+    if (notationError) {
+      return {
+        success: false,
+        message: notationError,
+        lesson: 0,
+        title: args.title,
+      };
+    }
     wipeLearnSession();
     const copy = normalizeCoachCopy({ body: "", paragraphs: args.paragraphs || [] });
     const created = createCatalogLesson({
@@ -1604,6 +1613,13 @@ export function useChessLessons({
         }
       } else if (!draft.title.trim() || !draft.why.trim() || !draft.what.trim()) {
         return failed("Each step needs title, why (situation/goal), and what (the move).");
+      }
+      const notationError = coachNotationViolation(
+        [draft.title, draft.why, draft.what, question, args.hint, ...(draft.paragraphs || [])],
+        draft.moves
+      );
+      if (notationError) {
+        return failed(notationError);
       }
       enterLearnMode();
       const lessonNumber = args.lesson || activeLessonNumberRef.current;
@@ -1737,6 +1753,14 @@ export function useChessLessons({
         return {
           success: false,
           message: "Provide recap paragraphs.",
+          lesson: lessonNumber,
+        };
+      }
+      const notationError = coachNotationViolation([args.title, ...args.paragraphs]);
+      if (notationError) {
+        return {
+          success: false,
+          message: notationError,
           lesson: lessonNumber,
         };
       }

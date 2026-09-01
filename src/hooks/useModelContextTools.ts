@@ -10,7 +10,7 @@ import { logLessonDebug } from '../lessons/debugLog';
 import { compactToolResult } from '../lessons/debugSnapshot';
 import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
-import { COACH_NOTATION_RULE, WAIT_TURN_RULE } from '../lessons/coachNotation';
+import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
 import { parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
@@ -394,7 +394,8 @@ export function useModelContextTools(actions: ChessActions) {
             paragraphs: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Optional intro. What this lesson will teach, in 1–3 short paragraphs.',
+              description:
+                'Optional intro. What this lesson will teach, in 1–3 short paragraphs. Any moves must be long algebraic (e2-e4, Ng1-f3), not short SAN.',
             },
           },
           required: ['title'],
@@ -440,7 +441,7 @@ export function useModelContextTools(actions: ChessActions) {
             },
             title: { type: 'string', description: 'Beat heading, not the lesson title. For a riddle, a short name.' },
             why: { type: 'string', description: 'Teaching steps: situation and goal before the move. Omit for riddles.' },
-            what: { type: 'string', description: 'Teaching steps: concrete move(s), English from:to such as e2:e4. Omit for riddles.' },
+            what: { type: 'string', description: 'Teaching steps: concrete move(s) in long algebraic notation such as e2-e4, Ng1-f3. Omit for riddles.' },
             paragraphs: {
               type: 'array',
               items: { type: 'string' },
@@ -585,7 +586,7 @@ export function useModelContextTools(actions: ChessActions) {
               description: 'Catalog lesson number. Reuse it; do not invent a new lesson per move.',
             },
             title: { type: 'string', description: 'Beat heading, not the whole lesson topic.' },
-            what: { type: 'string', description: 'What happens now, with English moves.' },
+            what: { type: 'string', description: 'What happens now. Moves must be long algebraic such as e2-e4, Ng1-f3, never short SAN (e4, Nf3).' },
             why: { type: 'string', description: 'Why this belongs here.' },
             paragraphs: {
               type: 'array',
@@ -608,6 +609,16 @@ export function useModelContextTools(actions: ChessActions) {
           const what = typeof params.what === 'string' ? params.what.trim() : '';
           const why = typeof params.why === 'string' ? params.why.trim() : '';
           const extra = asStringArray(params.paragraphs);
+          const notationError = coachNotationViolation([
+            String(params.title || ''),
+            what,
+            why,
+            typeof params.body === 'string' ? params.body : '',
+            ...extra,
+          ]);
+          if (notationError) {
+            return { success: false, message: notationError, data: null };
+          }
           const copy = normalizeCoachCopy({
             body: typeof params.body === 'string' ? params.body : '',
             paragraphs: extra.length ? extra : what || why ? [] : asStringArray(params.paragraphs),
@@ -786,6 +797,13 @@ export function useModelContextTools(actions: ChessActions) {
           const correct = asStringArray(params.correct);
           if (!correct.length) {
             return { success: false, message: 'Provide at least one correct square', data: null };
+          }
+          const notationError = coachNotationViolation([
+            String(params.question || ''),
+            typeof params.hint === 'string' ? params.hint : '',
+          ]);
+          if (notationError) {
+            return { success: false, message: notationError, data: null };
           }
           const result = await actionsRef.current.lessons.askQuiz({
             question: String(params.question || ''),
