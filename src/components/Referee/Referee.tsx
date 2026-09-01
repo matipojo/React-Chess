@@ -12,10 +12,18 @@ import {
 } from "../../referee/rules";
 import { PieceType, TeamType } from "../../Types";
 import Chessboard, { ChessboardHandle } from "../Chessboard/Chessboard";
+import BoardUndoBar from "../BoardUndoBar/BoardUndoBar";
 import LessonCoach from "../LessonCoach/LessonCoach";
+import LessonCatalogMenu from "../LessonCatalogMenu/LessonCatalogMenu";
 import { Howl } from "howler";
 import { useModelContextTools } from "../../hooks/useModelContextTools";
 import { useChessLessons } from "../../hooks/useChessLessons";
+import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
+import { logLessonDebug } from "../../lessons/debugLog";
+import { shouldShowLessonNav } from "../../lessons/lessonCopy";
+import { coordinatesToNotation } from "../../utils/chess-notation-utils";
+import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
+import { useBoardTheme } from "../../hooks/useBoardTheme";
 import "./Referee.css";
 
 const moveSound = new Howl({
@@ -31,8 +39,10 @@ const checkmateSound = new Howl({
 });
 
 export default function Referee() {
+  const { setCustomBackground } = useBoardTheme();
   const [board, setBoard] = useState<Board>(initialBoard.clone());
   const [promotionPawn, setPromotionPawn] = useState<Piece>();
+  const [peekSquares, setPeekSquares] = useState<string[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
   const checkmateModalRef = useRef<HTMLDivElement>(null);
   const chessboardHandleRef = useRef<ChessboardHandle>(null);
@@ -173,6 +183,11 @@ export default function Referee() {
   }, []);
 
   const animateMove = useCallback((from: Position, to: Position, team: 'w' | 'b', onComplete?: () => void) => {
+    logLessonDebug("visual", "animate-move", {
+      from: coordinatesToNotation(from.x, from.y),
+      to: coordinatesToNotation(to.x, to.y),
+      team,
+    });
     chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
   }, []);
 
@@ -185,9 +200,19 @@ export default function Referee() {
   });
 
   function playMove(playedPiece: Piece, destination: Position): boolean {
+    const from = coordinatesToNotation(playedPiece.position.x, playedPiece.position.y);
+    const to = coordinatesToNotation(destination.x, destination.y);
     const success = playMoveSync(playedPiece.position, destination);
+    logLessonDebug("user-move", "drop", {
+      piece: playedPiece.type,
+      team: playedPiece.team,
+      from,
+      to,
+      success,
+      learnMode: lessons.learnMode,
+    });
     if (success && lessons.learnMode) {
-      lessons.clearAnnotations();
+      lessons.recordLearnMove();
     }
     return success;
   }
@@ -204,12 +229,16 @@ export default function Referee() {
     promotePawn: promotePawnAction,
     animateMove,
     lessons,
+    setPageBackground: (cssUrl: string | null) => ({
+      persisted: setCustomBackground(cssUrl),
+    }),
   });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const piece = params.get("piece");
     const game = params.get("game");
+    lessons.enterLearnMode();
     if (piece) {
       try {
         lessons.demonstratePiece(piece);
@@ -223,69 +252,157 @@ export default function Referee() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const peekArrows =
+    peekSquares.length >= 2
+      ? peekSquares.slice(0, -1).map((from) => ({
+          from,
+          to: peekSquares[peekSquares.length - 1],
+          color: "#81d4fa",
+        }))
+      : [];
+
+  const resolvePeekSquares = useCallback(
+    (ref: ChessRefPart) => {
+      return peekSquaresFromRef(
+        ref,
+        board.pieces.map((piece) => ({
+          type: piece.type,
+          square: coordinatesToNotation(piece.position.x, piece.position.y),
+          destinations: (piece.possibleMoves || []).map((move) =>
+            coordinatesToNotation(move.x, move.y)
+          ),
+        }))
+      );
+    },
+    [board]
+  );
+
   const loaded = lessons.loadedLine.current;
-  const canStep = !!loaded && !lessons.animating && !lessons.quiz;
+  const lessonOpen = Boolean(lessons.coach || lessons.quiz || lessons.wait);
+  const waitingOnUser = Boolean(lessons.wait && !lessons.wait.timedOut);
+  const generatingNext = Boolean(lessons.awaitingContinuation && !waitingOnUser);
+  const quizPending = Boolean(lessons.quiz && !lessons.quiz.answered);
+  const canStep = !lessons.animating && !quizPending;
+  const showStepNav = shouldShowLessonNav({
+    expectsRecap: lessons.expectsRecap,
+    generatingNext,
+    hasLineMoves: Boolean(loaded && loaded.moves.length > 0),
+  });
+  const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
+  const canFirst = canBack;
+  const canNext =
+    canStep &&
+    !generatingNext &&
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length) ||
+      waitingOnUser);
+  const canLast =
+    canStep &&
+    !waitingOnUser &&
+    !generatingNext &&
+    (lessons.historyIndex < lessons.historyLength - 1 ||
+      (!!loaded && loaded.ply < loaded.moves.length));
 
   return (
-    <div className={`referee ${lessons.learnMode ? "referee-learn" : ""}`}>
-      <div className="referee-board">
-        <p className="referee-status">
-          {lessons.learnMode ? "Learn mode" : `Total turns: ${board.totalTurns}`}
-        </p>
-        <div className="modal hidden" ref={modalRef}>
-          <div className="modal-body">
-            <img
-              onClick={() => promotePawnAction(PieceType.ROOK)}
-              src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
-            />
-            <img
-              onClick={() => promotePawnAction(PieceType.BISHOP)}
-              src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
-            />
-            <img
-              onClick={() => promotePawnAction(PieceType.KNIGHT)}
-              src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
-            />
-            <img
-              onClick={() => promotePawnAction(PieceType.QUEEN)}
-              src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
-            />
-          </div>
+    <>
+      <header className="app-header">
+        <h1 className="app-header-title">Generative Learning</h1>
+        <div className="app-header-actions">
+          <LessonCatalogMenu
+            lessons={lessons.userLessons}
+            onOpen={(id) => {
+              lessons.openSavedLesson(id);
+            }}
+            onRemove={lessons.deleteSavedLesson}
+          />
+          <LessonDebugConsole />
         </div>
-        <div className="modal hidden" ref={checkmateModalRef}>
-          <div className="modal-body">
-            <div className="checkmate-body">
-              <span>
-                The winning team is{" "}
-                {board.winningTeam === TeamType.OUR ? "white" : "black"}!
-              </span>
-              <button onClick={restartGame}>Play again</button>
+      </header>
+      <div id="app">
+        <div className="referee referee-learn">
+          <div className="referee-board">
+            <div className="modal hidden" ref={modalRef}>
+              <div className="modal-body">
+                <img
+                  onClick={() => promotePawnAction(PieceType.ROOK)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/rook_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.BISHOP)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/bishop_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.KNIGHT)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/knight_${promotionTeamType()}.png`}
+                />
+                <img
+                  onClick={() => promotePawnAction(PieceType.QUEEN)}
+                  src={`${process.env.PUBLIC_URL}/assets/images/queen_${promotionTeamType()}.png`}
+                />
+              </div>
             </div>
+            <div className="modal hidden" ref={checkmateModalRef}>
+              <div className="modal-body">
+                <div className="checkmate-body">
+                  <span>
+                    The winning team is{" "}
+                    {board.winningTeam === TeamType.OUR ? "white" : "black"}!
+                  </span>
+                  <button onClick={restartGame}>Play again</button>
+                </div>
+              </div>
+            </div>
+            <Chessboard
+              ref={chessboardHandleRef}
+              playMove={playMove}
+              pieces={board.pieces}
+              highlights={lessons.highlights}
+              peekSquares={peekSquares}
+              arrows={[...lessons.arrows, ...peekArrows]}
+              interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
+              locked={lessons.animating}
+              onSquareClick={lessons.onSquareClick}
+            />
+            <BoardUndoBar
+              canUndo={lessons.canUndoLearnMove}
+              canRedo={lessons.canRedoLearnMove}
+              onUndo={lessons.undoLearnMove}
+              onRedo={lessons.redoLearnMove}
+            />
           </div>
+          <LessonCoach
+              coach={lessons.coach}
+              quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
+              quizFeedback={lessons.quizFeedback}
+              quizSecondsLeft={lessons.quizSecondsLeft}
+              waitPrompt={lessons.wait ? lessons.wait.prompt : undefined}
+              waitChoices={lessons.wait ? lessons.wait.choices : undefined}
+              waitTimedOut={Boolean(lessons.wait?.timedOut)}
+              onWaitChoice={lessons.onWaitChoice}
+              onHoverSquares={setPeekSquares}
+              resolvePeekSquares={resolvePeekSquares}
+              onBack={showStepNav ? lessons.stepBack : undefined}
+              onNext={showStepNav ? lessons.stepNext : undefined}
+              onFirst={showStepNav ? lessons.stepFirst : undefined}
+              onLast={showStepNav ? lessons.stepLast : undefined}
+              onReset={showStepNav ? lessons.stepFirst : undefined}
+              onFinish={lessonOpen ? lessons.endLesson : undefined}
+              canBack={canBack}
+              canNext={canNext}
+              canFirst={canFirst}
+              canLast={canLast}
+              canReset={canFirst}
+              nextGenerating={generatingNext}
+              playMoves={lessons.coachPlayMoves}
+              onPlayMove={(notation) => {
+                void lessons.playCoachMove(notation);
+              }}
+              playBusy={lessons.animating}
+              historyIndex={lessons.historyIndex}
+              historyLength={lessons.historyLength}
+            />
         </div>
-        <Chessboard
-          ref={chessboardHandleRef}
-          playMove={playMove}
-          pieces={board.pieces}
-          highlights={lessons.highlights}
-          arrows={lessons.arrows}
-          interaction={lessons.quiz ? "quiz" : "play"}
-          locked={lessons.animating}
-          onSquareClick={lessons.onSquareClick}
-        />
       </div>
-      {lessons.learnMode && (
-        <LessonCoach
-          coach={lessons.coach}
-          quizQuestion={lessons.quiz ? lessons.quiz.question : undefined}
-          quizHint={lessons.quiz ? lessons.quiz.hint : undefined}
-          quizFeedback={lessons.quizFeedback}
-          onBack={loaded ? lessons.stepBack : undefined}
-          onNext={loaded ? lessons.stepNext : undefined}
-          canBack={canStep && !!loaded && loaded.ply > 0}
-          canNext={canStep && !!loaded && loaded.ply < loaded.moves.length}
-        />
-      )}
-    </div>
+    </>
   );
 }

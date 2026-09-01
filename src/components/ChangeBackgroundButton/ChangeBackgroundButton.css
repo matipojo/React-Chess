@@ -1,0 +1,55 @@
+.change-bg-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.change-bg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(20, 20, 20, 0.72);
+  color: #eee;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.change-bg-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.change-bg-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.change-bg-btn.is-copied {
+  background: var(--accent);
+  color: #fff;
+}
+
+.change-bg-tip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 1;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: start;
+  pointer-events: none;
+}

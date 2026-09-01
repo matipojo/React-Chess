@@ -1,5 +1,19 @@
-.chessboard-wrap {
+.chessboard-frame {
   --board-size: calc(var(--tile-size, 75px) * 8);
+  --axis-gutter: 34px;
+  display: grid;
+  grid-template-columns: var(--axis-gutter) var(--board-size) var(--axis-gutter);
+  grid-template-rows: var(--axis-gutter) var(--board-size) var(--axis-gutter);
+  background: rgba(10, 8, 14, 0.18);
+  backdrop-filter: blur(8px) saturate(1.15);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.chessboard-wrap {
+  grid-column: 2;
+  grid-row: 2;
   position: relative;
   width: var(--board-size);
   height: var(--board-size);
@@ -24,19 +38,39 @@
   z-index: 4;
 }
 
+.chess-piece-drag-preview {
+  position: absolute;
+  z-index: 12;
+  pointer-events: none;
+  cursor: grabbing;
+  width: var(--tile-size, 75px);
+  height: var(--tile-size, 75px);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: var(--tile-size, 75px);
+}
+
 .chessboard-axis-rank {
+  grid-column: 1;
+  grid-row: 2;
   display: flex;
   flex-direction: column;
   justify-content: space-around;
-  padding-right: 8px;
+  align-items: center;
 }
 
 .chessboard-axis-rank span,
 .chessboard-axis-file span {
-  color: #aaa;
-  font-size: 14px;
-  font-weight: bold;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 800;
   text-align: center;
+  letter-spacing: 0.04em;
+  -webkit-text-stroke: 0.85px rgba(8, 6, 12, 0.95);
+  paint-order: stroke fill;
+  text-shadow:
+    0 0 2px rgba(0, 0, 0, 0.9),
+    0 1px 3px rgba(0, 0, 0, 0.75);
 }
 
 .chessboard-axis-rank span {
@@ -45,27 +79,25 @@
 }
 
 .chessboard-axis-file {
+  grid-column: 2;
+  grid-row: 3;
   display: flex;
-  padding-left: 28px;
+  align-items: center;
 }
 
 .chessboard-axis-file span {
   width: var(--tile-size, 75px);
-  padding-top: 8px;
 }
 
 @media (max-width: 640px) {
+  .chessboard-frame {
+    --axis-gutter: 24px;
+    border-radius: 14px;
+  }
+
   .chessboard-axis-rank span,
   .chessboard-axis-file span {
-    font-size: 11px;
-  }
-
-  .chessboard-axis-rank {
-    padding-right: 4px;
-  }
-
-  .chessboard-axis-file {
-    padding-left: 18px;
+    font-size: 14px;
   }
 }
 
@@ -115,7 +147,7 @@
 }
 
 .modal > .modal-body > .checkmate-body > button {
-  background-color: #779556;
+  background-color: var(--accent);
   border: none;
   border-radius: 8px;
   padding: 16px 32px;

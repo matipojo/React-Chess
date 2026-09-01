@@ -136,3 +136,49 @@ export function startingLearnBoard(): Board {
   board.calculateAllMoves();
   return board;
 }
+
+export function startingPlayBoard(): Board {
+  const board = initialBoard.clone();
+  board.learnMode = false;
+  board.winningTeam = undefined;
+  board.calculateAllMoves();
+  return board;
+}
+
+const FEN_LETTER: { [type: string]: string } = {
+  pawn: "p",
+  knight: "n",
+  bishop: "b",
+  rook: "r",
+  queen: "q",
+  king: "k",
+};
+
+export function boardToFen(board: Board): string {
+  const ranks: string[] = [];
+  for (let y = 7; y >= 0; y--) {
+    let empty = 0;
+    let rank = "";
+    for (let x = 0; x < 8; x++) {
+      const piece = board.pieces.find(
+        (item) => item.position.x === x && item.position.y === y
+      );
+      if (!piece) {
+        empty += 1;
+        continue;
+      }
+      if (empty > 0) {
+        rank += String(empty);
+        empty = 0;
+      }
+      const letter = FEN_LETTER[piece.type] || "p";
+      rank += piece.team === TeamType.OUR ? letter.toUpperCase() : letter;
+    }
+    if (empty > 0) {
+      rank += String(empty);
+    }
+    ranks.push(rank);
+  }
+  const turn = board.currentTeam === TeamType.OPPONENT ? "b" : "w";
+  return `${ranks.join("/")} ${turn} - - 0 1`;
+}

@@ -1,11 +1,14 @@
 .tile {
   display: grid;
   place-content: center;
+  position: relative;
   width: var(--tile-size, 75px);
   height: var(--tile-size, 75px);
 }
 
 .tile .chess-piece {
+  position: relative;
+  z-index: 1;
   width: var(--tile-size, 75px);
   height: var(--tile-size, 75px);
   background-repeat: no-repeat;
@@ -85,5 +88,27 @@
 }
 
 .tile-mark-correct {
-  box-shadow: inset 0 0 0 5px rgba(76, 175, 80, 1);
+  box-shadow: inset 0 0 0 5px var(--mark-correct);
+}
+
+.tile.tile-peek.black-tile {
+  background-color: #4fc3f7;
+}
+
+.tile.tile-peek.white-tile {
+  background-color: #b3e5fc;
+}
+
+.tile-peek-overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 6;
+  pointer-events: none;
+  background: rgba(3, 155, 229, 0.38);
+  box-shadow: inset 0 0 0 3px #01579b;
+  outline: 2px dashed #e3f2fd;
+  outline-offset: -5px;
 }
