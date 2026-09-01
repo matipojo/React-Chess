@@ -138,42 +138,44 @@ function ExamplePrompts() {
   const openInCodex = isCodexHost();
 
   return (
-    <div className="about-examples">
-      {ABOUT_EXAMPLE_PROMPTS.map((prompt) =>
-        openInCodex ? (
-          <a
-            key={prompt}
-            className="about-example"
-            href={buildCodexPromptHref(prompt)}
-            onClick={(event) => {
-              event.preventDefault();
-              openCodexPrompt(prompt);
-            }}
-          >
-            {prompt}
-          </a>
-        ) : (
-          <button
-            key={prompt}
-            type="button"
-            className="about-example"
-            onClick={async () => {
-              const result = await shareLessonPrompt(prompt);
-              if (result !== "copied") {
-                return;
-              }
-              setCopiedId(prompt);
-              setStatus(CODEX_UNAVAILABLE_MESSAGE);
-              window.setTimeout(() => {
-                setCopiedId("");
-                setStatus("");
-              }, 2500);
-            }}
-          >
-            {copiedId === prompt ? "Copied" : prompt}
-          </button>
-        )
-      )}
+    <div>
+      <div className="about-examples">
+        {ABOUT_EXAMPLE_PROMPTS.map((prompt) =>
+          openInCodex ? (
+            <a
+              key={prompt}
+              className="about-example"
+              href={buildCodexPromptHref(prompt)}
+              onClick={(event) => {
+                event.preventDefault();
+                openCodexPrompt(prompt);
+              }}
+            >
+              {prompt}
+            </a>
+          ) : (
+            <button
+              key={prompt}
+              type="button"
+              className="about-example"
+              onClick={async () => {
+                const result = await shareLessonPrompt(prompt);
+                if (result !== "copied") {
+                  return;
+                }
+                setCopiedId(prompt);
+                setStatus(CODEX_UNAVAILABLE_MESSAGE);
+                window.setTimeout(() => {
+                  setCopiedId("");
+                  setStatus("");
+                }, 2500);
+              }}
+            >
+              {copiedId === prompt ? "Copied" : prompt}
+            </button>
+          )
+        )}
+      </div>
       {status ? (
         <p className="about-prompt-status" role="status">
           {status}
