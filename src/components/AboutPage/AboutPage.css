@@ -50,9 +50,15 @@
   flex-shrink: 0;
 }
 
-.about-header-link {
-  color: #fff;
-  background: var(--about-accent);
+.about-subnav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.about-subnav a {
+  color: var(--about-muted);
   text-decoration: none;
   font-weight: 700;
   font-size: 14px;
@@ -60,8 +66,18 @@
   border-radius: 999px;
 }
 
-.about-header-link:hover {
+.about-subnav a[aria-current="page"] {
+  color: var(--about-ink);
+}
+
+.about-subnav-chess {
+  color: #fff;
+  background: var(--about-accent);
+}
+
+.about-subnav-chess:hover {
   background: var(--about-accent-strong);
+  color: #fff;
 }
 
 .about-hero {
