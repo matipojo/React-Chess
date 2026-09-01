@@ -2,6 +2,12 @@ import { useState } from "react";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
 import { copyPlainText } from "../../lessons/waitForUser";
 import { buildGenerateBackgroundPrompt, readThemePalette } from "../../utils/backgroundPrompt";
+import {
+  buildCodexPromptHref,
+  isCodexHost,
+  openCodexPrompt,
+  sharePromptWithHost,
+} from "../../utils/codexPrompt";
 import "./ChangeBackgroundButton.css";
 
 function ImageIcon() {
@@ -21,28 +27,45 @@ const COPIED_MESSAGE =
 export default function ChangeBackgroundButton() {
   const { theme } = useBoardTheme();
   const [copied, setCopied] = useState(false);
+  const openInCodex = isCodexHost();
+  const prompt = buildGenerateBackgroundPrompt(readThemePalette(theme));
 
   return (
     <div className="change-bg-wrap">
-      <button
-        type="button"
-        className={copied ? "change-bg-btn is-copied" : "change-bg-btn"}
-        aria-label="Change background image"
-        title="Change background image"
-        aria-describedby={copied ? "change-bg-tip" : undefined}
-        onClick={async () => {
-          const prompt = buildGenerateBackgroundPrompt(readThemePalette(theme));
-          const ok = await copyPlainText(prompt);
-          if (!ok) {
-            return;
-          }
-          setCopied(true);
-          window.setTimeout(() => setCopied(false), 5500);
-        }}
-      >
-        <ImageIcon />
-        <span className="change-bg-btn-label">Bg</span>
-      </button>
+      {openInCodex ? (
+        <a
+          className="change-bg-btn"
+          href={buildCodexPromptHref(prompt)}
+          aria-label="Change background image"
+          title="Change background image"
+          onClick={(event) => {
+            event.preventDefault();
+            openCodexPrompt(prompt);
+          }}
+        >
+          <ImageIcon />
+          <span className="change-bg-btn-label">Bg</span>
+        </a>
+      ) : (
+        <button
+          type="button"
+          className={copied ? "change-bg-btn is-copied" : "change-bg-btn"}
+          aria-label="Change background image"
+          title="Change background image"
+          aria-describedby={copied ? "change-bg-tip" : undefined}
+          onClick={async () => {
+            const result = await sharePromptWithHost(prompt, copyPlainText);
+            if (result !== "copied") {
+              return;
+            }
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 5500);
+          }}
+        >
+          <ImageIcon />
+          <span className="change-bg-btn-label">Bg</span>
+        </button>
+      )}
       {copied ? (
         <p id="change-bg-tip" className="change-bg-tip" role="status">
           {COPIED_MESSAGE}
