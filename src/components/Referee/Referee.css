@@ -20,6 +20,12 @@
   z-index: 40;
 }
 
+.app-header-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+}
+
 .app-header-title {
   display: flex;
   align-items: center;
@@ -30,6 +36,19 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   border-bottom: 3px solid var(--accent);
+}
+
+.app-header-link {
+  display: flex;
+  align-items: center;
+  color: #d7d7d7;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.app-header-link:hover {
+  color: #fff;
 }
 
 .app-header-actions {

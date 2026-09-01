@@ -4,6 +4,8 @@ export const EXAMPLE_LESSON_PROMPTS = [
   "quiz me on forks",
 ];
 
+export const CODEX_UNAVAILABLE_MESSAGE = "Codex is not available";
+
 type NavigatorWithUAData = Navigator & {
   userAgentData?: { brands?: Array<{ brand: string }> };
 };

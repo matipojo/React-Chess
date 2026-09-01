@@ -1,5 +1,6 @@
 import {
   buildCodexPromptHref,
+  CODEX_UNAVAILABLE_MESSAGE,
   EXAMPLE_LESSON_PROMPTS,
   isCodexHost,
   openCodexPrompt,
@@ -50,6 +51,7 @@ describe("codexPrompt", () => {
     expect(buildCodexPromptHref(EXAMPLE_LESSON_PROMPTS[0])).toBe(
       "codex://new?prompt=how%20does%20a%20knight%20move%3F"
     );
+    expect(CODEX_UNAVAILABLE_MESSAGE).toBe("Codex is not available");
   });
 
   it("opens the deep link instead of relying on an <a> navigation", () => {
