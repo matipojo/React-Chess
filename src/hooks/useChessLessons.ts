@@ -66,6 +66,12 @@ import {
   coachPlayMoves,
   resolveStepMoves,
 } from "../lessons/stepPlay";
+import {
+  canRedoExperiment,
+  canUndoExperiment,
+  emptyExperimentCursor,
+  truncateItems,
+} from "../lessons/experimentHistory";
 
 type LessonSnapshot = {
   board: Board;
@@ -144,6 +150,9 @@ export function useChessLessons({
   const historyIndexRef = useRef(-1);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [historyLength, setHistoryLength] = useState(0);
+  const experimentRef = useRef<LessonSnapshot[]>([]);
+  const experimentIndexRef = useRef(-1);
+  const [experimentCursor, setExperimentCursor] = useState(emptyExperimentCursor);
   const [userLessons, setUserLessons] = useState<SavedLesson[]>([]);
   const restoringRef = useRef(false);
   const activeLessonNumberRef = useRef<number | null>(null);
@@ -468,6 +477,11 @@ export function useChessLessons({
     setHistoryLength(length);
   }, []);
 
+  const publishExperiment = useCallback((index: number, length: number) => {
+    experimentIndexRef.current = index;
+    setExperimentCursor({ index, length });
+  }, []);
+
   const cloneCoach = (value: CoachState | null): CoachState | null => {
     return value ? { ...value } : null;
   };
@@ -481,6 +495,15 @@ export function useChessLessons({
       ply: loadedLineRef.current ? loadedLineRef.current.ply : Math.max(0, historyIndexRef.current),
     };
   }, [boardRef]);
+
+  const seedExperimentBaseline = useCallback(
+    (snap?: LessonSnapshot) => {
+      const baseline = snap || takeSnapshot();
+      experimentRef.current = [baseline];
+      publishExperiment(0, 1);
+    },
+    [publishExperiment, takeSnapshot]
+  );
 
   const applyOverlays = useCallback(
     (
@@ -504,7 +527,7 @@ export function useChessLessons({
   );
 
   const restoreSnapshot = useCallback(
-    (snap: LessonSnapshot) => {
+    (snap: LessonSnapshot, options?: { keepExperiment?: boolean }) => {
       logLessonDebug("visual", "restore-snapshot", {
         ply: snap.ply,
         fen: fenForDebug(snap.board),
@@ -524,14 +547,19 @@ export function useChessLessons({
       if (loadedLineRef.current) {
         loadedLineRef.current.ply = snap.ply;
       }
+      if (!options?.keepExperiment) {
+        seedExperimentBaseline(snap);
+      }
     },
-    [applyBoard, applyOverlays, cancelQuiz]
+    [applyBoard, applyOverlays, cancelQuiz, seedExperimentBaseline]
   );
 
   const resetHistory = useCallback(() => {
     historyRef.current = [];
     publishHistory(-1, 0);
-  }, [publishHistory]);
+    experimentRef.current = [];
+    publishExperiment(-1, 0);
+  }, [publishExperiment, publishHistory]);
 
   const pushSnapshot = useCallback(() => {
     const snap = takeSnapshot();
@@ -539,17 +567,20 @@ export function useChessLessons({
     next.push(snap);
     historyRef.current = next;
     publishHistory(next.length - 1, next.length);
-  }, [publishHistory, takeSnapshot]);
+    seedExperimentBaseline(snap);
+  }, [publishHistory, seedExperimentBaseline, takeSnapshot]);
 
   const updateCurrentSnapshot = useCallback(() => {
     const snap = takeSnapshot();
     if (historyRef.current.length === 0 || historyIndexRef.current < 0) {
       historyRef.current = [snap];
       publishHistory(0, 1);
+      seedExperimentBaseline(snap);
       return;
     }
     historyRef.current[historyIndexRef.current] = snap;
-  }, [publishHistory, takeSnapshot]);
+    seedExperimentBaseline(snap);
+  }, [publishHistory, seedExperimentBaseline, takeSnapshot]);
 
   const ensureStartingSnapshot = useCallback(() => {
     if (historyRef.current.length === 0) {
@@ -1353,8 +1384,43 @@ export function useChessLessons({
       fen: fenForDebug(boardRef.current),
     });
     clearAnnotations();
-    pushSnapshot();
-  }, [boardRef, clearAnnotations, pushSnapshot]);
+    const snap = takeSnapshot();
+    if (experimentRef.current.length === 0) {
+      experimentRef.current = [snap];
+      publishExperiment(0, 1);
+      return;
+    }
+    const kept = truncateItems(experimentRef.current, experimentIndexRef.current);
+    kept.push(snap);
+    experimentRef.current = kept;
+    publishExperiment(kept.length - 1, kept.length);
+  }, [boardRef, clearAnnotations, publishExperiment, takeSnapshot]);
+
+  const undoLearnMove = useCallback(() => {
+    if (animating || experimentIndexRef.current <= 0) {
+      return;
+    }
+    const nextIndex = experimentIndexRef.current - 1;
+    logLessonDebug("visual", "undo-learn-move", {
+      fromIndex: experimentIndexRef.current,
+      toIndex: nextIndex,
+    });
+    restoreSnapshot(experimentRef.current[nextIndex], { keepExperiment: true });
+    publishExperiment(nextIndex, experimentRef.current.length);
+  }, [animating, publishExperiment, restoreSnapshot]);
+
+  const redoLearnMove = useCallback(() => {
+    if (animating || experimentIndexRef.current >= experimentRef.current.length - 1) {
+      return;
+    }
+    const nextIndex = experimentIndexRef.current + 1;
+    logLessonDebug("visual", "redo-learn-move", {
+      fromIndex: experimentIndexRef.current,
+      toIndex: nextIndex,
+    });
+    restoreSnapshot(experimentRef.current[nextIndex], { keepExperiment: true });
+    publishExperiment(nextIndex, experimentRef.current.length);
+  }, [animating, publishExperiment, restoreSnapshot]);
 
   const stepBack = useCallback(() => {
     if (animating || historyIndexRef.current <= 0) {
@@ -1836,6 +1902,10 @@ export function useChessLessons({
     onSquareClick,
     answerQuiz,
     recordLearnMove,
+    undoLearnMove,
+    redoLearnMove,
+    canUndoLearnMove: !animating && canUndoExperiment(experimentCursor),
+    canRedoLearnMove: !animating && canRedoExperiment(experimentCursor),
     stepBack,
     stepNext,
     stepFirst,
