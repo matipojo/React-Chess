@@ -12,7 +12,10 @@ import {
   EXAMPLE_LESSON_PROMPTS,
   isCodexHost,
 } from "../../utils/codexPrompt";
-import "./LessonCoach.css";
+import {
+  showmeControls,
+  ShowMePlayback,
+} from "../../lessons/showMe";
 
 function uncoveredMoveText(
   what: string | undefined,
@@ -84,6 +87,11 @@ type Props = {
   playMoves?: CoachPlayMove[];
   onPlayMove?: (notation: string) => void;
   onPlayLine?: () => void;
+  onPauseLine?: () => void;
+  onStopLine?: () => void;
+  onReplayLine?: () => void;
+  showmePlayback?: ShowMePlayback;
+  showmePly?: number;
   playBusy?: boolean;
   nextGenerating?: boolean;
   historyIndex?: number;
@@ -115,6 +123,11 @@ export default function LessonCoach({
   playMoves,
   onPlayMove,
   onPlayLine,
+  onPauseLine,
+  onStopLine,
+  onReplayLine,
+  showmePlayback = "idle",
+  showmePly = 0,
   playBusy,
   nextGenerating,
   historyIndex,
@@ -186,6 +199,11 @@ export default function LessonCoach({
     : [];
 
   const leftoverMoves = coach ? uncoveredMoveText(coach.what, playMoves) : "";
+  const playback = showmeControls(
+    showmePlayback,
+    showmePly,
+    coach?.moves?.length || 0
+  );
   const slideCount = lessonSlideCounter({
     step: coach?.step,
     totalSteps: coach?.totalSteps,
@@ -324,17 +342,52 @@ export default function LessonCoach({
                   </p>
                 );
               })}
-              {coach.phase === "showme" && onPlayLine && (
-                <button
-                  type="button"
-                  className="lesson-coach-play-line"
-                  dir="ltr"
-                  onClick={onPlayLine}
-                  disabled={playBusy}
-                  aria-label="Play the line"
-                >
-                  Play
-                </button>
+              {coach.phase === "showme" &&
+                (onPlayLine || onPauseLine || onStopLine || onReplayLine) && (
+                <div className="lesson-coach-playback" dir="ltr">
+                  {playback.primary === "play" && onPlayLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-play-line"
+                      onClick={onPlayLine}
+                      aria-label="Play the line"
+                    >
+                      Play
+                    </button>
+                  )}
+                  {playback.primary === "pause" && onPauseLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-play-line"
+                      onClick={onPauseLine}
+                      aria-label="Pause the line"
+                    >
+                      Pause
+                    </button>
+                  )}
+                  {onStopLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-playback-stop"
+                      onClick={onStopLine}
+                      disabled={!playback.stop}
+                      aria-label="Stop the line"
+                    >
+                      Stop
+                    </button>
+                  )}
+                  {onReplayLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-playback-replay"
+                      onClick={onReplayLine}
+                      disabled={!playback.replay}
+                      aria-label="Replay the line"
+                    >
+                      Replay
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </>

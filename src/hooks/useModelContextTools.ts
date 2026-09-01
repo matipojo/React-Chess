@@ -347,7 +347,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'list-lessons',
-        description: 'Lists famous games, piece tutorials, and saved catalog lessons. create-lesson type: lesson (Goal then add-lesson-step) or showme (one explanation, one Play button that runs the planned moves). Riddle: add-lesson-step type riddle. ' + COACH_NOTATION_RULE,
+        description: 'Lists famous games, piece tutorials, and saved catalog lessons. create-lesson type: lesson (Goal then add-lesson-step) or showme (one explanation; the line auto-plays with Pause, Stop, and Replay). Riddle: add-lesson-step type riddle. ' + COACH_NOTATION_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => ({
           success: true,
@@ -389,7 +389,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson and wipe the previous live session (board, coach, quiz, recap, history). Pass type as a built-in enum: lesson (default) or showme. type lesson = Goal screen only (lasting title + what we will learn), then add-lesson-step. type showme = one screen: one explanation plus one Play button that plays the planned moves in order. Do not call create-lesson again for the same topic. ' +
+          'Create a new catalog lesson and wipe the previous live session (board, coach, quiz, recap, history). Pass type as a built-in enum: lesson (default) or showme. type lesson = Goal screen only (lasting title + what we will learn), then add-lesson-step. type showme = one screen: one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Do not call create-lesson again for the same topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -398,7 +398,7 @@ export function useModelContextTools(actions: ChessActions) {
               type: 'string',
               enum: ['lesson', 'showme'],
               description:
-                'lesson = Goal then add-lesson-step. showme = one explanation and a Play button that runs moves in order. Pass this enum; do not infer it by matching chat wording.',
+                'lesson = Goal then add-lesson-step. showme = one explanation; the line auto-plays with Pause, Stop, and Replay. Pass this enum; do not infer it by matching chat wording.',
             },
             title: {
               type: 'string',
@@ -413,7 +413,7 @@ export function useModelContextTools(actions: ChessActions) {
             moves: {
               type: 'array',
               items: { type: 'string' },
-              description: 'Required for type showme. Planned line as from:to, e.g. ["e2:e4", "e7:e5"]. Play runs these in order.',
+              description: 'Required for type showme. Planned line as from:to, e.g. ["e2:e4", "e7:e5"]. The line auto-plays in this order.',
             },
             fen: {
               type: 'string',
@@ -732,7 +732,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'play-line',
-        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. For create-lesson type showme, the student taps the single Play button on the coach (do not call this tool to start that demo). Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
+        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. For create-lesson type showme, the line auto-plays; the student uses Pause, Stop, and Replay on the coach (do not call this tool to start that demo). Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
         inputSchema: {
           type: 'object',
           properties: {

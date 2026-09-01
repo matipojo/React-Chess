@@ -471,26 +471,51 @@
   background: #4a4a4a;
 }
 
-.lesson-coach-play-line {
+.lesson-coach-playback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.lesson-coach-play-line,
+.lesson-coach-playback-stop,
+.lesson-coach-playback-replay {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: 8px 0 4px;
-  padding: 10px 22px;
-  border: none;
+  padding: 10px 18px;
   border-radius: 8px;
-  background: var(--play, var(--accent));
-  color: #fff;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.lesson-coach-play-line {
+  border: none;
+  background: var(--play, var(--accent));
+  color: #fff;
 }
 
 .lesson-coach-play-line:hover:not(:disabled) {
   background: var(--accent-hover, var(--accent));
 }
 
-.lesson-coach-play-line:disabled {
+.lesson-coach-playback-stop,
+.lesson-coach-playback-replay {
+  border: 1px solid #555;
+  background: #3d3d3d;
+  color: #fff;
+}
+
+.lesson-coach-playback-stop:hover:not(:disabled),
+.lesson-coach-playback-replay:hover:not(:disabled) {
+  background: #4a4a4a;
+}
+
+.lesson-coach-play-line:disabled,
+.lesson-coach-playback-stop:disabled,
+.lesson-coach-playback-replay:disabled {
   opacity: 0.5;
   cursor: default;
 }

@@ -192,11 +192,16 @@ export default function Referee() {
     chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
   }, []);
 
+  const cancelMoveAnimation = useCallback(() => {
+    chessboardHandleRef.current?.cancelMoveAnimation();
+  }, []);
+
   const lessons = useChessLessons({
     boardRef,
     setBoard,
     playMoveSync,
     animateMove,
+    cancelMoveAnimation,
     hideCheckmate,
   });
 
@@ -373,7 +378,11 @@ export default function Referee() {
               peekSquares={peekSquares}
               arrows={[...lessons.arrows, ...peekArrows]}
               interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
-              locked={lessons.animating}
+              locked={
+                lessons.animating ||
+                lessons.showmePlayback === "playing" ||
+                lessons.showmePlayback === "paused"
+              }
               onSquareClick={lessons.onSquareClick}
             />
             <BoardUndoBar
@@ -417,6 +426,25 @@ export default function Referee() {
                     }
                   : undefined
               }
+              onPauseLine={
+                lessons.coach?.phase === "showme"
+                  ? () => lessons.pauseShowMeLine()
+                  : undefined
+              }
+              onStopLine={
+                lessons.coach?.phase === "showme"
+                  ? () => lessons.stopShowMeLine()
+                  : undefined
+              }
+              onReplayLine={
+                lessons.coach?.phase === "showme"
+                  ? () => {
+                      void lessons.replayShowMeLine();
+                    }
+                  : undefined
+              }
+              showmePlayback={lessons.showmePlayback}
+              showmePly={lessons.showmePly}
               playBusy={lessons.animating}
               historyIndex={lessons.historyIndex}
               historyLength={lessons.historyLength}

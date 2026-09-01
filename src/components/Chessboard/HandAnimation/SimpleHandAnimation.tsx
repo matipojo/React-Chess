@@ -14,6 +14,7 @@ interface SimpleHandAnimationProps {
 
 export interface SimpleHandAnimationRef {
   playMove: (from: Position, to: Position, team: 'w' | 'b') => void;
+  cancel: () => void;
   isAnimating: boolean;
 }
 
@@ -22,7 +23,45 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
     const [isAnimating, setIsAnimating] = useState(false);
     const handElementRef = useRef<HTMLDivElement | null>(null);
     const pieceCloneElementRef = useRef<HTMLDivElement | null>(null);
+    const originalPieceRef = useRef<HTMLElement | null>(null);
+    const timersRef = useRef<number[]>([]);
     const lastHandSquareRef = useRef<Position | null>(null);
+
+    const clearTimers = () => {
+      timersRef.current.forEach((id) => window.clearTimeout(id));
+      timersRef.current = [];
+    };
+
+    const schedule = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(() => {
+        timersRef.current = timersRef.current.filter((item) => item !== id);
+        fn();
+      }, ms);
+      timersRef.current.push(id);
+    };
+
+    const cleanupVisuals = () => {
+      const originalPiece = originalPieceRef.current;
+      if (originalPiece) {
+        originalPiece.style.visibility = "visible";
+      }
+      originalPieceRef.current = null;
+      if (pieceCloneElementRef.current?.parentNode) {
+        pieceCloneElementRef.current.remove();
+      }
+      if (handElementRef.current?.parentNode) {
+        handElementRef.current.remove();
+      }
+      pieceCloneElementRef.current = null;
+      handElementRef.current = null;
+    };
+
+    const cancel = () => {
+      clearTimers();
+      cleanupVisuals();
+      lastHandSquareRef.current = null;
+      setIsAnimating(false);
+    };
 
     const convertPositionToPixels = (position: Position) => {
       if (!chessboardRef.current) return { x: 0, y: 0 };
@@ -38,8 +77,12 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
       };
     };
 
-    const animateMove = (from: Position, to: Position, team: 'w' | 'b') => {
+    const animateMove = (from: Position, to: Position, _team: 'w' | 'b') => {
       if (!chessboardRef.current) return;
+
+      if (timersRef.current.length > 0 || handElementRef.current) {
+        cancel();
+      }
 
       const chessboard = chessboardRef.current;
       const tileIndex = (7 - from.y) * 8 + from.x;
@@ -54,9 +97,7 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
         return;
       }
 
-      const restoreOriginalPiece = () => {
-        originalPiece.style.visibility = 'visible';
-      };
+      originalPieceRef.current = originalPiece;
 
       try {
         const fromPixels = convertPositionToPixels(from);
@@ -116,12 +157,12 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
         setIsAnimating(true);
 
         // Phase 1: Hand moves from bottom left corner to piece position
-        setTimeout(() => {
+        schedule(() => {
           hand.style.left = `${fromPixels.x}px`;
           hand.style.top = `${fromPixels.y - 30}px`;
 
           // Phase 2: After hand reaches piece, both hand and piece move to destination
-          setTimeout(() => {
+          schedule(() => {
             // Hide original piece and show clone when hand reaches piece
             originalPiece.style.visibility = 'hidden';
             pieceClone.style.visibility = 'visible';
@@ -136,19 +177,11 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
             hand.style.top = `${toPixels.y - 30}px`;
 
             // Cleanup after piece movement is complete
-            setTimeout(() => {
-              restoreOriginalPiece();
+            schedule(() => {
+              originalPiece.style.visibility = 'visible';
+              originalPieceRef.current = null;
               lastHandSquareRef.current = to.clone();
-              
-              if (pieceClone.parentNode) {
-                pieceClone.remove();
-              }
-              if (hand.parentNode) {
-                hand.remove();
-              }
-              
-              handElementRef.current = null;
-              pieceCloneElementRef.current = null;
+              cleanupVisuals();
               setIsAnimating(false);
               
               if (onAnimationComplete) {
@@ -161,28 +194,21 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
       } catch (error) {
         // Ensure original piece is visible on error
         originalPiece.style.visibility = 'visible';
+        cleanupVisuals();
         setIsAnimating(false);
-        handElementRef.current = null;
-        pieceCloneElementRef.current = null;
       }
     };
 
     React.useImperativeHandle(ref, () => ({
       playMove: animateMove,
+      cancel,
       isAnimating,
     }));
 
     useEffect(() => {
       return () => {
-        if (handElementRef.current?.parentNode) {
-          handElementRef.current.remove();
-        }
-        if (pieceCloneElementRef.current?.parentNode) {
-          pieceCloneElementRef.current.remove();
-        }
-        
-        handElementRef.current = null;
-        pieceCloneElementRef.current = null;
+        clearTimers();
+        cleanupVisuals();
         setIsAnimating(false);
       };
     }, []);

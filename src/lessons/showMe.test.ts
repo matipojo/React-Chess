@@ -1,5 +1,10 @@
 import { parseLessonFormat } from "./lessonCopy";
-import { resolveShowMeLesson } from "./showMe";
+import {
+  resolveShowMeLesson,
+  showmeControls,
+  showmePrimaryAction,
+  showmeStopEnabled,
+} from "./showMe";
 
 describe("showme lesson type", () => {
   it("accepts only the create-lesson enum value showme", () => {
@@ -33,8 +38,34 @@ describe("showme lesson type", () => {
       })
     ).toEqual({
       ok: false,
-      message:
-        "A showme lesson needs moves (from:to) for the Play button to run in order.",
+      message: "A showme lesson needs moves (from:to) that auto-play on the board.",
+    });
+  });
+
+  it("offers pause while playing, play when paused, and replay after the line ends", () => {
+    expect(showmePrimaryAction("playing")).toBe("pause");
+    expect(showmePrimaryAction("paused")).toBe("play");
+    expect(showmeStopEnabled("playing")).toBe(true);
+    expect(showmeStopEnabled("idle")).toBe(false);
+    expect(showmeControls("playing", 2, 7)).toEqual({
+      primary: "pause",
+      stop: true,
+      replay: true,
+    });
+    expect(showmeControls("paused", 2, 7)).toEqual({
+      primary: "play",
+      stop: true,
+      replay: true,
+    });
+    expect(showmeControls("idle", 0, 7)).toEqual({
+      primary: "play",
+      stop: false,
+      replay: true,
+    });
+    expect(showmeControls("idle", 7, 7)).toEqual({
+      primary: null,
+      stop: false,
+      replay: true,
     });
   });
 });

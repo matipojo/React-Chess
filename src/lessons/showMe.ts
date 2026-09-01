@@ -19,6 +19,43 @@ export type ShowMeLessonResolved =
       fen?: string;
     };
 
+export type ShowMePlayback = "idle" | "playing" | "paused";
+
+export type ShowMeControls = {
+  primary: "play" | "pause" | null;
+  stop: boolean;
+  replay: boolean;
+};
+
+/** Primary coach button: pause while the line is running, otherwise play. */
+export function showmePrimaryAction(
+  playback: ShowMePlayback,
+): "play" | "pause" {
+  return playback === "playing" ? "pause" : "play";
+}
+
+export function showmeStopEnabled(playback: ShowMePlayback): boolean {
+  return playback !== "idle";
+}
+
+/** Which playback buttons the coach should offer. */
+export function showmeControls(
+  playback: ShowMePlayback,
+  ply: number,
+  total: number,
+): ShowMeControls {
+  if (playback === "playing") {
+    return { primary: "pause", stop: true, replay: true };
+  }
+  if (playback === "paused") {
+    return { primary: "play", stop: true, replay: true };
+  }
+  if (total > 0 && ply >= total) {
+    return { primary: null, stop: false, replay: true };
+  }
+  return { primary: "play", stop: false, replay: true };
+}
+
 /** Fields for create-lesson type=showme. The agent passes these; nothing is inferred from chat wording. */
 export function resolveShowMeLesson(args: ShowMeLessonArgs): ShowMeLessonResolved {
   const title = (args.title || "").trim();
@@ -34,7 +71,7 @@ export function resolveShowMeLesson(args: ShowMeLessonArgs): ShowMeLessonResolve
     return {
       ok: false,
       message:
-        "A showme lesson needs moves (from:to) for the Play button to run in order.",
+        "A showme lesson needs moves (from:to) that auto-play on the board.",
     };
   }
 

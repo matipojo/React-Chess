@@ -71,7 +71,7 @@ import {
   coachPlayMoves,
   resolveStepMoves,
 } from "../lessons/stepPlay";
-import { resolveShowMeLesson } from "../lessons/showMe";
+import { resolveShowMeLesson, ShowMePlayback } from "../lessons/showMe";
 import {
   canRedoExperiment,
   canUndoExperiment,
@@ -104,6 +104,7 @@ type Args = {
     team: "w" | "b",
     onComplete?: () => void
   ) => void;
+  cancelMoveAnimation?: () => void;
   hideCheckmate: () => void;
 };
 
@@ -118,6 +119,7 @@ export function useChessLessons({
   setBoard,
   playMoveSync,
   animateMove,
+  cancelMoveAnimation,
   hideCheckmate,
 }: Args) {
   const [learnMode, setLearnMode] = useState(true);
@@ -149,6 +151,19 @@ export function useChessLessons({
   const waitRef = useRef<WaitForUserState | null>(persistedWait);
   const lastQuizRef = useRef<QuizState | null>(persistedQuiz);
   const playChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const showmeGenRef = useRef(0);
+  const showmePlaybackRef = useRef<ShowMePlayback>("idle");
+  const showmePlyRef = useRef(0);
+  const showmePauseWaitRef = useRef<(() => void) | null>(null);
+  const showmeRunRef = useRef<Promise<unknown>>(Promise.resolve());
+  const playShowMeLineRef = useRef<(options?: { fromStart?: boolean }) => Promise<{
+    success: boolean;
+    message: string;
+    data: unknown;
+  }>>();
+  const animTokenRef = useRef(0);
+  const [showmePlayback, setShowmePlayback] = useState<ShowMePlayback>("idle");
+  const [showmePly, setShowmePly] = useState(0);
   const highlightsRef = useRef<BoardHighlight[]>([]);
   const arrowsRef = useRef<BoardArrow[]>([]);
   const coachRef = useRef<CoachState | null>(null);
@@ -688,6 +703,17 @@ export function useChessLessons({
       activeLessonNumberRef.current = null;
       lastQuizRef.current = null;
       coachRef.current = null;
+      showmeGenRef.current += 1;
+      animTokenRef.current += 1;
+      const resumeShowMe = showmePauseWaitRef.current;
+      showmePauseWaitRef.current = null;
+      resumeShowMe?.();
+      showmePlaybackRef.current = "idle";
+      setShowmePlayback("idle");
+      showmePlyRef.current = 0;
+      setShowmePly(0);
+      cancelMoveAnimation?.();
+      setAnimating(false);
       cancelQuiz();
       setWait(null);
       clearAnnotations();
@@ -699,7 +725,7 @@ export function useChessLessons({
         applyBoard(startingLearnBoard());
       }
     },
-    [applyBoard, cancelQuiz, clearAnnotations, discardParkedLesson, hideCheckmate, resetHistory, setWait]
+    [applyBoard, cancelMoveAnimation, cancelQuiz, clearAnnotations, discardParkedLesson, hideCheckmate, resetHistory, setWait]
   );
 
   const setCoach = useCallback((next: CoachState) => {
@@ -953,12 +979,13 @@ export function useChessLessons({
   );
 
   const animateThenPlay = useCallback(
-    (from: Position, to: Position) => {
+    (from: Position, to: Position, options?: { isCancelled?: () => boolean }) => {
       const piece = boardRef.current.pieces.find((p) => p.samePosition(from));
       if (!piece) {
         return Promise.resolve(false);
       }
       const team = piece.team as "w" | "b";
+      const token = ++animTokenRef.current;
       logLessonDebug("visual", "hand-animate", {
         from: coordinatesToNotation(from.x, from.y),
         to: coordinatesToNotation(to.x, to.y),
@@ -968,8 +995,19 @@ export function useChessLessons({
       setAnimating(true);
       return new Promise<boolean>((resolve) => {
         animateMove(from, to, team, () => {
+          const stale = animTokenRef.current !== token;
+          const cancelled = options?.isCancelled?.() === true;
+          if (stale || cancelled) {
+            if (animTokenRef.current === token) {
+              setAnimating(false);
+            }
+            resolve(false);
+            return;
+          }
           const success = playMoveSync(from, to);
-          setAnimating(false);
+          if (animTokenRef.current === token) {
+            setAnimating(false);
+          }
           resolve(success);
         });
       });
@@ -1179,18 +1217,20 @@ export function useChessLessons({
         title: args.title,
         moves: args.moves.length,
       });
-      return {
+      const result = {
         success: true,
-        message: `Created showme lesson ${lessonNumber}: ${args.title}. One explanation and one Play button. The student taps Play to run the planned moves in order. Next: how_to_ask_the_user.`,
+        message: `Created showme lesson ${lessonNumber}: ${args.title}. One explanation. The line auto-plays; Pause, Stop, and Replay are on the coach. Next: how_to_ask_the_user.`,
         lesson: lessonNumber,
         title: args.title,
         screen: "showme" as const,
       };
+      void playShowMeLineRef.current?.({ fromStart: true });
+      return result;
     },
     [applyBoard, persistLesson, pushSnapshot, wipeLearnSession]
   );
 
-  const playShowMeLine = useCallback(() => {
+  const playShowMeLine = useCallback((options?: { fromStart?: boolean }) => {
     const coach = coachRef.current;
     if (!coach || !isShowmePhase(coach.phase) || !coach.moves || !coach.moves.length) {
       return Promise.resolve({
@@ -1199,23 +1239,188 @@ export function useChessLessons({
         data: null as unknown,
       });
     }
-    if (coach.fromFen) {
+
+    if (!options?.fromStart && showmePlaybackRef.current === "paused") {
+      showmePlaybackRef.current = "playing";
+      setShowmePlayback("playing");
+      const resume = showmePauseWaitRef.current;
+      showmePauseWaitRef.current = null;
+      resume?.();
+      logLessonDebug("visual", "showme-resume", { lesson: coach.lesson, ply: showmePlyRef.current });
+      return Promise.resolve({
+        success: true,
+        message: "Resumed the line.",
+        data: { ply: showmePlyRef.current },
+      });
+    }
+
+    if (!options?.fromStart && showmePlaybackRef.current === "playing") {
+      return Promise.resolve({
+        success: true,
+        message: "Already playing.",
+        data: { ply: showmePlyRef.current },
+      });
+    }
+
+    const planned = coach.moves;
+    const startPly =
+      options?.fromStart || showmePlyRef.current >= planned.length
+        ? 0
+        : showmePlyRef.current;
+    const myGen = ++showmeGenRef.current;
+    animTokenRef.current += 1;
+    const resume = showmePauseWaitRef.current;
+    showmePauseWaitRef.current = null;
+    resume?.();
+    cancelMoveAnimation?.();
+
+    const rewind = () => {
+      const current = coachRef.current;
+      if (!current?.fromFen) {
+        return true;
+      }
+      try {
+        applyBoard(boardFromFen(current.fromFen, true));
+        return true;
+      } catch (error) {
+        return `${error}`;
+      }
+    };
+
+    const previous = showmeRunRef.current;
+    const run = (async () => {
+      await previous;
+      if (showmeGenRef.current !== myGen) {
+        return {
+          success: false,
+          message: "Replaced by a newer playback.",
+          data: null as unknown,
+        };
+      }
+      if (startPly === 0) {
+        const rewound = rewind();
+        if (rewound !== true) {
+          showmePlaybackRef.current = "idle";
+          setShowmePlayback("idle");
+          return {
+            success: false,
+            message: rewound,
+            data: null as unknown,
+          };
+        }
+      }
+      showmePlyRef.current = startPly;
+      setShowmePly(startPly);
+      showmePlaybackRef.current = "playing";
+      setShowmePlayback("playing");
+      logLessonDebug("visual", "play-showme-line", {
+        lesson: coach.lesson,
+        moves: planned.length,
+        fromPly: startPly,
+      });
+
+      const moves = coachRef.current?.moves || planned;
+      for (let i = startPly; i < moves.length; i++) {
+        while (
+          showmePlaybackRef.current === "paused" &&
+          showmeGenRef.current === myGen
+        ) {
+          await new Promise<void>((resolve) => {
+            showmePauseWaitRef.current = resolve;
+          });
+        }
+        if (showmeGenRef.current !== myGen) {
+          return {
+            success: false,
+            message: "Stopped.",
+            data: { ply: showmePlyRef.current },
+          };
+        }
+
+        const parsed = parseMoveNotation(moves[i]);
+        const fromCoords = chessNotationToCoordinates(parsed.from);
+        const toCoords = chessNotationToCoordinates(parsed.to);
+        const from = new Position(fromCoords.x, fromCoords.y);
+        const to = new Position(toCoords.x, toCoords.y);
+        const ok = await animateThenPlay(from, to, {
+          isCancelled: () => showmeGenRef.current !== myGen,
+        });
+        if (showmeGenRef.current !== myGen) {
+          return {
+            success: false,
+            message: "Stopped.",
+            data: { ply: showmePlyRef.current },
+          };
+        }
+        if (!ok) {
+          showmePlaybackRef.current = "idle";
+          setShowmePlayback("idle");
+          return {
+            success: false,
+            message: `Stopped at ${moves[i]}`,
+            data: { ply: i },
+          };
+        }
+        showmePlyRef.current = i + 1;
+        setShowmePly(i + 1);
+        clearAnnotations();
+      }
+
+      if (showmeGenRef.current === myGen) {
+        showmePlaybackRef.current = "idle";
+        setShowmePlayback("idle");
+      }
+      return {
+        success: true,
+        message: `Played ${moves.length} move(s)`,
+        data: { played: moves.length },
+      };
+    })();
+
+    showmeRunRef.current = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  }, [animateThenPlay, applyBoard, cancelMoveAnimation, clearAnnotations]);
+
+  playShowMeLineRef.current = playShowMeLine;
+
+  const pauseShowMeLine = useCallback(() => {
+    if (showmePlaybackRef.current !== "playing") {
+      return;
+    }
+    showmePlaybackRef.current = "paused";
+    setShowmePlayback("paused");
+    logLessonDebug("visual", "showme-pause", { ply: showmePlyRef.current });
+  }, []);
+
+  const stopShowMeLine = useCallback(() => {
+    showmeGenRef.current += 1;
+    animTokenRef.current += 1;
+    const resume = showmePauseWaitRef.current;
+    showmePauseWaitRef.current = null;
+    resume?.();
+    showmePlaybackRef.current = "idle";
+    setShowmePlayback("idle");
+    showmePlyRef.current = 0;
+    setShowmePly(0);
+    cancelMoveAnimation?.();
+    setAnimating(false);
+    const coach = coachRef.current;
+    if (coach?.fromFen) {
       try {
         applyBoard(boardFromFen(coach.fromFen, true));
-      } catch (error) {
-        return Promise.resolve({
-          success: false,
-          message: `${error}`,
-          data: null as unknown,
-        });
+      } catch {
+        // keep the current board if the saved FEN cannot be parsed
       }
     }
-    logLessonDebug("visual", "play-showme-line", {
-      lesson: coach.lesson,
-      moves: coach.moves.length,
-    });
-    return playLine(coach.moves);
-  }, [applyBoard, playLine]);
+    logLessonDebug("visual", "showme-stop", { lesson: coach?.lesson });
+  }, [applyBoard, cancelMoveAnimation]);
+
+  const replayShowMeLine = useCallback(() => {
+    return playShowMeLine({ fromStart: true });
+  }, [playShowMeLine]);
 
   const demonstratePiece = useCallback(
     (pieceName: string, square?: string, color?: string) => {
@@ -2038,7 +2243,7 @@ export function useChessLessons({
         lesson:
           "create-lesson type lesson (default) — Goal, then add-lesson-step Why/Move beats.",
         showme:
-          "create-lesson type showme — one explanation and one Play button that runs the planned moves in order.",
+          "create-lesson type showme — one explanation; the planned line auto-plays with Pause, Stop, and Replay on the coach.",
         riddle: "add-lesson-step type riddle — a puzzle on a catalog lesson.",
       },
     };
@@ -2066,6 +2271,8 @@ export function useChessLessons({
     quizSecondsLeft,
     wait,
     animating,
+    showmePlayback,
+    showmePly,
     historyIndex,
     historyLength,
     userLessons,
@@ -2084,6 +2291,9 @@ export function useChessLessons({
     gotoMove,
     playLine,
     playShowMeLine,
+    pauseShowMeLine,
+    stopShowMeLine,
+    replayShowMeLine,
     demonstratePiece,
     askQuiz,
     waitForUser,
