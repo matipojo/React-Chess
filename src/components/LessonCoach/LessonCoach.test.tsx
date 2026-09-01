@@ -12,10 +12,10 @@ describe("LessonCoach", () => {
       )
     ).toBeTruthy();
     expect(
-      getByText(/it can also quiz you on any topic you have already covered/)
+      getByText(/Ask it to show you a line and it plays the moves live/)
     ).toBeTruthy();
-    expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
-    expect(getByRole("button", { name: "show Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "teach me the Italian" })).toBeTruthy();
     expect(getByRole("button", { name: "quiz me on forks" })).toBeTruthy();
   });
 
@@ -28,8 +28,8 @@ describe("LessonCoach", () => {
     try {
       const { getByRole } = render(<LessonCoach coach={null} />);
       expect(
-        getByRole("link", { name: "how does a knight move?" }).getAttribute("href")
-      ).toBe("codex://new?prompt=how%20does%20a%20knight%20move%3F");
+        getByRole("link", { name: "show me Scholar's Mate" }).getAttribute("href")
+      ).toBe("codex://new?prompt=show%20me%20Scholar's%20Mate");
     } finally {
       Object.defineProperty(navigator, "userAgent", {
         configurable: true,
@@ -178,6 +178,29 @@ describe("LessonCoach", () => {
     expect(getByText("Riddle")).toBeTruthy();
     expect(queryByText("Step")).toBeNull();
     expect(getByText("Click the fork square.")).toBeTruthy();
+    expect(queryByRole("button", { name: "Back" })).toBeNull();
+    expect(queryByRole("button", { name: "Next" })).toBeNull();
+  });
+
+  it("labels a show-me demo and keeps one explanation without Why/Move or nav", () => {
+    const { getByText, queryByText, queryByRole } = render(
+      <LessonCoach
+        coach={{
+          lessonTitle: "Scholar's Mate",
+          title: "Scholar's Mate",
+          body: "Watch the queen and bishop crash through on f7.",
+          paragraphs: ["Watch the queen and bishop crash through on f7."],
+          phase: "showme",
+          lesson: 4,
+        }}
+      />
+    );
+    expect(getByText("Show me")).toBeTruthy();
+    expect(queryByText("Step")).toBeNull();
+    expect(queryByText("Goal")).toBeNull();
+    expect(queryByText("Why")).toBeNull();
+    expect(queryByText("Move")).toBeNull();
+    expect(getByText("Watch the queen and bishop crash through on f7.")).toBeTruthy();
     expect(queryByRole("button", { name: "Back" })).toBeNull();
     expect(queryByRole("button", { name: "Next" })).toBeNull();
   });

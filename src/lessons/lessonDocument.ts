@@ -1,5 +1,11 @@
 import { boardToFen, startingLearnBoard } from "../utils/board-setup";
-import { coachFromSavedStep, coachFromSummary, teachingSteps } from "./lessonCopy";
+import {
+  coachFromSavedStep,
+  coachFromShowme,
+  coachFromSummary,
+  isShowmeLesson,
+  teachingSteps,
+} from "./lessonCopy";
 import { fenAfterMoves, resolveStepMoves, shouldApplySavedStepFen } from "./stepPlay";
 import {
   BoardArrow,
@@ -107,7 +113,11 @@ function hasGoalCopy(item: SavedLesson): boolean {
 export function lastTeachingSlideIndex(slides: LessonSessionSlide[]): number {
   let last = 0;
   slides.forEach((slide, index) => {
-    if (slide.coach?.phase === "step" || slide.coach?.phase === "riddle") {
+    if (
+      slide.coach?.phase === "step" ||
+      slide.coach?.phase === "riddle" ||
+      slide.coach?.phase === "showme"
+    ) {
       last = index;
     }
   });
@@ -118,6 +128,24 @@ export function projectLessonSession(
   item: SavedLesson,
   startingFen = boardToFen(startingLearnBoard())
 ): LessonSessionSlide[] {
+  if (isShowmeLesson(item)) {
+    return [
+      {
+        fen: item.fen || startingFen,
+        coach: coachFromShowme({
+          title: item.title,
+          body: item.body,
+          paragraphs: item.paragraphs,
+          lesson: item.number,
+        }),
+        highlights: cloneMarks(item.highlights) || [],
+        arrows: cloneArrows(item.arrows) || [],
+        quiz: null,
+        ply: 0,
+      },
+    ];
+  }
+
   const steps = item.steps && item.steps.length ? item.steps.map(contentStep) : [];
   const teaching = teachingSteps(steps);
   const startFen = (teaching[0] && teaching[0].fen) || item.fen || startingFen;

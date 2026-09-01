@@ -159,9 +159,9 @@ export default function LessonCoach({
             )}
           </div>
           <p>
-            Everything you learn here is created in the chat. Tell the agent
-            what you want to study, and it builds a lesson with steps that match
-            your request.
+            Everything you learn here is created in the chat. Ask the agent
+            to teach you a topic and it builds a lesson with steps. Ask it to
+            show you a line and it plays the moves live with one explanation.
           </p>
           <p>
             When you are ready, it can also quiz you on any topic you have
@@ -225,7 +225,7 @@ export default function LessonCoach({
         <div className="lesson-coach-heading">
           <div className="lesson-coach-heading-text">
             <p className="lesson-coach-kicker">Learn</p>
-            {coach?.lessonTitle && coach.phase !== "goal" && (
+            {coach?.lessonTitle && coach.phase !== "goal" && coach.phase !== "showme" && (
               <p className="lesson-coach-topic">
                 <ChessLinkedText
                   text={coach.lessonTitle}
@@ -268,11 +268,14 @@ export default function LessonCoach({
             {coach.phase === "riddle" && (
               <p className="lesson-coach-recap-label">Riddle</p>
             )}
+            {coach.phase === "showme" && (
+              <p className="lesson-coach-recap-label">Show me</p>
+            )}
             {coach.phase === "recap" && (
               <p className="lesson-coach-recap-label">Recap</p>
             )}
             <div className="lesson-coach-body">
-              {coach.why && (
+              {coach.phase !== "showme" && coach.why && (
                 <p className="lesson-coach-why">
                   <span className="lesson-coach-field-label">Why</span>
                   <ChessLinkedText
@@ -282,7 +285,7 @@ export default function LessonCoach({
                   />
                 </p>
               )}
-              {(coach.what || leftoverMoves) && (
+              {coach.phase !== "showme" && (coach.what || leftoverMoves) && (
                 <p className="lesson-coach-what">
                   <span className="lesson-coach-field-label">Move</span>
                   {coach.what && (

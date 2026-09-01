@@ -46,6 +46,34 @@ export function isRecapPhase(phase?: CoachState["phase"] | "summary"): boolean {
   return phase === "recap" || phase === "summary";
 }
 
+export function isShowmePhase(phase?: CoachState["phase"]): boolean {
+  return phase === "showme";
+}
+
+export function isShowmeLesson(item: { kind?: string }): boolean {
+  return item.kind === "showme";
+}
+
+export function coachFromShowme(args: {
+  title: string;
+  body?: string;
+  paragraphs?: string[];
+  lesson?: number;
+}): CoachState {
+  const copy = normalizeCoachCopy({
+    body: args.body || "",
+    paragraphs: args.paragraphs || [],
+  });
+  return {
+    title: args.title.trim(),
+    lessonTitle: args.title.trim(),
+    body: copy.body,
+    paragraphs: copy.paragraphs,
+    lesson: args.lesson,
+    phase: "showme",
+  };
+}
+
 export function isTeachingStep(step: SavedLessonStep): boolean {
   return step.kind !== "recap" && step.kind !== "summary";
 }
@@ -68,7 +96,11 @@ export function shouldShowLessonNav(input: {
   expectsRecap: boolean;
   generatingNext: boolean;
   hasLineMoves: boolean;
+  isShowme?: boolean;
 }): boolean {
+  if (input.isShowme) {
+    return false;
+  }
   return input.generatingNext || input.expectsRecap || input.hasLineMoves;
 }
 

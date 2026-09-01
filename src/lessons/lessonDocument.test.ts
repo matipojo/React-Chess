@@ -116,4 +116,26 @@ describe("lesson document vs session", () => {
     expect(slides[1].coach?.what).toBeUndefined();
     expect(lastTeachingSlideIndex(slides)).toBe(1);
   });
+
+  it("projects a show-me lesson as a single slide, not Goal/Step/Recap", () => {
+    const start = boardToFen(startingLearnBoard());
+    const lesson: SavedLesson = {
+      id: "custom:lesson-4",
+      kind: "showme",
+      title: "Scholar's Mate",
+      body: "Watch the queen and bishop crash through on f7.",
+      paragraphs: ["Watch the queen and bishop crash through on f7."],
+      savedAt: 1,
+      number: 4,
+      moves: ["e2:e4", "e7:e5", "d1:h5"],
+      fen: start,
+      steps: [],
+    };
+    const slides = projectLessonSession(lesson, start);
+    expect(slides).toHaveLength(1);
+    expect(slides[0].coach?.phase).toBe("showme");
+    expect(slides[0].coach?.what).toBeUndefined();
+    expect(slides[0].coach?.why).toBeUndefined();
+    expect(lastTeachingSlideIndex(slides)).toBe(0);
+  });
 });

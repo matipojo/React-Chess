@@ -238,6 +238,7 @@ export default function Referee() {
     const params = new URLSearchParams(window.location.search);
     const piece = params.get("piece");
     const game = params.get("game");
+    const showme = params.get("showme");
     lessons.enterLearnMode();
     if (piece) {
       try {
@@ -245,6 +246,8 @@ export default function Referee() {
       } catch {
         // ignore invalid demo links
       }
+    } else if (showme) {
+      void lessons.showMe({ game: showme });
     } else if (game) {
       lessons.loadGame(game);
     }
@@ -287,6 +290,7 @@ export default function Referee() {
     expectsRecap: lessons.expectsRecap,
     generatingNext,
     hasLineMoves: Boolean(loaded && loaded.moves.length > 0),
+    isShowme: lessons.coach?.phase === "showme",
   });
   const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
   const canFirst = canBack;

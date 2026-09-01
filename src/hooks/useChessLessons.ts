@@ -22,7 +22,7 @@ import {
   WaitForUserResult,
   WaitForUserState,
 } from "../lessons/types";
-import { createCatalogLesson, findUserLesson, findUserLessonByNumber, lessonSteps, nextLessonNumber, readUserCatalog, removeUserLesson, setLessonRecap, upsertLessonStep, upsertUserLesson } from "../lessons/userCatalog";
+import { createCatalogLesson, customLessonId, findUserLesson, findUserLessonByNumber, lessonSteps, nextLessonNumber, readUserCatalog, removeUserLesson, setLessonRecap, upsertLessonStep, upsertUserLesson } from "../lessons/userCatalog";
 import {
   boardFromFen,
   boardFromPlacements,
@@ -54,8 +54,11 @@ import {
 import { continueWaitChoice, WAIT_TIMEOUT_MS } from "../lessons/waitForUser";
 import {
   coachFromDraft,
+  coachFromShowme,
   coachFromSummary,
   isRecapPhase,
+  isShowmeLesson,
+  isShowmePhase,
   lessonExpectsRecap,
   LessonStepDraft,
   LessonSummaryDraft,
@@ -67,6 +70,7 @@ import {
   coachPlayMoves,
   resolveStepMoves,
 } from "../lessons/stepPlay";
+import { resolveShowMeRequest } from "../lessons/showMe";
 import {
   canRedoExperiment,
   canUndoExperiment,
@@ -276,7 +280,7 @@ export function useChessLessons({
         step: options?.step || currentStepPayload(),
         stepNumber: options?.stepNumber,
         patch: options?.patch,
-        kind: "custom",
+        kind: existing?.kind === "showme" ? "showme" : "custom",
         lessonTitle: options?.lessonTitle || coach?.lessonTitle || existing?.title,
         moves: extras.moves,
         notes: extras.notes,
@@ -1109,6 +1113,99 @@ export function useChessLessons({
     [animateThenPlay, boardRef, clearAnnotations, enterLearnMode, ensureStartingSnapshot, pushSnapshot, updateCurrentSnapshot]
   );
 
+  const showMe = useCallback(
+    async (args: {
+      title?: string;
+      paragraphs?: string[];
+      body?: string;
+      moves?: string[];
+      fen?: string;
+      game?: string;
+      lesson?: number;
+    }) => {
+      const resolved = resolveShowMeRequest(args);
+      if (!resolved.ok) {
+        return {
+          success: false,
+          message: resolved.message,
+          lesson: 0,
+          title: "",
+          kind: "showme" as const,
+          data: null as unknown,
+        };
+      }
+
+      wipeLearnSession();
+      if (resolved.fen) {
+        try {
+          applyBoard(boardFromFen(resolved.fen, true));
+        } catch (error) {
+          return {
+            success: false,
+            message: `${error}`,
+            lesson: 0,
+            title: resolved.title,
+            kind: "showme" as const,
+            data: null as unknown,
+          };
+        }
+      }
+
+      const existing =
+        typeof args.lesson === "number" ? findUserLessonByNumber(args.lesson) : undefined;
+      const created =
+        existing && isShowmeLesson(existing)
+          ? existing
+          : createCatalogLesson({
+              title: resolved.title,
+              body: resolved.body,
+              paragraphs: resolved.paragraphs,
+              kind: "showme",
+            });
+      const lessonNumber = created.number as number;
+      activeLessonNumberRef.current = lessonNumber;
+      const fromFen = boardToFen(boardRef.current);
+      const coach = coachFromShowme({
+        title: resolved.title,
+        body: resolved.body,
+        paragraphs: resolved.paragraphs,
+        lesson: lessonNumber,
+      });
+      coachRef.current = coach;
+      setCoachState(coach);
+      persistLesson({
+        id: customLessonId(lessonNumber),
+        kind: "showme",
+        title: resolved.title,
+        body: resolved.body,
+        paragraphs: resolved.paragraphs,
+        number: lessonNumber,
+        moves: resolved.moves,
+        fen: fromFen,
+        gameId: resolved.gameId,
+        steps: [],
+      });
+      pushSnapshot();
+      logLessonDebug("visual", "show-me", {
+        lesson: lessonNumber,
+        title: resolved.title,
+        moves: resolved.moves.length,
+      });
+      const played = await playLine(resolved.moves);
+      return {
+        success: played.success,
+        message: played.success
+          ? `Showed ${resolved.title} in one screen. The student watched the line play live. Not a stepped lesson. Next: how_to_ask_the_user.`
+          : played.message,
+        lesson: lessonNumber,
+        title: resolved.title,
+        kind: "showme" as const,
+        data: played.data,
+      };
+    },
+    [applyBoard, persistLesson, playLine, pushSnapshot, wipeLearnSession]
+  );
+
   const demonstratePiece = useCallback(
     (pieceName: string, square?: string, color?: string) => {
       wipeLearnSession({ resetBoard: false });
@@ -1230,6 +1327,17 @@ export function useChessLessons({
         };
       }
       resolveWait({ action: item.id, source: "catalog", label: item.title });
+      if (isShowmeLesson(item)) {
+        return showMe({
+          title: item.title,
+          body: item.body,
+          paragraphs: item.paragraphs,
+          moves: item.moves || [],
+          fen: item.fen,
+          lesson: item.number,
+          game: item.gameId,
+        });
+      }
       restoringRef.current = true;
       try {
         if (item.kind === "game") {
@@ -1250,7 +1358,7 @@ export function useChessLessons({
         restoringRef.current = false;
       }
     },
-    [applyFamousGame, demonstratePiece, resolveWait, restoreCustomLesson]
+    [applyFamousGame, demonstratePiece, resolveWait, restoreCustomLesson, showMe]
   );
 
   const loadGame = useCallback(
@@ -1614,6 +1722,12 @@ export function useChessLessons({
       if (!existing) {
         return failed(`No lesson ${lessonNumber}. Call create-lesson first.`, lessonNumber);
       }
+      if (isShowmeLesson(existing)) {
+        return failed(
+          `Lesson ${lessonNumber} is a show-me demo (one explanation, live play). For a stepped lesson, call create-lesson.`,
+          lessonNumber
+        );
+      }
       if (activeLessonNumberRef.current !== lessonNumber) {
         restoreCustomLesson(existing);
       }
@@ -1733,6 +1847,13 @@ export function useChessLessons({
           lesson: lessonNumber,
         };
       }
+      if (isShowmeLesson(existing)) {
+        return {
+          success: false,
+          message: `Lesson ${lessonNumber} is a show-me demo. There is no recap. Call how_to_ask_the_user.`,
+          lesson: lessonNumber,
+        };
+      }
       if (!args.paragraphs.length) {
         return {
           success: false,
@@ -1830,7 +1951,7 @@ export function useChessLessons({
 
   const playCoachMove = useCallback(async (notation: string) => {
     const coach = coachRef.current;
-    if (!coach || isRecapPhase(coach.phase)) {
+    if (!coach || isRecapPhase(coach.phase) || isShowmePhase(coach.phase) || coach.phase === "riddle") {
       return { success: false, message: "No move to play on this screen." };
     }
     const moves = resolveStepMoves(coach.what, coach.moves);
@@ -1877,6 +1998,13 @@ export function useChessLessons({
         "click-piece — user clicks a piece",
       ],
       notation: COACH_NOTATION_RULE,
+      learningTypes: {
+        showme:
+          'show-me — one explanation, live hand playback. Use when they asked to show me / show me how.',
+        lesson:
+          "create-lesson then add-lesson-step — teach me: Goal, Why/Move steps, Recap.",
+        riddle: "add-lesson-step type riddle — a puzzle on a catalog lesson.",
+      },
     };
   }, [userLessons]);
 
@@ -1919,6 +2047,7 @@ export function useChessLessons({
     loadGame,
     gotoMove,
     playLine,
+    showMe,
     demonstratePiece,
     askQuiz,
     waitForUser,
@@ -1942,7 +2071,10 @@ export function useChessLessons({
     stepLast,
     playCoachMove,
     coachPlayMoves:
-      coach && !isRecapPhase(coach.phase)
+      coach &&
+      !isRecapPhase(coach.phase) &&
+      !isShowmePhase(coach.phase) &&
+      coach.phase !== "riddle"
         ? coachPlayMoves({
             board: boardRef.current,
             moves: resolveStepMoves(coach.what, coach.moves),

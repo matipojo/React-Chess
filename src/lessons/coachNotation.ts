@@ -5,3 +5,7 @@ export const COACH_NOTATION_RULE =
 /** Shared WebMCP instruction: ask the student in the host chat, not on the page. */
 export const WAIT_TURN_RULE =
   'After anything the student should see on the board (coach text, a played line, a demo), call how_to_ask_the_user with no arguments, then follow the returned instructions: render clickable buttons in this chat with your visualization UI. Do not use a numbered list. Do not put the question on the webpage. For a puzzle or exam, call how_to_offer_a_hint, then add-lesson-step with type riddle (question + correct squares). The riddle prompt must not spoil how to solve; the student taps Give me a hint in this chat if they want a nudge.';
+
+/** Shared WebMCP instruction: "show me" is a live demo, "teach me" is a stepped lesson. */
+export const SHOWME_ROUTING =
+  'Pick the learning type from how they asked. "Show me" / "show me how" / "תראה לי" / "תראה לי איך": call show-me — one coach explanation, then the hand plays the whole line live. Not a Goal/Step/Riddle/Recap lesson; no Play buttons; no Back/Next. "Teach me" / "תלמד אותי": call create-lesson then add-lesson-step (Why then Move on each beat; student taps Play). Do not mix show-me with create-lesson on the same ask.';
