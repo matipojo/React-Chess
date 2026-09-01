@@ -59,3 +59,14 @@ export function SkipEndIcon() {
     </svg>
   );
 }
+
+export function CopiedCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M9.2 16.2 5.8 12.8l-1.4 1.4 4.8 4.8 10-10-1.4-1.4z"
+      />
+    </svg>
+  );
+}

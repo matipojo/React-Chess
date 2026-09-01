@@ -1,5 +1,6 @@
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import LessonCoach from "./LessonCoach";
+import { COPIED_PROMPT_TIP } from "../../utils/codexPrompt";
 import { mockUserAgent, mockWindowOpen } from "./lessonCoachTestUtils";
 
 describe("LessonCoach empty state", () => {
@@ -63,6 +64,25 @@ describe("LessonCoach empty state", () => {
         getByRole("button", { name: "show me Scholar's Mate" })
       ).toBeTruthy();
       expect(queryByRole("link", { name: "show me Scholar's Mate" })).toBeNull();
+    } finally {
+      restore();
+    }
+  });
+
+  it("shows a copied mark and paste tooltip after copying a prompt", async () => {
+    const restore = mockUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+    );
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    try {
+      const { getByRole, getByText } = render(<LessonCoach coach={null} />);
+      getByRole("button", { name: "show me Scholar's Mate" }).click();
+      await waitFor(() => {
+        expect(writeText).toHaveBeenCalledWith("show me Scholar's Mate");
+        expect(getByText(COPIED_PROMPT_TIP)).toBeTruthy();
+      });
+      expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
     } finally {
       restore();
     }

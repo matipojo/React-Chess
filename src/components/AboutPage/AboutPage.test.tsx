@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import AboutPage from "./AboutPage";
 import { BoardThemeProvider } from "../../hooks/useBoardTheme";
-import { CODEX_UNAVAILABLE_MESSAGE } from "../../utils/codexPrompt";
+import { CODEX_UNAVAILABLE_MESSAGE, COPIED_PROMPT_TIP } from "../../utils/codexPrompt";
 
 function renderAbout() {
   return render(
@@ -45,6 +45,10 @@ describe("AboutPage", () => {
       await waitFor(() => {
         expect(writeText).toHaveBeenCalledWith("teach me the Italian Game");
       });
+      expect(getByRole("button", { name: "teach me the Italian Game" })).toBeTruthy();
+      expect(getAllByRole("status").some((node) => node.textContent === COPIED_PROMPT_TIP)).toBe(
+        true
+      );
       expect(getAllByRole("status").some((node) => node.textContent === CODEX_UNAVAILABLE_MESSAGE)).toBe(
         true
       );

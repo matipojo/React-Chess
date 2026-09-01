@@ -12,10 +12,12 @@ import { useHomePageTools } from "../../hooks/useHomePageTools";
 import {
   buildCodexPromptHref,
   CODEX_UNAVAILABLE_MESSAGE,
+  COPIED_PROMPT_TIP,
   isCodexHost,
   openCodexPrompt,
   sharePromptWithHost,
 } from "../../utils/codexPrompt";
+import { CopiedCheckIcon } from "../LessonCoach/LessonCoachIcons";
 import "../LessonCoach/LessonCoach.css";
 import "../../board-themes.css";
 import "./AboutPage.css";
@@ -155,25 +157,45 @@ function ExamplePrompts() {
               {prompt}
             </a>
           ) : (
-            <button
-              key={prompt}
-              type="button"
-              className="about-example"
-              onClick={async () => {
-                const result = await shareLessonPrompt(prompt);
-                if (result !== "copied") {
-                  return;
+            <span key={prompt} className="about-example-wrap">
+              <button
+                type="button"
+                className={
+                  copiedId === prompt ? "about-example is-copied" : "about-example"
                 }
-                setCopiedId(prompt);
-                setStatus(CODEX_UNAVAILABLE_MESSAGE);
-                window.setTimeout(() => {
-                  setCopiedId("");
-                  setStatus("");
-                }, 2500);
-              }}
-            >
-              {copiedId === prompt ? "Copied" : prompt}
-            </button>
+                aria-describedby={
+                  copiedId === prompt ? "about-copied-tip" : undefined
+                }
+                onClick={async () => {
+                  const result = await shareLessonPrompt(prompt);
+                  if (result !== "copied") {
+                    return;
+                  }
+                  setCopiedId(prompt);
+                  setStatus(CODEX_UNAVAILABLE_MESSAGE);
+                  window.setTimeout(() => {
+                    setCopiedId("");
+                    setStatus("");
+                  }, 5500);
+                }}
+              >
+                {prompt}
+              </button>
+              {copiedId === prompt ? (
+                <>
+                  <span className="about-example-mark" aria-hidden="true">
+                    <CopiedCheckIcon />
+                  </span>
+                  <span
+                    id="about-copied-tip"
+                    className="about-example-tip"
+                    role="status"
+                  >
+                    {COPIED_PROMPT_TIP}
+                  </span>
+                </>
+              ) : null}
+            </span>
           )
         )}
       </div>
