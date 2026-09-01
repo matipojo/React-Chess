@@ -1,8 +1,9 @@
 import { Board } from "../models/Board";
 import { Position } from "../models/Position";
+import { TeamType } from "../Types";
 import { tokenizeChessText } from "../utils/chess-text-links";
 import { boardFromFen, boardToFen } from "../utils/board-setup";
-import { chessNotationToCoordinates, parseMoveNotation } from "../utils/chess-notation-utils";
+import { chessNotationToCoordinates, parseMoveOrCastle } from "../utils/chess-notation-utils";
 
 export type MovePlayStatus = "ready" | "done" | "blocked";
 
@@ -33,6 +34,13 @@ export function fromToNotation(
   squares: string[],
   dest?: string
 ): string | null {
+  const castleToken = raw.replace(/\s/g, "").replace(/^\d+\.{1,3}/, "");
+  if (/^(O-O-O|0-0-0)/i.test(castleToken)) {
+    return "O-O-O";
+  }
+  if (/^(O-O|0-0)/i.test(castleToken)) {
+    return "O-O";
+  }
   if (dest && squares.length >= 2 && /^[a-h][1-8]$/.test(squares[0]) && squares[0] !== dest) {
     return `${squares[0]}:${dest}`;
   }
@@ -48,7 +56,7 @@ export function applyMovesToBoard(board: Board, moves: string[]): boolean {
   for (let i = 0; i < moves.length; i++) {
     let parsed: { from: string; to: string };
     try {
-      parsed = parseMoveNotation(moves[i]);
+      parsed = parseMoveOrCastle(moves[i], board.currentTeam);
     } catch {
       return false;
     }
@@ -145,7 +153,7 @@ export function coachPlayMoves(args: {
   return unique.map((notation, index) => {
     let parsed: { from: string; to: string };
     try {
-      parsed = parseMoveNotation(notation);
+      parsed = parseMoveOrCastle(notation, args.board.currentTeam);
     } catch {
       return { notation, status: "blocked" as MovePlayStatus };
     }
@@ -164,7 +172,7 @@ export function coachPlayMoves(args: {
 
     const previousDone = unique.slice(0, index).every((prior) => {
       try {
-        const priorParsed = parseMoveNotation(prior);
+        const priorParsed = parseMoveOrCastle(prior, args.board.currentTeam);
         return !squareOccupied(args.board, priorParsed.from);
       } catch {
         return false;
@@ -201,7 +209,8 @@ export function matchPlayMove(
   }
   const hits = playMoves.filter((item) => {
     try {
-      return parseMoveNotation(item.notation).to === dest;
+      return parseMoveOrCastle(item.notation, TeamType.OUR).to === dest
+        || parseMoveOrCastle(item.notation, TeamType.OPPONENT).to === dest;
     } catch {
       return false;
     }

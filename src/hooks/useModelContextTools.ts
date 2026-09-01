@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Board } from '../models/Board';
 import { Piece } from '../models/Piece';
 import { Position } from '../models/Position';
-import { PieceType } from '../Types';
-import { chessNotationToCoordinates, parseMoveNotation } from '../utils/chess-notation-utils';
+import { PieceType, TeamType } from '../Types';
+import { chessNotationToCoordinates, parseMoveOrCastle } from '../utils/chess-notation-utils';
 import { getModelContext } from '../model-context-types';
 import { normalizeCoachCopy, splitCoachParagraphs } from '../lessons/coachParagraphs';
 import { logLessonDebug } from '../lessons/debugLog';
@@ -192,13 +192,13 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'make-move',
-        description: 'Makes a chess move. Provide the move as "from:to" (e.g., "e2:e4"). In learn mode, either side may move. Animates with the hand.',
+        description: 'Makes a chess move. Provide the move as "from:to" (e.g., "e2:e4"). Castling: "e1:g1", "e1:h1", or "O-O". In learn mode, either side may move. Animates with the hand.',
         inputSchema: {
           type: 'object',
           properties: {
             move: {
               type: 'string',
-              description: 'Move in format "from:to" (e.g., "e2:e4")',
+              description: 'Move in format "from:to" (e.g., "e2:e4"), or O-O / O-O-O to castle',
               default: 'e2:e4',
             },
           },
@@ -207,11 +207,19 @@ export function useModelContextTools(actions: ChessActions) {
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
           try {
             const board = actionsRef.current.getBoard();
-            const { from: fromNotation, to: toNotation } = parseMoveNotation(params.move as string);
-            const fromCoords = chessNotationToCoordinates(fromNotation);
+            const rawMove = params.move as string;
+            let parsed = parseMoveOrCastle(rawMove, board.currentTeam);
+            let fromCoords = chessNotationToCoordinates(parsed.from);
+            let from = new Position(fromCoords.x, fromCoords.y);
+            if (!board.pieces.find(p => p.samePosition(from))) {
+              const otherTeam = board.currentTeam === TeamType.OUR ? TeamType.OPPONENT : TeamType.OUR;
+              parsed = parseMoveOrCastle(rawMove, otherTeam);
+              fromCoords = chessNotationToCoordinates(parsed.from);
+              from = new Position(fromCoords.x, fromCoords.y);
+            }
+            const fromNotation = parsed.from;
+            const toNotation = parsed.to;
             const toCoords = chessNotationToCoordinates(toNotation);
-
-            const from = new Position(fromCoords.x, fromCoords.y);
             const to = new Position(toCoords.x, toCoords.y);
 
             const piece = board.pieces.find(p => p.samePosition(from));

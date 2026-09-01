@@ -4,12 +4,12 @@ import { Position } from "../models/Position";
 import { startingLearnBoard } from "../utils/board-setup";
 import {
   chessNotationToCoordinates,
-  parseMoveNotation,
+  parseMoveOrCastle,
 } from "../utils/chess-notation-utils";
 
 function playLine(board: Board, moves: string[]): string | null {
   for (let i = 0; i < moves.length; i++) {
-    const parsed = parseMoveNotation(moves[i]);
+    const parsed = parseMoveOrCastle(moves[i], board.currentTeam);
     const fromCoords = chessNotationToCoordinates(parsed.from);
     const toCoords = chessNotationToCoordinates(parsed.to);
     const from = new Position(fromCoords.x, fromCoords.y);

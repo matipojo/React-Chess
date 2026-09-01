@@ -11,6 +11,10 @@ describe("step play buttons", () => {
     expect(extractFromToMoves("f1:c4, then g8:f6.")).toEqual(["f1:c4", "g8:f6"]);
   });
 
+  it("extracts O-O as a playable castle move", () => {
+    expect(extractFromToMoves("Castle kingside with O-O.")).toEqual(["O-O"]);
+  });
+
   it("extracts play moves from long algebraic What text", () => {
     expect(extractFromToMoves("1.e2-e4 e7-e5 2.Ng1-f3 Nb8-c6 3.Bf1-c4")).toEqual([
       "e2:e4",
