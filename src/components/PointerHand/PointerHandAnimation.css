@@ -1,0 +1,39 @@
+.pointer-hand-animation {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  will-change: transform, left, top;
+  pointer-events: none;
+}
+
+.pointer-hand-animation::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 192, 203, 0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.pointer-hand-animation::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 32px;
+  height: 32px;
+  background-image: url("../../assets/cursors/openhand.svg");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.pointer-hand-animation.grabbing::after {
+  background-image: url("../../assets/cursors/closedhand.svg");
+}

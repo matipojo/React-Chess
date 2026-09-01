@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { circleGeometry, pointVec, segmentKey } from "../../geometry/figure";
+import React, { useMemo, useRef, useState } from "react";
+import { circleGeometry, cloneFigure, moveFreePoint, pointVec, rotateNamed, segmentKey } from "../../geometry/figure";
 import { idsMatchHighlight } from "../../geometry/hitTest";
 import { dist, midpoint, unit, sub, add, scale } from "../../geometry/math";
+import { animationPointerPath } from "../../geometry/pointerPath";
 import { Figure, FigureAnimation, Vec } from "../../geometry/types";
+import PointerHandAnimation, { PointerHandHandle } from "../PointerHand/PointerHandAnimation";
 import "./GeometryCanvas.css";
 
 type Props = {
@@ -14,6 +16,48 @@ type Props = {
   onPointMove?: (name: string, position: Vec) => void;
   onObjectClick?: (id: string) => void;
 };
+
+export type GeometryCanvasHandle = {
+  playAnimation: (animation: FigureAnimation, onComplete?: () => void) => void;
+  cancelAnimation: () => void;
+};
+
+function previewFigure(figure: Figure, animation: FigureAnimation | null, t: number): Figure {
+  if (!animation || t <= 0) {
+    return figure;
+  }
+  if (animation.type === "move") {
+    return moveFreePoint(cloneFigure(figure), animation.name, {
+      x: animation.from.x + (animation.to.x - animation.from.x) * t,
+      y: animation.from.y + (animation.to.y - animation.from.y) * t,
+    });
+  }
+  if (animation.type === "rotate") {
+    return rotateNamed(cloneFigure(figure), animation.aroundName, animation.deg * t, animation.names);
+  }
+  return figure;
+}
+
+function worldToClient(svg: SVGSVGElement, world: Vec): { x: number; y: number } {
+  const ctm = svg.getScreenCTM?.();
+  if (ctm && typeof svg.createSVGPoint === "function") {
+    const pt = svg.createSVGPoint();
+    pt.x = world.x;
+    pt.y = -world.y;
+    const loc = pt.matrixTransform(ctm);
+    return { x: loc.x, y: loc.y };
+  }
+  const rect = svg.getBoundingClientRect();
+  const viewBox = svg.viewBox && svg.viewBox.baseVal
+    ? svg.viewBox.baseVal
+    : { x: 0, y: 0, width: 1, height: 1 };
+  const width = viewBox.width || rect.width || 1;
+  const height = viewBox.height || rect.height || 1;
+  return {
+    x: rect.left + ((world.x - viewBox.x) / width) * rect.width,
+    y: rect.top + ((-world.y - viewBox.y) / height) * rect.height,
+  };
+}
 
 function figureBounds(figure: Figure): { minX: number; minY: number; maxX: number; maxY: number } {
   const pts: Vec[] = Object.keys(figure.points).map((name) => figure.points[name]);
@@ -86,64 +130,83 @@ function angleArc(vertex: Vec, left: Vec, right: Vec, arcs: number): string {
   return paths.join(" ");
 }
 
-export default function GeometryCanvas({
-  figure,
-  peekIds = [],
-  locked,
-  quiz,
-  animation,
-  onPointMove,
-  onObjectClick,
-}: Props) {
+const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function GeometryCanvas(
+  {
+    figure,
+    peekIds = [],
+    locked,
+    quiz,
+    animation,
+    onPointMove,
+    onObjectClick,
+  },
+  ref
+) {
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<string | null>(null);
-  const [hand, setHand] = useState<Vec | null>(null);
-  const bounds = useMemo(() => figureBounds(figure), [figure]);
+  const pointerRef = useRef<PointerHandHandle>(null);
+  const completeRef = useRef<(() => void) | null>(null);
+  const [previewT, setPreviewT] = useState(0);
+  const [activeAnimation, setActiveAnimation] = useState<FigureAnimation | null>(null);
+  const liveAnimation = activeAnimation || animation || null;
+  const displayFigure = useMemo(
+    () => previewFigure(figure, liveAnimation, previewT),
+    [figure, liveAnimation, previewT]
+  );
+  const bounds = useMemo(() => figureBounds(displayFigure), [displayFigure]);
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
-  const highlights = figure.highlights.concat(peekIds);
+  const highlights = displayFigure.highlights.concat(peekIds);
+  const ink =
+    liveAnimation && liveAnimation.type === "draw" && previewT > 0
+      ? {
+          from: liveAnimation.from,
+          to: {
+            x: liveAnimation.from.x + (liveAnimation.to.x - liveAnimation.from.x) * previewT,
+            y: liveAnimation.from.y + (liveAnimation.to.y - liveAnimation.from.y) * previewT,
+          },
+        }
+      : null;
 
-  useEffect(() => {
-    if (!animation) {
-      setHand(null);
-      return;
-    }
-    if (animation.type === "draw") {
-      const from = animation.from;
-      const to = animation.to;
-      const start = performance.now();
-      let frame = 0;
-      const tick = (now: number) => {
-        const t = Math.min(1, (now - start) / 700);
-        setHand({
-          x: from.x + (to.x - from.x) * t,
-          y: from.y + (to.y - from.y) * t,
-        });
-        if (t < 1) {
-          frame = requestAnimationFrame(tick);
-        }
-      };
-      frame = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(frame);
-    }
-    if (animation.type === "move") {
-      const start = performance.now();
-      let frame = 0;
-      const tick = (now: number) => {
-        const t = Math.min(1, (now - start) / 700);
-        setHand({
-          x: animation.from.x + (animation.to.x - animation.from.x) * t,
-          y: animation.from.y + (animation.to.y - animation.from.y) * t,
-        });
-        if (t < 1) {
-          frame = requestAnimationFrame(tick);
-        }
-      };
-      frame = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(frame);
-    }
-    return;
-  }, [animation]);
+  const finishPointer = () => {
+    const done = completeRef.current;
+    completeRef.current = null;
+    setActiveAnimation(null);
+    setPreviewT(0);
+    done?.();
+  };
+
+  const cancelAnimation = () => {
+    pointerRef.current?.cancel();
+    finishPointer();
+  };
+
+  React.useImperativeHandle(ref, () => ({
+    playAnimation: (next, onComplete) => {
+      const svg = svgRef.current;
+      const path = animationPointerPath(next, figure);
+      if (!svg || !path) {
+        onComplete?.();
+        return;
+      }
+      if (!pointerRef.current) {
+        onComplete?.();
+        return;
+      }
+      if (completeRef.current) {
+        cancelAnimation();
+      }
+      completeRef.current = onComplete || null;
+      setActiveAnimation(next);
+      setPreviewT(0);
+      pointerRef.current?.playDrag(worldToClient(svg, path.from), worldToClient(svg, path.to), {
+        grab: path.grab,
+        onProgress: setPreviewT,
+        onComplete: finishPointer,
+      });
+    },
+    cancelAnimation,
+  }));
 
   function clientToWorld(event: { clientX: number; clientY: number }): Vec | null {
     const svg = svgRef.current;
@@ -267,10 +330,11 @@ export default function GeometryCanvas({
     }
   }
 
-  const names = Object.keys(figure.points);
+  const names = Object.keys(displayFigure.points);
 
   return (
     <div className="geometry-frame" data-quiz={quiz ? "true" : undefined}>
+      <PointerHandAnimation ref={pointerRef} />
       <svg
         ref={svgRef}
         className="geometry-canvas"
@@ -283,14 +347,14 @@ export default function GeometryCanvas({
         onPointerCancel={onPointerUp}
         onClick={onClick}
       >
-        {figure.showAxes && (
+        {displayFigure.showAxes && (
           <g className="geometry-axes">
             <line x1={bounds.minX} y1={0} x2={bounds.maxX} y2={0} />
             <line x1={0} y1={-bounds.minY} x2={0} y2={-bounds.maxY} />
           </g>
         )}
-        {figure.circles.map((c) => {
-          const geo = circleGeometry(figure, c);
+        {displayFigure.circles.map((c) => {
+          const geo = circleGeometry(displayFigure, c);
           if (!geo) {
             return null;
           }
@@ -306,10 +370,10 @@ export default function GeometryCanvas({
             />
           );
         })}
-        {figure.ghost &&
-          figure.ghost.strokes.map((s, index) => {
-            const a = figure.ghost!.points[s.a];
-            const b = figure.ghost!.points[s.b];
+        {displayFigure.ghost &&
+          displayFigure.ghost.strokes.map((s, index) => {
+            const a = displayFigure.ghost!.points[s.a];
+            const b = displayFigure.ghost!.points[s.b];
             if (!a || !b) {
               return null;
             }
@@ -324,9 +388,9 @@ export default function GeometryCanvas({
               />
             );
           })}
-        {figure.strokes.map((s, index) => {
-          const a = pointVec(figure, s.a);
-          const b = pointVec(figure, s.b);
+        {displayFigure.strokes.map((s, index) => {
+          const a = pointVec(displayFigure, s.a);
+          const b = pointVec(displayFigure, s.b);
           if (!a || !b) {
             return null;
           }
@@ -352,10 +416,19 @@ export default function GeometryCanvas({
             />
           );
         })}
-        {figure.equalGroups.map((g, gi) =>
+        {ink && (
+          <line
+            className="geometry-stroke is-dashed"
+            x1={ink.from.x}
+            y1={-ink.from.y}
+            x2={ink.to.x}
+            y2={-ink.to.y}
+          />
+        )}
+        {displayFigure.equalGroups.map((g, gi) =>
           g.segments.map((seg) => {
-            const a = pointVec(figure, seg[0]);
-            const b = pointVec(figure, seg[1]);
+            const a = pointVec(displayFigure, seg[0]);
+            const b = pointVec(displayFigure, seg[1]);
             if (!a || !b) {
               return null;
             }
@@ -368,10 +441,10 @@ export default function GeometryCanvas({
             );
           })
         )}
-        {figure.rights.map((r, index) => {
-          const v = pointVec(figure, r.vertex);
-          const a = pointVec(figure, r.a);
-          const b = pointVec(figure, r.b);
+        {displayFigure.rights.map((r, index) => {
+          const v = pointVec(displayFigure, r.vertex);
+          const a = pointVec(displayFigure, r.a);
+          const b = pointVec(displayFigure, r.b);
           if (!v || !a || !b) {
             return null;
           }
@@ -383,17 +456,17 @@ export default function GeometryCanvas({
             />
           );
         })}
-        {figure.angleEqualGroups.map((g, gi) =>
+        {displayFigure.angleEqualGroups.map((g, gi) =>
           g.angles.map((ang) => {
             const vertex = ang.length === 1 ? ang : ang[1];
-            const tri = figure.triangles.find((t) => t.indexOf(vertex) >= 0);
+            const tri = displayFigure.triangles.find((t) => t.indexOf(vertex) >= 0);
             if (!tri) {
               return null;
             }
             const rest = tri.filter((n) => n !== vertex);
-            const v = pointVec(figure, vertex);
-            const a = pointVec(figure, rest[0]);
-            const b = pointVec(figure, rest[1]);
+            const v = pointVec(displayFigure, vertex);
+            const a = pointVec(displayFigure, rest[0]);
+            const b = pointVec(displayFigure, rest[1]);
             if (!v || !a || !b) {
               return null;
             }
@@ -407,9 +480,9 @@ export default function GeometryCanvas({
             );
           })
         )}
-        {figure.lengthLabels.map((l, index) => {
-          const a = pointVec(figure, l.segment[0]);
-          const b = pointVec(figure, l.segment[1]);
+        {displayFigure.lengthLabels.map((l, index) => {
+          const a = pointVec(displayFigure, l.segment[0]);
+          const b = pointVec(displayFigure, l.segment[1]);
           if (!a || !b) {
             return null;
           }
@@ -425,9 +498,9 @@ export default function GeometryCanvas({
             </text>
           );
         })}
-        {figure.angleLabels.map((l, index) => {
+        {displayFigure.angleLabels.map((l, index) => {
           const vertex = l.angle.length === 1 ? l.angle : l.angle[1];
-          const p = pointVec(figure, vertex);
+          const p = pointVec(displayFigure, vertex);
           if (!p) {
             return null;
           }
@@ -443,7 +516,7 @@ export default function GeometryCanvas({
           );
         })}
         {names.map((name) => {
-          const p = figure.points[name];
+          const p = displayFigure.points[name];
           const active = idsMatchHighlight(name, highlights);
           return (
             <g key={name} className={active ? "geometry-point is-hot" : "geometry-point"}>
@@ -454,12 +527,9 @@ export default function GeometryCanvas({
             </g>
           );
         })}
-        {hand && (
-          <g className="geometry-hand">
-            <circle cx={hand.x} cy={-hand.y} r={0.14} />
-          </g>
-        )}
       </svg>
     </div>
   );
-}
+});
+
+export default GeometryCanvas;

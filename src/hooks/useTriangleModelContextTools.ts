@@ -87,7 +87,11 @@ type TriangleActions = {
     message: string;
     data?: unknown;
   };
-  movePoint: (name: string, position: { x: number; y: number }) => { success: boolean; message: string };
+  movePoint: (
+    name: string,
+    position: { x: number; y: number },
+    options?: { animate?: boolean }
+  ) => Promise<{ success: boolean; message: string }> | { success: boolean; message: string };
   rotateFigure: (around: string, deg: number, target?: string) => Promise<{ success: boolean; message: string }>;
   markFigure: (gan: string) => Promise<{ success: boolean; message: string }>;
   measure: (id: string) => unknown;
@@ -226,10 +230,12 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
           const point = String(params.point || "").trim();
-          const result = actionsRef.current.movePoint(point, {
-            x: Number(params.x),
-            y: Number(params.y),
-          });
+          const result = await Promise.resolve(
+            actionsRef.current.movePoint(point, {
+              x: Number(params.x),
+              y: Number(params.y),
+            })
+          );
           return {
             success: result.success,
             message: result.message,
