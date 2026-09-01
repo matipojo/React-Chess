@@ -29,7 +29,7 @@ export function buildGiveMeAHintPrompt(accent: string, text = CHAT_BUTTON_TEXT):
     `Do not list options as 1/2/3. Do not ask the student to type a choice.`,
     `Render one short line such as "Need a nudge?", then one button labeled "${HINT_BUTTON_LABEL}" on its own new line. Do not add other buttons yet.`,
     visualizationButtonStyle(accent, text),
-    `Leave the button on screen. Then call ask-quiz if the 30-second click wait is not already running. If they tap ${HINT_BUTTON_LABEL}, give a small nudge in this chat — not the full answer, and not on the chess page.`,
+    `Leave the button on screen. Then call add-lesson-step with type riddle (question and correct squares) if the 30-second click wait is not already running. Use ask-quiz only if this puzzle is not a catalog lesson step. If they tap ${HINT_BUTTON_LABEL}, give a small nudge in this chat — not the full answer, and not on the chess page.`,
   ].join(" ");
 }
 
