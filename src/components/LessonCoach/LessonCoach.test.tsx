@@ -216,7 +216,6 @@ describe("LessonCoach", () => {
     expect(queryByRole("button", { name: "Back" })).toBeNull();
     expect(queryByRole("button", { name: "Next" })).toBeNull();
     const play = getByRole("button", { name: "Play the line" });
-    expect(play.textContent).toBe("Play");
     expect(getByRole("button", { name: "Stop the line" })).toHaveProperty(
       "disabled",
       true

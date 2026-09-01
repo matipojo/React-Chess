@@ -46,6 +46,41 @@ function ResetIcon() {
   );
 }
 
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M8 5.14v14l11-7-11-7z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M6 5h4v14H6V5zm8 0h4v14h-4V5z" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M6 6h12v12H6z" />
+    </svg>
+  );
+}
+
+function ReplayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
+      />
+    </svg>
+  );
+}
+
 function SkipStartIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -345,26 +380,6 @@ export default function LessonCoach({
               {coach.phase === "showme" &&
                 (onPlayLine || onPauseLine || onStopLine || onReplayLine) && (
                 <div className="lesson-coach-playback" dir="ltr">
-                  {playback.primary === "play" && onPlayLine && (
-                    <button
-                      type="button"
-                      className="lesson-coach-play-line"
-                      onClick={onPlayLine}
-                      aria-label="Play the line"
-                    >
-                      Play
-                    </button>
-                  )}
-                  {playback.primary === "pause" && onPauseLine && (
-                    <button
-                      type="button"
-                      className="lesson-coach-play-line"
-                      onClick={onPauseLine}
-                      aria-label="Pause the line"
-                    >
-                      Pause
-                    </button>
-                  )}
                   {onStopLine && (
                     <button
                       type="button"
@@ -372,8 +387,31 @@ export default function LessonCoach({
                       onClick={onStopLine}
                       disabled={!playback.stop}
                       aria-label="Stop the line"
+                      title="Stop"
                     >
-                      Stop
+                      <StopIcon />
+                    </button>
+                  )}
+                  {playback.primary === "play" && onPlayLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-play-line lesson-coach-playback-play"
+                      onClick={onPlayLine}
+                      aria-label="Play the line"
+                      title="Play"
+                    >
+                      <PlayIcon />
+                    </button>
+                  )}
+                  {playback.primary === "pause" && onPauseLine && (
+                    <button
+                      type="button"
+                      className="lesson-coach-play-line lesson-coach-playback-pause"
+                      onClick={onPauseLine}
+                      aria-label="Pause the line"
+                      title="Pause"
+                    >
+                      <PauseIcon />
                     </button>
                   )}
                   {onReplayLine && (
@@ -383,8 +421,9 @@ export default function LessonCoach({
                       onClick={onReplayLine}
                       disabled={!playback.replay}
                       aria-label="Replay the line"
+                      title="Replay"
                     >
-                      Replay
+                      <ReplayIcon />
                     </button>
                   )}
                 </div>

@@ -473,42 +473,57 @@
 
 .lesson-coach-playback {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 8px 0 4px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 14px 0 6px;
 }
 
-.lesson-coach-play-line,
-.lesson-coach-playback-stop,
-.lesson-coach-playback-replay {
+.lesson-coach-playback button {
+  appearance: none;
+  -webkit-appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  min-width: 4.75rem;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 700;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  color: #fff;
   cursor: pointer;
-  white-space: nowrap;
 }
 
 .lesson-coach-play-line {
-  border: none;
+  width: 56px;
+  height: 56px;
   background: var(--play, var(--accent));
-  color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+}
+
+.lesson-coach-play-line svg {
+  width: 28px;
+  height: 28px;
+}
+
+.lesson-coach-playback-play svg {
+  margin-left: 3px;
 }
 
 .lesson-coach-play-line:hover:not(:disabled) {
-  background: var(--accent-hover, var(--accent));
+  background: var(--play-hover, var(--accent-hover));
 }
 
 .lesson-coach-playback-stop,
 .lesson-coach-playback-replay {
-  border: 1px solid #555;
+  width: 40px;
+  height: 40px;
   background: #3d3d3d;
-  color: #fff;
+}
+
+.lesson-coach-playback-stop svg,
+.lesson-coach-playback-replay svg {
+  width: 18px;
+  height: 18px;
 }
 
 .lesson-coach-playback-stop:hover:not(:disabled),
@@ -519,8 +534,9 @@
 .lesson-coach-play-line:disabled,
 .lesson-coach-playback-stop:disabled,
 .lesson-coach-playback-replay:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
+  box-shadow: none;
 }
 
 .chess-ref {
