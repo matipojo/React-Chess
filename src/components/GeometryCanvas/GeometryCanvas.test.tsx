@@ -1,6 +1,6 @@
 import { act, render } from "@testing-library/react";
 import { createRef } from "react";
-import { defaultScalene } from "../../geometry/figure";
+import { defaultScalene, moveFreePoint } from "../../geometry/figure";
 import GeometryCanvas, { GeometryCanvasHandle } from "./GeometryCanvas";
 import {
   HAND_APPROACH_MS,
@@ -69,6 +69,33 @@ describe("GeometryCanvas pointer", () => {
     });
     expect(done).toHaveBeenCalledTimes(1);
     expect(document.querySelector("[data-pointer-hand]")).toBeNull();
+    unmount();
+  });
+
+  it("keeps the dragged point at the destination after the hand leaves", () => {
+    const handle = createRef<GeometryCanvasHandle>();
+    const start = defaultScalene();
+    const dest = { x: 1.55, y: -0.2 };
+    let figure = start;
+    const { container, rerender, unmount } = render(
+      <GeometryCanvas ref={handle} figure={figure} />
+    );
+
+    act(() => {
+      handle.current?.playAnimation(
+        { type: "move", name: "C", from: start.points.C, to: dest },
+        () => {
+          figure = moveFreePoint(figure, "C", dest);
+        }
+      );
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(HAND_START_DELAY_MS + HAND_APPROACH_MS + HAND_DRAG_MS);
+    });
+    rerender(<GeometryCanvas ref={handle} figure={figure} />);
+
+    expect(Number(pointCx(container, "C"))).toBeCloseTo(dest.x, 5);
     unmount();
   });
 

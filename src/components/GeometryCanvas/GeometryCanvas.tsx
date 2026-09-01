@@ -23,17 +23,18 @@ export type GeometryCanvasHandle = {
 };
 
 function previewFigure(figure: Figure, animation: FigureAnimation | null, t: number): Figure {
-  if (!animation || t <= 0) {
+  if (!animation) {
     return figure;
   }
+  const u = Math.max(0, Math.min(1, t));
   if (animation.type === "move") {
     return moveFreePoint(cloneFigure(figure), animation.name, {
-      x: animation.from.x + (animation.to.x - animation.from.x) * t,
-      y: animation.from.y + (animation.to.y - animation.from.y) * t,
+      x: animation.from.x + (animation.to.x - animation.from.x) * u,
+      y: animation.from.y + (animation.to.y - animation.from.y) * u,
     });
   }
   if (animation.type === "rotate") {
-    return rotateNamed(cloneFigure(figure), animation.aroundName, animation.deg * t, animation.names);
+    return rotateNamed(cloneFigure(figure), animation.aroundName, animation.deg * u, animation.names);
   }
   return figure;
 }

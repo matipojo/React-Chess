@@ -473,6 +473,12 @@ export function useTriangleLessons(options?: {
       return { success: false, message: result.error };
     }
     const animation = result.animation || fallbackPointerAnimation(before, result.figure);
+    const commitUpFront = Boolean(
+      animation && (animation.type === "move" || animation.type === "rotate")
+    );
+    if (commitUpFront) {
+      applyFigure(result.figure);
+    }
     setAnimating(true);
     if (animation && playPointerRef.current) {
       setAnimation(animation);
@@ -487,7 +493,9 @@ export function useTriangleLessons(options?: {
             window.clearTimeout(animTimerRef.current);
             animTimerRef.current = null;
           }
-          applyFigure(result.figure);
+          if (!commitUpFront) {
+            applyFigure(result.figure);
+          }
           resolve();
         };
         playPointerRef.current!(animation, done);
@@ -498,8 +506,10 @@ export function useTriangleLessons(options?: {
       await new Promise((resolve) => {
         animTimerRef.current = window.setTimeout(resolve, 2100);
       });
-      applyFigure(result.figure);
-    } else {
+      if (!commitUpFront) {
+        applyFigure(result.figure);
+      }
+    } else if (!commitUpFront) {
       applyFigure(result.figure);
     }
     setAnimation(null);
