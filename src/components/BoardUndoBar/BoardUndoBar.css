@@ -1,0 +1,40 @@
+.board-undo-bar {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  width: 100%;
+}
+
+.board-undo-bar button {
+  flex: 1;
+  max-width: 160px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.board-undo-bar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.board-undo-bar button:not(:disabled):hover {
+  background: var(--accent-hover);
+}
+
+@media (max-width: 640px) {
+  .board-undo-bar {
+    margin-top: 8px;
+    margin-bottom: 8px;
+  }
+
+  .board-undo-bar button {
+    padding: 8px 10px;
+  }
+}
