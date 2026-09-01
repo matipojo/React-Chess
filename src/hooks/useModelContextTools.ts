@@ -676,7 +676,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'ask-quiz',
         description:
-          'Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
+          'Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss teaches the correct square on the board and in the coach. A timeout does not reveal the answer — tell the student to write it in this chat. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -721,7 +721,7 @@ export function useModelContextTools(actions: ChessActions) {
             return {
               success: false,
               message:
-                'Time ran out. The coach panel and board already teach the correct square(s). Explain why that answer is right, then call how_to_ask_the_user.',
+                'Time ran out. Do not reveal the answer. You are no longer tracking the board click. The coach already told the student to write the answer in this chat. Wait for that written answer.',
               data: result,
             };
           }

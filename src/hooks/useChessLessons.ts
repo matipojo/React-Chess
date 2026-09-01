@@ -363,13 +363,8 @@ export function useChessLessons({
     quizRef.current = next;
     lastQuizRef.current = next;
     setQuiz(next);
-    setQuizFeedback(formatQuizTimeoutFeedback(current.correct));
+    setQuizFeedback(formatQuizTimeoutFeedback());
     setQuizSecondsLeft(null);
-    highlightsRef.current = current.correct.map((square) => ({
-      square: square.toLowerCase(),
-      kind: "correct" as const,
-    }));
-    setHighlights(highlightsRef.current);
     const resolver = quizResolverRef.current;
     quizResolverRef.current = null;
     if (resolver) {

@@ -34,10 +34,11 @@ describe("quiz teaching copy", () => {
     );
   });
 
-  it("names the correct square after time runs out", () => {
-    expect(formatQuizTimeoutFeedback(["f7"])).toBe(
-      "Time's up.\nThe correct square is f7."
+  it("does not name the correct square after time runs out", () => {
+    expect(formatQuizTimeoutFeedback()).toBe(
+      "Time's up.\nWrite your answer to the agent in chat. It is no longer tracking this click and expects a written answer."
     );
+    expect(formatQuizTimeoutFeedback()).not.toMatch(/[a-h][1-8]/);
   });
 });
 

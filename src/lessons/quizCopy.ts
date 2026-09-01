@@ -63,12 +63,8 @@ export function formatQuizIncorrectFeedback(correct: string[]): string {
   return `Not quite.\nThe correct squares are ${squares}.`;
 }
 
-export function formatQuizTimeoutFeedback(correct: string[]): string {
-  const squares = formatQuizSquares(correct);
-  if (correct.length === 1) {
-    return `Time's up.\nThe correct square is ${squares}.`;
-  }
-  return `Time's up.\nThe correct squares are ${squares}.`;
+export function formatQuizTimeoutFeedback(): string {
+  return "Time's up.\nWrite your answer to the agent in chat. It is no longer tracking this click and expects a written answer.";
 }
 
 export function formatQuizClickCopy(payload: QuizCopyPayload): string {
