@@ -1,5 +1,6 @@
 import {
   buildCodexPromptHref,
+  CODEX_UNAVAILABLE_MESSAGE,
   EXAMPLE_LESSON_PROMPTS,
   isCodexHost,
   openCodexPrompt,
@@ -48,8 +49,9 @@ describe("codexPrompt", () => {
 
   it("builds a new-chat deep link with the encoded prompt", () => {
     expect(buildCodexPromptHref(EXAMPLE_LESSON_PROMPTS[0])).toBe(
-      "codex://new?prompt=how%20does%20a%20knight%20move%3F"
+      "codex://new?prompt=show%20me%20Scholar's%20Mate"
     );
+    expect(CODEX_UNAVAILABLE_MESSAGE).toBe("Codex is not available");
   });
 
   it("opens the deep link instead of relying on an <a> navigation", () => {
@@ -59,7 +61,7 @@ describe("codexPrompt", () => {
     try {
       openCodexPrompt(EXAMPLE_LESSON_PROMPTS[0]);
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=how%20does%20a%20knight%20move%3F",
+        "codex://new?prompt=show%20me%20Scholar's%20Mate",
         "_blank",
         "noopener"
       );

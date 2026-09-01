@@ -237,8 +237,12 @@ export const getCastlingMoves = (king: Piece, boardstate: Piece[]): Position[] =
 
     if(!valid) continue;
 
-    // We now want to add it as a possible move!
+    // Drop on the rook (legacy UI) or the king's landing square (e1-g1 / e1-c1).
     possibleMoves.push(rook.position.clone());
+    const kingLanding = new Position(king.position.x + direction * 2, king.position.y);
+    if (kingLanding.x >= 0 && kingLanding.x <= 7) {
+      possibleMoves.push(kingLanding);
+    }
   }
 
 

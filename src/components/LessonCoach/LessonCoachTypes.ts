@@ -1,5 +1,6 @@
 import { CoachState, WaitChoice } from "../../lessons/types";
 import { CoachPlayMove } from "../../lessons/stepPlay";
+import { ShowMePlayback } from "../../lessons/showMe";
 import { ChessRefPart } from "../../utils/chess-text-links";
 
 export type LessonCoachLinkProps = {
@@ -13,8 +14,18 @@ export type LessonCoachPlayProps = {
   playBusy?: boolean;
 };
 
+export type LessonCoachShowMeProps = {
+  onPlayLine?: () => void;
+  onPauseLine?: () => void;
+  onStopLine?: () => void;
+  onReplayLine?: () => void;
+  showmePlayback?: ShowMePlayback;
+  showmePly?: number;
+};
+
 export type LessonCoachProps = LessonCoachLinkProps &
-  LessonCoachPlayProps & {
+  LessonCoachPlayProps &
+  LessonCoachShowMeProps & {
     coach: CoachState | null;
     quizQuestion?: string;
     quizFeedback?: string;

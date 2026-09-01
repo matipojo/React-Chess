@@ -21,6 +21,7 @@ import { useChessLessons } from "../../hooks/useChessLessons";
 import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 import { logLessonDebug } from "../../lessons/debugLog";
 import { shouldShowLessonNav } from "../../lessons/lessonCopy";
+import { getFamousGame } from "../../lessons/catalog";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
@@ -191,11 +192,16 @@ export default function Referee() {
     chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
   }, []);
 
+  const cancelMoveAnimation = useCallback(() => {
+    chessboardHandleRef.current?.cancelMoveAnimation();
+  }, []);
+
   const lessons = useChessLessons({
     boardRef,
     setBoard,
     playMoveSync,
     animateMove,
+    cancelMoveAnimation,
     hideCheckmate,
   });
 
@@ -238,12 +244,23 @@ export default function Referee() {
     const params = new URLSearchParams(window.location.search);
     const piece = params.get("piece");
     const game = params.get("game");
+    const showme = params.get("showme");
     lessons.enterLearnMode();
     if (piece) {
       try {
         lessons.demonstratePiece(piece);
       } catch {
         // ignore invalid demo links
+      }
+    } else if (showme) {
+      const famous = getFamousGame(showme);
+      if (famous) {
+        lessons.createLesson({
+          type: "showme",
+          title: famous.name,
+          paragraphs: [famous.hook],
+          moves: famous.moves,
+        });
       }
     } else if (game) {
       lessons.loadGame(game);
@@ -287,6 +304,7 @@ export default function Referee() {
     expectsRecap: lessons.expectsRecap,
     generatingNext,
     hasLineMoves: Boolean(loaded && loaded.moves.length > 0),
+    isShowme: lessons.coach?.phase === "showme",
   });
   const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
   const canFirst = canBack;
@@ -306,7 +324,12 @@ export default function Referee() {
   return (
     <>
       <header className="app-header">
-        <h1 className="app-header-title">Generative Learning</h1>
+        <div className="app-header-nav">
+          <h1 className="app-header-title">Generative Learning</h1>
+          <a className="app-header-link" href="#/about">
+            About
+          </a>
+        </div>
         <div className="app-header-actions">
           <LessonCatalogMenu
             lessons={lessons.userLessons}
@@ -360,7 +383,11 @@ export default function Referee() {
               peekSquares={peekSquares}
               arrows={[...lessons.arrows, ...peekArrows]}
               interaction={lessons.quiz && !lessons.quiz.answered ? "quiz" : "play"}
-              locked={lessons.animating}
+              locked={
+                lessons.animating ||
+                lessons.showmePlayback === "playing" ||
+                lessons.showmePlayback === "paused"
+              }
               onSquareClick={lessons.onSquareClick}
             />
             <BoardUndoBar
@@ -397,6 +424,32 @@ export default function Referee() {
               onPlayMove={(notation) => {
                 void lessons.playCoachMove(notation);
               }}
+              onPlayLine={
+                lessons.coach?.phase === "showme"
+                  ? () => {
+                      void lessons.playShowMeLine();
+                    }
+                  : undefined
+              }
+              onPauseLine={
+                lessons.coach?.phase === "showme"
+                  ? () => lessons.pauseShowMeLine()
+                  : undefined
+              }
+              onStopLine={
+                lessons.coach?.phase === "showme"
+                  ? () => lessons.stopShowMeLine()
+                  : undefined
+              }
+              onReplayLine={
+                lessons.coach?.phase === "showme"
+                  ? () => {
+                      void lessons.replayShowMeLine();
+                    }
+                  : undefined
+              }
+              showmePlayback={lessons.showmePlayback}
+              showmePly={lessons.showmePly}
               playBusy={lessons.animating}
               historyIndex={lessons.historyIndex}
               historyLength={lessons.historyLength}

@@ -1,14 +1,21 @@
 import './App.css';
 import './board-themes.css';
+import AboutPage from './components/AboutPage/AboutPage';
 import BoardThemePicker from './components/BoardThemePicker/BoardThemePicker';
 import ChangeBackgroundButton from './components/ChangeBackgroundButton/ChangeBackgroundButton';
 import ModelContextBanner from './components/ModelContextBanner/ModelContextBanner';
 import Referee from './components/Referee/Referee';
 import { BoardThemeProvider, useBoardTheme } from './hooks/useBoardTheme';
+import { useAppRoute } from './hooks/useAppRoute';
 import { cssBackgroundImage } from './utils/pageBackground';
 
 function AppShell() {
   const { theme, customBackground } = useBoardTheme();
+  const route = useAppRoute();
+
+  if (route === "about") {
+    return <AboutPage />;
+  }
 
   return (
     <div

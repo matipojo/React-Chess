@@ -20,15 +20,17 @@ export default function LessonCoachHeading({
     <div className="lesson-coach-heading">
       <div className="lesson-coach-heading-text">
         <p className="lesson-coach-kicker">Learn</p>
-        {coach?.lessonTitle && coach.phase !== "goal" && (
-          <p className="lesson-coach-topic">
-            <ChessLinkedText
-              text={coach.lessonTitle}
-              onHoverSquares={onHoverSquares}
-              resolvePeekSquares={resolvePeekSquares}
-            />
-          </p>
-        )}
+        {coach?.lessonTitle &&
+          coach.phase !== "goal" &&
+          coach.phase !== "showme" && (
+            <p className="lesson-coach-topic">
+              <ChessLinkedText
+                text={coach.lessonTitle}
+                onHoverSquares={onHoverSquares}
+                resolvePeekSquares={resolvePeekSquares}
+              />
+            </p>
+          )}
         {coach && (
           <h2>
             <ChessLinkedText

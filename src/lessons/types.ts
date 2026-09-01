@@ -27,7 +27,7 @@ export type CoachState = {
   lesson?: number;
   step?: number;
   totalSteps?: number;
-  phase?: "goal" | "step" | "riddle" | "recap";
+  phase?: "goal" | "step" | "riddle" | "showme" | "recap";
   moves?: string[];
   fromFen?: string;
 };
@@ -81,7 +81,7 @@ export type LoadedLine = {
   ply: number;
 };
 
-export type SavedLessonKind = "game" | "piece" | "custom";
+export type SavedLessonKind = "game" | "piece" | "custom" | "showme";
 
 export type SavedLessonStep = {
   title: string;

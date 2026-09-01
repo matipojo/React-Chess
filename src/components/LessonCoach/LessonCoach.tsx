@@ -35,6 +35,12 @@ export default function LessonCoach({
   canReset,
   playMoves,
   onPlayMove,
+  onPlayLine,
+  onPauseLine,
+  onStopLine,
+  onReplayLine,
+  showmePlayback = "idle",
+  showmePly = 0,
   playBusy,
   nextGenerating,
   historyIndex,
@@ -92,6 +98,12 @@ export default function LessonCoach({
             playMoves={playMoves}
             onPlayMove={onPlayMove}
             playBusy={playBusy}
+            onPlayLine={onPlayLine}
+            onPauseLine={onPauseLine}
+            onStopLine={onStopLine}
+            onReplayLine={onReplayLine}
+            showmePlayback={showmePlayback}
+            showmePly={showmePly}
             {...linkProps}
           />
         )}

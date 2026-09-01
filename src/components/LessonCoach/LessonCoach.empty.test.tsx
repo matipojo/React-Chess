@@ -11,10 +11,10 @@ describe("LessonCoach empty state", () => {
       getByText(/Everything you learn here is created in the chat/)
     ).toBeTruthy();
     expect(
-      getByText(/it can also quiz you on any topic you have already covered/)
+      getByText(/Ask it to show you a line and it plays the moves live/)
     ).toBeTruthy();
-    expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
-    expect(getByRole("button", { name: "show Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "teach me the Italian" })).toBeTruthy();
     expect(getByRole("button", { name: "quiz me on forks" })).toBeTruthy();
   });
 
@@ -23,8 +23,8 @@ describe("LessonCoach empty state", () => {
     try {
       const { getByRole } = render(<LessonCoach coach={null} />);
       expect(
-        getByRole("link", { name: "how does a knight move?" }).getAttribute("href")
-      ).toBe("codex://new?prompt=how%20does%20a%20knight%20move%3F");
+        getByRole("link", { name: "show me Scholar's Mate" }).getAttribute("href")
+      ).toBe("codex://new?prompt=show%20me%20Scholar's%20Mate");
     } finally {
       restore();
     }
@@ -37,13 +37,13 @@ describe("LessonCoach empty state", () => {
     const { open, restore: restoreOpen } = mockWindowOpen();
     try {
       const { getByRole } = render(<LessonCoach coach={null} />);
-      const link = getByRole("link", { name: "how does a knight move?" });
+      const link = getByRole("link", { name: "show me Scholar's Mate" });
       expect(link.getAttribute("href")).toBe(
-        "codex://new?prompt=how%20does%20a%20knight%20move%3F"
+        "codex://new?prompt=show%20me%20Scholar's%20Mate"
       );
       link.click();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=how%20does%20a%20knight%20move%3F",
+        "codex://new?prompt=show%20me%20Scholar's%20Mate",
         "_blank",
         "noopener"
       );
@@ -59,8 +59,10 @@ describe("LessonCoach empty state", () => {
     );
     try {
       const { getByRole, queryByRole } = render(<LessonCoach coach={null} />);
-      expect(getByRole("button", { name: "how does a knight move?" })).toBeTruthy();
-      expect(queryByRole("link", { name: "how does a knight move?" })).toBeNull();
+      expect(
+        getByRole("button", { name: "show me Scholar's Mate" })
+      ).toBeTruthy();
+      expect(queryByRole("link", { name: "show me Scholar's Mate" })).toBeNull();
     } finally {
       restore();
     }

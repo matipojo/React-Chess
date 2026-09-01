@@ -185,4 +185,16 @@ describe("user catalog", () => {
     expect(lesson?.steps?.[0].quiz?.correct).toEqual(["c7"]);
     expect(lesson?.steps?.[0].quiz?.question).toBe("Click the fork square.");
   });
+
+  it("persists a show-me lesson without teaching steps", () => {
+    const created = createCatalogLesson({
+      title: "Scholar's Mate",
+      body: "Watch f7 fall.",
+      paragraphs: ["Watch the queen and bishop crash through on f7."],
+      kind: "showme",
+    });
+    expect(created.kind).toBe("showme");
+    expect(created.steps).toEqual([]);
+    expect(findUserLessonByNumber(1)?.kind).toBe("showme");
+  });
 });

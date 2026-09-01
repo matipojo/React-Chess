@@ -55,9 +55,9 @@ export default function LessonCoachEmpty() {
           )}
         </div>
         <p>
-          Everything you learn here is created in the chat. Tell the agent
-          what you want to study, and it builds a lesson with steps that match
-          your request.
+          Everything you learn here is created in the chat. Ask the agent
+          to teach you a topic and it builds a lesson with steps. Ask it to
+          show you a line and it plays the moves live with one explanation.
         </p>
         <p>
           When you are ready, it can also quiz you on any topic you have
