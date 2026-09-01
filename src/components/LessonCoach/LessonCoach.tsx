@@ -223,7 +223,7 @@ export default function LessonCoach({
   async function shareChoice(choice: WaitChoice) {
     const text = formatWaitChoiceCopy(waitPrompt || "", choice);
     const result = await sharePromptWithHost(text, copyPlainText);
-    if (result === "failed") {
+    if (result !== "copied") {
       return;
     }
     setCopiedId(choice.id);
@@ -425,7 +425,7 @@ export default function LessonCoach({
                           void shareChoice(choice);
                         }}
                       >
-                        {copiedId === choice.id ? "Opened" : "Open"}
+                        Open
                       </a>
                     ) : (
                       <button
