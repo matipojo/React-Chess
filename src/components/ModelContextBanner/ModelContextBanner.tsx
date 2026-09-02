@@ -34,7 +34,7 @@ export default function ModelContextBanner() {
   return (
     <div style={BANNER_STYLES}>
       <span>
-        To learn with the AI tutor, open this page in{' '}
+        To learn with your AI agent, open this page in{' '}
         <a
           href="https://learn.chatgpt.com/docs/webmcp"
           target="_blank"

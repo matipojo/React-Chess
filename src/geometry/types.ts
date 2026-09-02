@@ -7,6 +7,7 @@ export type PointConstraint =
   | { kind: "mid"; a: string; b: string }
   | { kind: "foot"; from: string; ontoA: string; ontoB: string }
   | { kind: "intersect"; a1: string; a2: string; b1: string; b2: string }
+  | { kind: "centroid"; a: string; b: string; c: string }
   | { kind: "bisect"; vertex: string; left: string; right: string };
 
 export type PointDef = {
@@ -78,7 +79,7 @@ export type GhostFigure = {
 };
 
 export type FigureAnimation =
-  | { type: "draw"; from: Vec; to: Vec }
+  | { type: "draw"; from: Vec; to: Vec; reverse?: boolean }
   | { type: "move"; name: string; from: Vec; to: Vec }
   | { type: "rotate"; around: Vec; aroundName: string; names: string[]; deg: number }
   | { type: "fit" };

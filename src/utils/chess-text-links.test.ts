@@ -159,7 +159,7 @@ describe("sanMovesNeedingFromTo", () => {
   it("flags Italian SAN that cannot show a hover arrow", () => {
     expect(
       sanMovesNeedingFromTo(
-        "הקו הבסיסי הוא 1.e4 e5 2.Nf3 Nc6 3.Bc4 — והרָץ כבר מביט אל f7"
+        "הקו הבסיסי הוא 1.e4 e5 2.Nf3 Nc6 3.Bc4, והרָץ כבר מביט אל f7"
       )
     ).toEqual(["1.e4", "e5", "2.Nf3", "Nc6", "3.Bc4"]);
   });
@@ -167,7 +167,7 @@ describe("sanMovesNeedingFromTo", () => {
   it("allows long algebraic moves and bare location squares", () => {
     expect(
       sanMovesNeedingFromTo(
-        "הקו הבסיסי הוא 1.e2-e4 e7-e5 2.Ng1-f3 Nb8-c6 3.Bf1-c4 — והרָץ כבר מביט אל f7"
+        "הקו הבסיסי הוא 1.e2-e4 e7-e5 2.Ng1-f3 Nb8-c6 3.Bf1-c4, והרָץ כבר מביט אל f7"
       )
     ).toEqual([]);
   });

@@ -9,7 +9,7 @@ describe("buildHowToAskTheUserPrompt", () => {
     expect(prompt).toContain("#8a5fc8");
     expect(prompt).toContain("Do not list options as 1/2/3");
     expect(prompt).toContain("They must tap a button");
-    expect(prompt).toContain("each button on its own new line");
+    expect(prompt).toContain("Each button on its own new line");
     expect(prompt).toContain("not full row");
     expect(prompt).toContain("airy and spacious");
     expect(prompt).toContain("20px space above the first button");
@@ -33,5 +33,14 @@ describe("buildGiveMeAHintPrompt", () => {
     expect(prompt).toContain("puts the puzzle on the chess page");
     expect(prompt).not.toContain("already on the chess board");
     expect(prompt).toContain("Use ask-quiz only if this puzzle is not a catalog lesson step");
+  });
+
+  it("talks about figure objects on the triangle page, not chess squares", () => {
+    const prompt = buildGiveMeAHintPrompt("#8a5fc8", "#ffffff", "triangle");
+    expect(prompt).toContain("triangle page");
+    expect(prompt).toContain("already on the figure");
+    expect(prompt).toContain("correct GAN objects");
+    expect(prompt).not.toContain("chess board");
+    expect(prompt).not.toContain("key square");
   });
 });

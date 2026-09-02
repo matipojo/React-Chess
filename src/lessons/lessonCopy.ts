@@ -48,7 +48,7 @@ export function isRecapPhase(phase?: CoachState["phase"] | "summary"): boolean {
 
 export type LessonFormat = "lesson" | "showme";
 
-/** Built-in lesson type on create-lesson. Exact enum only — not inferred from wording. */
+/** Built-in lesson type on create-lesson. Exact enum only, not inferred from wording. */
 export function parseLessonFormat(value: unknown): LessonFormat {
   return value === "showme" ? "showme" : "lesson";
 }
@@ -149,6 +149,33 @@ export function lessonSlideCounter(input: {
     current = planned + recapExtra;
   }
   return { current: Math.max(1, Math.min(current, total)), total };
+}
+
+/** Keep the student on the slide they were viewing after catalog history is rebuilt. */
+export function keptPlayheadIndex(
+  slides: Array<{ coach?: { title?: string; phase?: CoachState["phase"] } | null }>,
+  live: { title?: string; phase?: CoachState["phase"] } | null | undefined,
+  fallbackIndex: number
+): number {
+  if (!slides.length) {
+    return 0;
+  }
+  const title = live?.title;
+  if (title) {
+    const found = slides.findIndex((slide) => {
+      if (!slide.coach || slide.coach.title !== title) {
+        return false;
+      }
+      if (live.phase && slide.coach.phase && slide.coach.phase !== live.phase) {
+        return false;
+      }
+      return true;
+    });
+    if (found >= 0) {
+      return found;
+    }
+  }
+  return Math.max(0, Math.min(fallbackIndex, slides.length - 1));
 }
 
 export function teachingStepIndex(steps: SavedLessonStep[], index: number): {

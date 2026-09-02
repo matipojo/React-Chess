@@ -42,7 +42,7 @@ describe("about demo position", () => {
     expect(ABOUT_EXAMPLE_PROMPTS).toEqual([
       "Show Scholar's Mate",
       "Show a right triangle and the altitude to the hypotenuse",
-      "Teach me the Italian",
+      "Teach me the Italian opening",
       "Teach SAS congruence with two triangles",
     ]);
     ABOUT_EXAMPLE_PROMPTS.forEach((prompt) => {

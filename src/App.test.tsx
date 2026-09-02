@@ -7,9 +7,17 @@ function setPath(path: string) {
   window.history.pushState({}, "", path);
 }
 
+function faviconHref() {
+  return document.querySelector("link[rel='icon']")?.getAttribute("href") || "";
+}
+
 describe("App routes", () => {
   afterEach(() => {
     setPath("/");
+    document.title = "";
+    document.querySelectorAll("link[rel='icon'], link[rel='shortcut icon']").forEach((el) => {
+      el.parentNode?.removeChild(el);
+    });
     delete (document as { modelContext?: unknown }).modelContext;
   });
 
@@ -25,6 +33,9 @@ describe("App routes", () => {
     );
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeTruthy();
+    expect(document.title).toBe("Generative Learning");
+    expect(faviconHref()).toMatch(/favicon-home\.svg$/);
+    expect(faviconHref()).not.toMatch(/chess/i);
     unmount();
   });
 
@@ -36,6 +47,8 @@ describe("App routes", () => {
     expect(getByRole("link", { name: "Chess" }).getAttribute("aria-current")).toBe("page");
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeNull();
+    expect(document.title).toBe("Chess · Generative Learning");
+    expect(faviconHref()).toMatch(/favicon-chess\.svg$/);
     unmount();
   });
 
@@ -48,6 +61,9 @@ describe("App routes", () => {
     );
     expect(container.querySelector(".geometry-canvas")).toBeTruthy();
     expect(container.querySelector("#chessboard")).toBeNull();
+    expect(document.title).toBe("Triangles · Generative Learning");
+    expect(faviconHref()).toMatch(/favicon-triangles\.svg$/);
+    expect(faviconHref()).not.toMatch(/chess/i);
     unmount();
   });
 
@@ -81,5 +97,35 @@ describe("App routes", () => {
     });
     expect(await findByRole("heading", { name: "Generative Learning" })).toBeTruthy();
     expect(queryByRole("heading", { name: /Not the canvas/ })).toBeNull();
+    expect(document.title).toBe("Chess · Generative Learning");
+    expect(faviconHref()).toMatch(/favicon-chess\.svg$/);
+  });
+
+  it("lets home-page agent tools open triangles with its own favicon", async () => {
+    const registered: ModelContextTool[] = [];
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        provideContext: ({ tools }: { tools: ModelContextTool[] }) => {
+          registered.splice(0, registered.length, ...tools);
+        },
+        clearContext: () => {
+          registered.length = 0;
+        },
+      },
+    });
+    setPath("/");
+    const { findByRole, queryByRole } = render(<App />);
+    expect(faviconHref()).toMatch(/favicon-home\.svg$/);
+    const openPage = registered.find((tool) => tool.name === "open-page");
+    expect(openPage).toBeTruthy();
+    await act(async () => {
+      await openPage!.execute({ page: "triangles" });
+    });
+    expect(await findByRole("heading", { name: "Generative Learning" })).toBeTruthy();
+    expect(queryByRole("heading", { name: /Not the canvas/ })).toBeNull();
+    expect(document.title).toBe("Triangles · Generative Learning");
+    expect(faviconHref()).toMatch(/favicon-triangles\.svg$/);
+    expect(faviconHref()).not.toMatch(/chess/i);
   });
 });

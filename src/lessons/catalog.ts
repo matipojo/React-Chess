@@ -47,7 +47,7 @@ export const PIECE_LESSONS: {
     name: "How the king moves",
     defaultSquare: "e1",
     title: "King",
-    body: "The king moves one square in any direction. Keep him safe — if he cannot escape check, the game is over.",
+    body: "The king moves one square in any direction. Keep him safe. If he cannot escape check, the game is over.",
   },
 ];
 
@@ -60,7 +60,7 @@ export const FAMOUS_GAMES: FamousGame[] = [
     notes: [
       { ply: 3, text: "The queen eyes f7, the weakest square in Black's camp." },
       { ply: 5, text: "Bishop and queen both aim at f7." },
-      { ply: 7, text: "Qxf7 is checkmate — the king has no escape." },
+      { ply: 7, text: "Qxf7 is checkmate. The king has no escape." },
     ],
   },
   {
@@ -124,7 +124,7 @@ export const FAMOUS_GAMES: FamousGame[] = [
     ],
     notes: [
       { ply: 23, text: "Morphy castles queenside, bringing a rook to the d-file." },
-      { ply: 31, text: "Queen sacrifice on b8 — the last defender is deflected." },
+      { ply: 31, text: "Queen sacrifice on b8. The last defender is deflected." },
       { ply: 33, text: "Rd8 is checkmate. The back rank is sealed." },
     ],
   },

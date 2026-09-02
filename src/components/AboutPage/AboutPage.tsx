@@ -31,6 +31,8 @@ import "../GeometryCanvas/GeometryCanvas.css";
 import "../../board-themes.css";
 import "./AboutPage.css";
 
+const GITHUB_REPO_URL = "https://github.com/matipojo/WebMCP-Generative-Learning";
+
 const italianBoard = boardFromFen(ITALIAN_GAME_FEN, true);
 const demoFigure = figureFromTemplate(ABOUT_DEMO_FIGURE_ID);
 
@@ -44,6 +46,17 @@ function LogoMark() {
       <path fill="#9b74d8" d="M18 2l12 7-12 7L6 9z" />
       <path fill="#7c4dcc" d="M18 10l12 7-12 7-12-7z" />
       <path fill="#4a2a72" d="M18 18l12 7-12 7-12-7z" />
+    </svg>
+  );
+}
+
+function GitHubIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+      />
     </svg>
   );
 }
@@ -255,17 +268,17 @@ export default function AboutPage() {
       <main>
         <section className="about-hero">
           <p className="about-kicker">
-            We build the learning surface once. AI personalizes the lesson endlessly.
+            We build the learning surface once. Your AI agent personalizes the lesson endlessly.
           </p>
           <h1>
             Generate the learning. <span>Not the canvas.</span>
           </h1>
           <p className="about-lede">
-            You learn on a real chessboard or triangle canvas — not in a chat.
+            You learn on a real chessboard or triangle canvas, not in a chat.
           </p>
           <p className="about-lede about-lede-more">
-            Ask what you want to learn. The AI teaches you there, and the
-            lesson follows you.
+            Ask what you want to learn. Your AI agent teaches you there, and
+            the lesson follows you.
           </p>
           <CodexPromptField
             id="about-hero-prompt"
@@ -305,7 +318,7 @@ export default function AboutPage() {
           </div>
           <aside className="lesson-coach about-tutor">
             <div className="lesson-coach-content">
-              <p className="lesson-coach-kicker">AI Tutor</p>
+              <p className="lesson-coach-kicker">Your AI agent</p>
               <p className="lesson-coach-slide-count">With you as you learn</p>
               <div className="about-progress" aria-hidden="true">
                 <span className="is-done" />
@@ -340,11 +353,11 @@ export default function AboutPage() {
             </p>
             <p>
               Chess and triangles already have a board built for them. You open
-              it, and the AI teaches you there.
+              it, and your AI agent teaches you there.
             </p>
             <p>
-              The AI does not invent a new screen. It uses the board in front
-              of you.
+              Your AI agent does not invent a new screen. It uses the board in
+              front of you.
             </p>
             <p>
               You choose what to do next. The board keeps the structure.
@@ -383,8 +396,8 @@ export default function AboutPage() {
               </div>
               <h3>Ask for a lesson</h3>
               <p>
-                Tell the AI what you want to learn. It shows the idea on the
-                board and explains as you go.
+                Tell your AI agent what you want to learn. It shows the idea on
+                the board and explains as you go.
               </p>
             </article>
             <span className="about-step-arrow" aria-hidden="true">
@@ -440,7 +453,7 @@ export default function AboutPage() {
         </section>
 
         <section className="about-section">
-          <h2>You and the AI share this board</h2>
+          <h2>You and your AI agent share this board</h2>
           <div className="about-shared">
             <div className="about-shared-actor" aria-hidden="true">
               <svg viewBox="0 0 48 48">
@@ -466,11 +479,11 @@ export default function AboutPage() {
                 <circle cx="20" cy="18" r="2" fill="#fff" />
                 <circle cx="28" cy="18" r="2" fill="#fff" />
               </svg>
-              <span>AI</span>
+              <span>Your AI agent</span>
             </div>
           </div>
           <p className="about-footnote">
-            The lesson lives on the board in front of you — not in a throwaway
+            The lesson lives on the board in front of you, not in a throwaway
             chat.
           </p>
         </section>
@@ -521,11 +534,22 @@ export default function AboutPage() {
           <div>
             <strong>Generative Learning</strong>
             <p>
-              We build the learning surface once. AI personalizes the lesson endlessly.
+              We build the learning surface once. Your AI agent personalizes the lesson endlessly.
             </p>
           </div>
         </div>
-        <p className="about-footer-credit">Powered by WebMCP</p>
+        <div className="about-footer-meta">
+          <a
+            className="about-footer-github"
+            href={GITHUB_REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <GitHubIcon />
+            GitHub
+          </a>
+          <p className="about-footer-credit">Powered by WebMCP</p>
+        </div>
       </footer>
     </div>
   );

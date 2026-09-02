@@ -188,7 +188,12 @@ export default function Referee() {
       to: coordinatesToNotation(to.x, to.y),
       team,
     });
-    chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
+    const handle = chessboardHandleRef.current;
+    if (!handle) {
+      onComplete?.();
+      return;
+    }
+    handle.animateMove(from, to, team, onComplete);
   }, []);
 
   const cancelMoveAnimation = useCallback(() => {
@@ -304,6 +309,7 @@ export default function Referee() {
     generatingNext,
     hasLineMoves: Boolean(loaded && loaded.moves.length > 0),
     isShowme: lessons.coach?.phase === "showme",
+    stepCount: lessons.historyLength,
   });
   const canBack = canStep && !waitingOnUser && lessons.historyIndex > 0;
   const canFirst = canBack;

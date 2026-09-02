@@ -88,7 +88,7 @@ export default function LessonCoachEmpty({
           )}
         </div>
         <p>
-          Everything you learn here is created in the chat. Ask the agent
+          Everything you learn here is created in the chat. Ask your AI agent
           to teach you a topic and it builds a lesson with steps. Ask it to
           show you a line and it plays the moves live with one explanation.
         </p>

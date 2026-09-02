@@ -1,26 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { allObjectIds, cloneFigure, defaultScalene, figuresEqual, moveFreePoint } from "../geometry/figure";
 import { applyGan, parseGanCommand } from "../geometry/gan";
-import { ganAnswerIsCorrect } from "../geometry/hitTest";
+import { ganAnswerIsCorrect, missingQuizTargets } from "../geometry/hitTest";
 import { figureSummary, measureFigure } from "../geometry/measure";
 import { COACH_GAN_RULE } from "../geometry/notation";
 import { coachPlayGan, resolveStepGan } from "../geometry/stepPlay";
 import { FIGURE_TEMPLATES, figureFromTemplate, startFigure, templateNames } from "../geometry/templates";
 import { parseTfn, serializeTfn } from "../geometry/tfn";
+import { figureTransitionAnimation } from "../geometry/figureTransition";
 import { Figure, FigureAnimation, Vec } from "../geometry/types";
 import {
   coachFromDraft,
-  coachFromSummary,
   isRecapPhase,
   lessonExpectsRecap,
   parseLessonStepType,
   teachingSteps,
+  keptPlayheadIndex,
 } from "../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
+  formatFigureQuizIncorrectFeedback,
+  formatFigureQuizTimeoutFeedback,
   formatQuizCorrectFeedback,
-  formatQuizIncorrectFeedback,
-  formatQuizTimeoutFeedback,
   QUIZ_TIMEOUT_MS,
   QUIZ_TIMEOUT_SECONDS,
 } from "../lessons/quizCopy";
@@ -78,6 +79,23 @@ function fallbackPointerAnimation(before: Figure, after: Figure): FigureAnimatio
 
 function cloneCoach(coach: CoachState | null): CoachState | null {
   return coach ? { ...coach, paragraphs: coach.paragraphs ? [...coach.paragraphs] : undefined, moves: coach.moves ? [...coach.moves] : undefined } : null;
+}
+
+function revealQuizTargets(figure: Figure, correct: string[]): Figure {
+  let next = cloneFigure(figure);
+  const wantsCentroid = correct.some((token) => {
+    const n = token.trim().replace(/\s/g, "");
+    return n === "G" || /^g\(△?[A-Z]{3}\)$/i.test(n);
+  });
+  if (wantsCentroid && !next.points.G && next.triangles[0]) {
+    const tri = next.triangles[0];
+    const labeled = applyGan(next, "g(△" + tri.join("") + ")");
+    if (!labeled.error) {
+      next = labeled.figure;
+    }
+  }
+  next.highlights = correct.slice();
+  return next;
 }
 
 function applyRightMarks(figure: Figure, what?: string, moves?: string[]): Figure {
@@ -145,6 +163,7 @@ export function useTriangleLessons(options?: {
   const quizTimerRef = useRef<number | null>(null);
   const quizTickRef = useRef<number | null>(null);
   const animTimerRef = useRef<number | null>(null);
+  const animGenRef = useRef(0);
   const playPointerRef = useRef(options?.playPointer);
   playPointerRef.current = options?.playPointer;
   const cancelPointerRef = useRef(options?.cancelPointer);
@@ -201,6 +220,44 @@ export function useTriangleLessons(options?: {
     setQuiz(snap.quiz);
   }, [applyFigure]);
 
+  const restoreWithAnimation = useCallback((snap: Snapshot, nextIndex: number, length: number) => {
+    const token = ++animGenRef.current;
+    const finish = () => {
+      if (animTimerRef.current) {
+        window.clearTimeout(animTimerRef.current);
+        animTimerRef.current = null;
+      }
+      if (animGenRef.current !== token) {
+        return;
+      }
+      restoreSnapshot(snap);
+      publishHistory(nextIndex, length);
+      setAnimation(null);
+      setAnimating(false);
+    };
+    const animation = figureTransitionAnimation(figureRef.current, snap.figure);
+    if (!animation || !playPointerRef.current) {
+      finish();
+      return;
+    }
+    setAnimating(true);
+    setAnimation(animation);
+    let settled = false;
+    const done = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      finish();
+    };
+    animTimerRef.current = window.setTimeout(done, 4000);
+    try {
+      playPointerRef.current(animation, done);
+    } catch {
+      done();
+    }
+  }, [publishHistory, restoreSnapshot]);
+
   const clearQuizTimers = useCallback(() => {
     if (quizTimerRef.current) {
       window.clearTimeout(quizTimerRef.current);
@@ -224,11 +281,8 @@ export function useTriangleLessons(options?: {
     if (correct) {
       setQuizFeedback(formatQuizCorrectFeedback());
     } else {
-      setQuizFeedback(formatQuizIncorrectFeedback(current.correct));
-      applyFigure({
-        ...figureRef.current,
-        highlights: current.correct.slice(),
-      });
+      setQuizFeedback(formatFigureQuizIncorrectFeedback(current.correct));
+      applyFigure(revealQuizTargets(figureRef.current, current.correct));
     }
     quizResolverRef.current?.({ correct, square: id });
     quizResolverRef.current = null;
@@ -246,11 +300,8 @@ export function useTriangleLessons(options?: {
       quizResolverRef.current = resolve;
       quizTimerRef.current = window.setTimeout(() => {
         setQuiz((current) => current ? { ...current, answered: true, timedOut: true } : current);
-        setQuizFeedback(formatQuizTimeoutFeedback(nextQuiz.correct));
-        applyFigure({
-          ...figureRef.current,
-          highlights: nextQuiz.correct.slice(),
-        });
+        setQuizFeedback(formatFigureQuizTimeoutFeedback(nextQuiz.correct));
+        applyFigure(revealQuizTargets(figureRef.current, nextQuiz.correct));
         resolve({ correct: false, square: "", timedOut: true });
         quizResolverRef.current = null;
         clearQuizTimers();
@@ -275,6 +326,7 @@ export function useTriangleLessons(options?: {
       window.clearTimeout(animTimerRef.current);
       animTimerRef.current = null;
     }
+    animGenRef.current += 1;
     cancelPointerRef.current?.();
     if (options?.resetFigure !== false) {
       applyFigure(startFigure("scalene"));
@@ -362,7 +414,15 @@ export function useTriangleLessons(options?: {
       });
       if (isRiddle) {
         if (!question || !correct.length) {
-          return failed("A riddle needs question and at least one correct GAN object (∠C, H, AB).");
+          return failed("A riddle needs question and at least one correct GAN object (∠C, H, AB, G).");
+        }
+        const missing = missingQuizTargets(figureRef.current, correct);
+        if (missing.length) {
+          return failed(
+            `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not on the figure. Construct and label ${
+              missing.length === 1 ? "it" : "them"
+            } first (centroid: g(△ABC)) so the student can click ${missing.length === 1 ? "it" : "them"}.`
+          );
         }
       } else if (!args.title.trim() || !(args.why || "").trim() || !(args.what || "").trim()) {
         return failed("Each step needs title, why, and what (GAN construction).");
@@ -432,40 +492,59 @@ export function useTriangleLessons(options?: {
           storageKey: TRIANGLE_CATALOG_KEY,
         })
       );
-      coachRef.current = coach;
-      setCoachState(coach);
-      applyFigure(applyRightMarks(figureRef.current, coach.what, constructions));
-      pushSnapshot();
-      if (quizState) {
-        const quizResult = await askQuiz(quizState, { signal: args.signal });
+      const saved = findUserLessonByNumber(lessonNumber, TRIANGLE_CATALOG_KEY);
+      if (saved && lessonNumberRef.current === lessonNumber) {
+        const liveCoach = cloneCoach(coachRef.current);
+        const liveFigure = cloneFigure(figureRef.current);
+        const liveQuiz = quizRef.current
+          ? { ...quizRef.current, correct: [...quizRef.current.correct] }
+          : null;
+        const keep = Math.max(0, historyIndexRef.current);
+        const slides = projectTriangleLessonSession(saved);
+        historyRef.current = slides.map((slide) => ({
+          figure: applyRightMarks(parseTfn(slide.tfn), slide.coach?.what, slide.coach?.moves),
+          coach: cloneCoach(slide.coach),
+          quiz: slide.quiz
+            ? { ...slide.quiz, correct: [...slide.quiz.correct], answered: false, timedOut: false }
+            : null,
+        }));
+        const index = keptPlayheadIndex(historyRef.current, liveCoach, keep);
+        applyFigure(liveFigure);
+        coachRef.current = liveCoach;
+        setCoachState(liveCoach);
+        quizRef.current = liveQuiz;
+        setQuiz(liveQuiz);
+        publishHistory(index, historyRef.current.length);
+      }
+      const recapExpected = lessonExpectsRecap(totalTeaching);
+      if (isRiddle) {
         return {
-          success: quizResult.correct,
-          message: `Added riddle step ${totalTeaching} of triangle lesson ${lessonNumber}.`,
+          success: true,
+          message: `Stored riddle step ${totalTeaching} of triangle lesson ${lessonNumber}. Live playhead unchanged — did not jump to the last step. The student reaches it with Next.`,
           lesson: lessonNumber,
           step: totalTeaching,
           totalSteps: totalTeaching,
           screen: "riddle" as const,
           nextTools: ["how_to_ask_the_user"],
           recapWritten: false,
-          recapExpected: lessonExpectsRecap(totalTeaching),
-          quiz: quizResult,
+          recapExpected,
         };
       }
       return {
         success: true,
-        message: `Added teaching step ${totalTeaching} of triangle lesson ${lessonNumber}. Student taps Play on GAN tokens. Next: add-lesson-step or set-lesson-recap.`,
+        message: `Stored teaching step ${totalTeaching} of triangle lesson ${lessonNumber}. Live playhead unchanged — did not jump to the last step. Student taps Play on GAN tokens. Next: add-lesson-step or set-lesson-recap.`,
         lesson: lessonNumber,
         step: totalTeaching,
         totalSteps: totalTeaching,
         screen: "step" as const,
-        nextTools: lessonExpectsRecap(totalTeaching)
+        nextTools: recapExpected
           ? ["add-lesson-step", "set-lesson-recap"]
           : ["add-lesson-step"],
         recapWritten: false,
-        recapExpected: lessonExpectsRecap(totalTeaching),
+        recapExpected,
       };
     },
-    [applyFigure, askQuiz, pushSnapshot]
+    [applyFigure, publishHistory]
   );
 
   const addLessonSteps = useCallback(
@@ -522,23 +601,37 @@ export function useTriangleLessons(options?: {
         TRIANGLE_CATALOG_KEY
       );
       setUserLessons(catalog);
-      const recapCoach = coachFromSummary(
-        { title: args.title, paragraphs: args.paragraphs },
-        {
-          lessonTitle: findUserLessonByNumber(lessonNumber, TRIANGLE_CATALOG_KEY)?.title || "",
-          lesson: lessonNumber,
-        }
-      );
-      coachRef.current = recapCoach;
-      setCoachState(recapCoach);
-      pushSnapshot();
+      const saved = findUserLessonByNumber(lessonNumber, TRIANGLE_CATALOG_KEY);
+      if (saved && lessonNumberRef.current === lessonNumber) {
+        const liveCoach = cloneCoach(coachRef.current);
+        const liveFigure = cloneFigure(figureRef.current);
+        const liveQuiz = quizRef.current
+          ? { ...quizRef.current, correct: [...quizRef.current.correct] }
+          : null;
+        const keep = Math.max(0, historyIndexRef.current);
+        const slides = projectTriangleLessonSession(saved);
+        historyRef.current = slides.map((slide) => ({
+          figure: applyRightMarks(parseTfn(slide.tfn), slide.coach?.what, slide.coach?.moves),
+          coach: cloneCoach(slide.coach),
+          quiz: slide.quiz
+            ? { ...slide.quiz, correct: [...slide.quiz.correct], answered: false, timedOut: false }
+            : null,
+        }));
+        const index = keptPlayheadIndex(historyRef.current, liveCoach, keep);
+        applyFigure(liveFigure);
+        coachRef.current = liveCoach;
+        setCoachState(liveCoach);
+        quizRef.current = liveQuiz;
+        setQuiz(liveQuiz);
+        publishHistory(index, historyRef.current.length);
+      }
       return {
         success: true,
-        message: `Recap saved for triangle lesson ${lessonNumber}. Then how_to_ask_the_user.`,
+        message: `Recap saved for triangle lesson ${lessonNumber}. Live playhead unchanged. Then how_to_ask_the_user.`,
         lesson: lessonNumber,
       };
     },
-    [pushSnapshot]
+    [applyFigure, publishHistory]
   );
 
   const playGan = useCallback(async (notation: string) => {
@@ -669,17 +762,13 @@ export function useTriangleLessons(options?: {
     wipe();
     lessonNumberRef.current = item.number || null;
     const slides = projectTriangleLessonSession(item);
-    slides.forEach((slide) => {
-      applyFigure(applyRightMarks(parseTfn(slide.tfn), slide.coach?.what, slide.coach?.moves));
-      coachRef.current = cloneCoach(slide.coach);
-      setCoachState(coachRef.current);
-      const restoredQuiz = slide.quiz
+    historyRef.current = slides.map((slide) => ({
+      figure: applyRightMarks(parseTfn(slide.tfn), slide.coach?.what, slide.coach?.moves),
+      coach: cloneCoach(slide.coach),
+      quiz: slide.quiz
         ? { ...slide.quiz, correct: [...slide.quiz.correct], answered: false, timedOut: false }
-        : null;
-      quizRef.current = restoredQuiz;
-      setQuiz(restoredQuiz);
-      pushSnapshot(restoredQuiz);
-    });
+        : null,
+    }));
     if (historyRef.current[0]) {
       restoreSnapshot(historyRef.current[0]);
       publishHistory(0, historyRef.current.length);
@@ -689,7 +778,7 @@ export function useTriangleLessons(options?: {
       message: `Opened ${item.title}`,
       data: { id: item.id, lesson: item.number, steps: slides.length },
     };
-  }, [applyFigure, publishHistory, pushSnapshot, restoreSnapshot, wipe]);
+  }, [publishHistory, restoreSnapshot, wipe]);
 
   const catalogStepIndex = () => {
     const current = coachRef.current?.step;
@@ -702,8 +791,7 @@ export function useTriangleLessons(options?: {
     }
     if (historyIndexRef.current > 0) {
       const nextIndex = historyIndexRef.current - 1;
-      restoreSnapshot(historyRef.current[nextIndex]);
-      publishHistory(nextIndex, historyRef.current.length);
+      restoreWithAnimation(historyRef.current[nextIndex], nextIndex, historyRef.current.length);
       return;
     }
     const item =
@@ -717,7 +805,7 @@ export function useTriangleLessons(options?: {
     if (prev >= 0) {
       showCatalogStep(item, prev, true);
     }
-  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
+  }, [animating, restoreWithAnimation, showCatalogStep]);
 
   const stepNext = useCallback(() => {
     if (animating) {
@@ -725,8 +813,7 @@ export function useTriangleLessons(options?: {
     }
     if (historyIndexRef.current >= 0 && historyIndexRef.current < historyRef.current.length - 1) {
       const nextIndex = historyIndexRef.current + 1;
-      restoreSnapshot(historyRef.current[nextIndex]);
-      publishHistory(nextIndex, historyRef.current.length);
+      restoreWithAnimation(historyRef.current[nextIndex], nextIndex, historyRef.current.length);
       return;
     }
     const item =
@@ -741,7 +828,7 @@ export function useTriangleLessons(options?: {
     if (next < total) {
       showCatalogStep(item, next, true);
     }
-  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
+  }, [animating, restoreWithAnimation, showCatalogStep]);
 
   const stepFirst = useCallback(() => {
     if (animating) {

@@ -57,7 +57,7 @@ describe("user catalog", () => {
     upsertUserLesson({
       id: "game:scholars-mate",
       kind: "game",
-      title: "4. Qxf7# — checkmate",
+      title: "4. Qxf7#: checkmate",
       body: "The queen takes on f7.",
       gameId: "scholars-mate",
       arrows: [{ from: "c4", to: "f7" }],

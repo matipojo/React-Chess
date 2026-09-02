@@ -1,6 +1,9 @@
 import { act, render } from "@testing-library/react";
 import { createRef } from "react";
 import { defaultScalene, moveFreePoint } from "../../geometry/figure";
+import { applyGan } from "../../geometry/gan";
+import { figureTransitionAnimation } from "../../geometry/figureTransition";
+import { startFigure } from "../../geometry/templates";
 import GeometryCanvas, { GeometryCanvasHandle } from "./GeometryCanvas";
 import {
   HAND_APPROACH_MS,
@@ -147,6 +150,33 @@ describe("GeometryCanvas pointer", () => {
     });
     expect(done).toHaveBeenCalledTimes(1);
     expect(document.querySelector("[data-pointer-hand]")).toBeNull();
+    unmount();
+  });
+
+  it("shrinks a construction stroke when the draw is reversed", () => {
+    const handle = createRef<GeometryCanvasHandle>();
+    const start = startFigure("right-at-C");
+    const built = applyGan(start, "h(C,AB)");
+    expect(built.error).toBeUndefined();
+    const reverse = figureTransitionAnimation(built.figure, start);
+    expect(reverse?.type).toBe("draw");
+    const { container, unmount } = render(
+      <GeometryCanvas ref={handle} figure={built.figure} />
+    );
+    const dashed = () => container.querySelector("line.geometry-stroke.is-dashed");
+    const startX2 = dashed()?.getAttribute("x2");
+    const startY2 = dashed()?.getAttribute("y2");
+
+    act(() => {
+      handle.current?.playAnimation(reverse!, () => undefined);
+    });
+    act(() => {
+      jest.advanceTimersByTime(HAND_START_DELAY_MS + HAND_APPROACH_MS + HAND_DRAG_MS / 2);
+    });
+    expect(dashed()?.getAttribute("x2")).not.toBe(startX2);
+    expect(dashed()?.getAttribute("y2") !== startY2 || dashed()?.getAttribute("x2") !== startX2).toBe(
+      true
+    );
     unmount();
   });
 });

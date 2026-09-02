@@ -261,7 +261,7 @@ function isAdjacentToOtherRef(parts: ChessTextPart[], index: number): boolean {
   return false;
 }
 
-/** Short SAN that hover cannot resolve to a piece arrow — coach text must use long algebraic. */
+/** Short SAN that hover cannot resolve to a piece arrow. Coach text must use long algebraic. */
 export function sanMovesNeedingFromTo(text: string): string[] {
   if (!text) {
     return [];

@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState } from "react";
 import { circleGeometry, cloneFigure, moveFreePoint, oppositeVertex, pointVec, rotateNamed, segmentKey } from "../../geometry/figure";
-import { idsMatchHighlight, isAngleHighlighted } from "../../geometry/hitTest";
-import { dist, midpoint, unit, sub, add, scale, cross } from "../../geometry/math";
+import { remainingDrawEnd, strokeMatchesDraw } from "../../geometry/figureTransition";
+import { hitUnlabeledCentroids, idsMatchHighlight, isAngleHighlighted, isCentroidToken, triangleCentroidAt, unlabeledCentroidId } from "../../geometry/hitTest";
+import { centroid, dist, midpoint, unit, sub, add, scale, cross } from "../../geometry/math";
 import { animationPointerPath } from "../../geometry/pointerPath";
 import { Figure, FigureAnimation, Vec } from "../../geometry/types";
 import PointerHandAnimation, { PointerHandHandle } from "../PointerHand/PointerHandAnimation";
@@ -129,10 +130,6 @@ function interiorAngleArms(vertex: Vec, left: Vec, right: Vec, inside: Vec): [Ve
   const c3 = cross(ua, ub);
   const insideSector = (c1 >= 0 && c2 >= 0 && c3 >= 0) || (c1 <= 0 && c2 <= 0 && c3 <= 0);
   return insideSector ? [left, right] : [right, left];
-}
-
-function triangleCentroid(a: Vec, b: Vec, c: Vec): Vec {
-  return { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
 }
 
 function angleSweep(ua: Vec, ub: Vec): 0 | 1 {
@@ -397,6 +394,12 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
         bestD = d;
       }
     }
+    hitUnlabeledCentroids(figure, world, 0.32).forEach((hit) => {
+      if (hit.distance < bestD) {
+        bestId = hit.id;
+        bestD = hit.distance;
+      }
+    });
     for (let i = 0; i < figure.strokes.length; i++) {
       const s = figure.strokes[i];
       const a = pointVec(figure, s.a);
@@ -508,7 +511,7 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
             .find((t) => t.indexOf(ang.vertex) >= 0 && t.indexOf(ang.left) >= 0 && t.indexOf(ang.right) >= 0)
             ?.find((name) => name !== ang.vertex && name !== ang.left && name !== ang.right);
           const third = thirdName ? pointVec(displayFigure, thirdName) : null;
-          const inside = third || triangleCentroid(v, a, b);
+          const inside = third || centroid(v, a, b);
           const [left, right] = interiorAngleArms(v, a, b, inside);
           return (
             <g key={"hot-ang-" + ang.vertex + ang.left + ang.right} data-angle={"∠" + ang.vertex}>
@@ -540,18 +543,28 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
           ]
             .filter(Boolean)
             .join(" ");
+          const undoing =
+            liveAnimation &&
+            liveAnimation.type === "draw" &&
+            liveAnimation.reverse &&
+            strokeMatchesDraw(a, b, liveAnimation.from, liveAnimation.to);
+          const start = undoing && liveAnimation.type === "draw" ? liveAnimation.from : a;
+          const end =
+            undoing && liveAnimation.type === "draw"
+              ? remainingDrawEnd(liveAnimation, previewT)
+              : b;
           return (
             <line
               key={index}
               className={cls}
-              x1={a.x}
-              y1={-a.y}
-              x2={b.x}
-              y2={-b.y}
+              x1={start.x}
+              y1={-start.y}
+              x2={end.x}
+              y2={-end.y}
             />
           );
         })}
-        {ink && (
+        {ink && !(liveAnimation && liveAnimation.type === "draw" && liveAnimation.reverse) && (
           <line
             className="geometry-stroke is-dashed"
             x1={ink.from.x}
@@ -650,6 +663,26 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
             >
               {l.text}°
             </text>
+          );
+        })}
+        {displayFigure.triangles.map((tri) => {
+          const at = triangleCentroidAt(displayFigure, tri);
+          if (!at || displayFigure.points.G) {
+            return null;
+          }
+          const id = unlabeledCentroidId(tri);
+          const active = highlights.some((item) => isCentroidToken(item) || idsMatchHighlight(id, [item]));
+          if (!active) {
+            return null;
+          }
+          return (
+            <g key={id} className="geometry-point is-hot" data-point="G">
+              <circle className="geometry-point-halo" cx={at.x} cy={-at.y} r={0.28} />
+              <circle cx={at.x} cy={-at.y} r={0.14} />
+              <text x={at.x + 0.16} y={-at.y - 0.16}>
+                G
+              </text>
+            </g>
           );
         })}
         {names.map((name) => {

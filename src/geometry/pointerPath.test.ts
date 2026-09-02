@@ -31,4 +31,17 @@ describe("animationPointerPath", () => {
     expect(path?.from).toEqual(figure.points.C);
     expect(path?.to).toEqual(figure.points.A);
   });
+
+  it("retraces a stroke backward when undoing a draw", () => {
+    const figure = defaultScalene();
+    const path = animationPointerPath(
+      { type: "draw", from: figure.points.C, to: figure.points.A, reverse: true },
+      figure
+    );
+    expect(path).toEqual({
+      from: figure.points.A,
+      to: figure.points.C,
+      grab: true,
+    });
+  });
 });

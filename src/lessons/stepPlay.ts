@@ -3,7 +3,11 @@ import { Position } from "../models/Position";
 import { TeamType } from "../Types";
 import { tokenizeChessText } from "../utils/chess-text-links";
 import { boardFromFen, boardToFen } from "../utils/board-setup";
-import { chessNotationToCoordinates, parseMoveOrCastle } from "../utils/chess-notation-utils";
+import {
+  chessNotationToCoordinates,
+  normalizeFromToMove,
+  parseMoveOrCastle,
+} from "../utils/chess-notation-utils";
 
 export type MovePlayStatus = "ready" | "done" | "blocked";
 
@@ -34,20 +38,12 @@ export function fromToNotation(
   squares: string[],
   dest?: string
 ): string | null {
-  const castleToken = raw.replace(/\s/g, "").replace(/^\d+\.{1,3}/, "");
-  if (/^(O-O-O|0-0-0)/i.test(castleToken)) {
-    return "O-O-O";
-  }
-  if (/^(O-O|0-0)/i.test(castleToken)) {
-    return "O-O";
+  const normalized = normalizeFromToMove(raw);
+  if (normalized) {
+    return normalized;
   }
   if (dest && squares.length >= 2 && /^[a-h][1-8]$/.test(squares[0]) && squares[0] !== dest) {
     return `${squares[0]}:${dest}`;
-  }
-  const compact = raw.replace(/\s/g, "").replace(/^\d+\.{1,3}/, "");
-  const lan = compact.match(/^(?:[NBRQK])?([a-h][1-8])[-:x–—→]([a-h][1-8])/i);
-  if (lan) {
-    return `${lan[1].toLowerCase()}:${lan[2].toLowerCase()}`;
   }
   return null;
 }
