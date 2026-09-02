@@ -1,4 +1,5 @@
 import { Dispatch, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { unstable_batchedUpdates } from "react-dom";
 import { Board } from "../models/Board";
 import { Position } from "../models/Position";
 import { TeamType } from "../Types";
@@ -1554,6 +1555,26 @@ export function useChessLessons({
     []
   );
 
+  const restoreCatalogIndex = useCallback(
+    (index: number, animated: boolean) => {
+      const lessonNumber = activeLessonNumberRef.current;
+      const item = lessonNumber ? findUserLessonByNumber(lessonNumber) : undefined;
+      const snaps = item ? projectLessonHistory(item) : historyRef.current;
+      const snap = snaps[index];
+      if (!snap) {
+        return;
+      }
+      const finish = () => publishHistory(index, snaps.length);
+      if (animated) {
+        restoreWithAnimation(snap, undefined, finish);
+        return;
+      }
+      restoreSnapshot(snap);
+      finish();
+    },
+    [projectLessonHistory, publishHistory, restoreSnapshot, restoreWithAnimation]
+  );
+
   const refreshViewingLesson = useCallback(
     (lessonNumber: number) => {
       if (activeLessonNumberRef.current !== lessonNumber) {
@@ -1572,36 +1593,38 @@ export function useChessLessons({
 
   const restoreCustomLesson = useCallback(
     (item: SavedLesson, options?: { fromStart?: boolean }) => {
-      wipeLearnSession();
-      activeLessonNumberRef.current = item.number || null;
-      const moves = item.moves || [];
-      const lineId =
-        item.kind === "game"
-          ? item.gameId || item.id.replace(/^game:/, "")
-          : item.id;
-      if (moves.length > 0) {
-        loadedLineRef.current = {
-          id: lineId,
-          name: item.title,
-          moves,
-          notes: item.notes || [],
-          ply: 0,
-        };
-      } else {
-        loadedLineRef.current = null;
-      }
-      const snaps = projectLessonHistory(item);
-      const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
-      const lastTeaching = lastTeachingSlideIndex(slides);
-      const activeIndex = options?.fromStart === false ? lastTeaching : 0;
-      if (snaps[activeIndex]) {
-        restoreSnapshot(snaps[activeIndex]);
-        publishHistory(activeIndex, snaps.length);
-      }
+      unstable_batchedUpdates(() => {
+        wipeLearnSession({ resetBoard: false });
+        activeLessonNumberRef.current = item.number || null;
+        const moves = item.moves || [];
+        const lineId =
+          item.kind === "game"
+            ? item.gameId || item.id.replace(/^game:/, "")
+            : item.id;
+        if (moves.length > 0) {
+          loadedLineRef.current = {
+            id: lineId,
+            name: item.title,
+            moves,
+            notes: item.notes || [],
+            ply: 0,
+          };
+        } else {
+          loadedLineRef.current = null;
+        }
+        const snaps = projectLessonHistory(item);
+        const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
+        const lastTeaching = lastTeachingSlideIndex(slides);
+        const activeIndex = options?.fromStart === false ? lastTeaching : 0;
+        if (snaps[activeIndex]) {
+          restoreSnapshot(snaps[activeIndex]);
+          publishHistory(activeIndex, snaps.length);
+        }
+      });
       return {
         success: true,
         message: `Opened ${item.title}`,
-        data: { id: item.id, lesson: item.number, steps: slides.length },
+        data: { id: item.id, lesson: item.number, steps: item.steps ? item.steps.length : 0 },
       };
     },
     [projectLessonHistory, publishHistory, restoreSnapshot, wipeLearnSession]
@@ -1807,10 +1830,8 @@ export function useChessLessons({
       toIndex: historyIndexRef.current - 1,
     });
     const nextIndex = historyIndexRef.current - 1;
-    restoreWithAnimation(historyRef.current[nextIndex], undefined, () => {
-      publishHistory(nextIndex, historyRef.current.length);
-    });
-  }, [animating, publishHistory, restoreWithAnimation]);
+    restoreCatalogIndex(nextIndex, true);
+  }, [animating, restoreCatalogIndex]);
 
   const stepFirst = useCallback(() => {
     if (animating || historyIndexRef.current <= 0) {
@@ -1819,9 +1840,8 @@ export function useChessLessons({
     logLessonDebug("visual", "step-first", {
       fromIndex: historyIndexRef.current,
     });
-    restoreSnapshot(historyRef.current[0]);
-    publishHistory(0, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    restoreCatalogIndex(0, false);
+  }, [animating, restoreCatalogIndex]);
 
   const stepLast = useCallback(() => {
     if (animating) {
@@ -1841,9 +1861,8 @@ export function useChessLessons({
     if (lastIndex < 0 || historyIndexRef.current >= lastIndex) {
       return;
     }
-    restoreSnapshot(historyRef.current[lastIndex]);
-    publishHistory(lastIndex, historyRef.current.length);
-  }, [animating, publishHistory, rebuildToPly, restoreSnapshot]);
+    restoreCatalogIndex(lastIndex, false);
+  }, [animating, rebuildToPly, restoreCatalogIndex]);
 
   const stepNext = useCallback(() => {
     if (animating) {
@@ -1856,9 +1875,7 @@ export function useChessLessons({
     });
     if (historyIndexRef.current >= 0 && historyIndexRef.current < historyRef.current.length - 1) {
       const nextIndex = historyIndexRef.current + 1;
-      restoreWithAnimation(historyRef.current[nextIndex], undefined, () => {
-        publishHistory(nextIndex, historyRef.current.length);
-      });
+      restoreCatalogIndex(nextIndex, true);
       return;
     }
     const line = loadedLineRef.current;
@@ -1877,7 +1894,7 @@ export function useChessLessons({
       source: "next",
     });
     resolveWait({ action: choice.id, source: "choice", label: choice.label });
-  }, [animating, playLine, publishHistory, resolveWait, restoreWithAnimation]);
+  }, [animating, playLine, resolveWait, restoreCatalogIndex]);
 
   const createLesson = useCallback((args: {
     title: string;
@@ -1917,10 +1934,27 @@ export function useChessLessons({
     }
 
     const copy = normalizeCoachCopy({ body: "", paragraphs: args.paragraphs || [] });
+    let fen = typeof args.fen === "string" ? args.fen.trim() : "";
+    if (fen) {
+      try {
+        boardFromFen(fen, true);
+      } catch (error) {
+        return {
+          success: false,
+          message: `${error}`,
+          lesson: 0,
+          title: args.title,
+          screen: "goal" as const,
+        };
+      }
+    } else {
+      fen = boardToFen(boardRef.current);
+    }
     const created = createCatalogLesson({
       title: args.title,
       body: copy.body,
       paragraphs: copy.paragraphs,
+      fen,
     });
     rememberDraftLesson(created.number || null);
     setUserLessons(readUserCatalog());
@@ -1936,7 +1970,7 @@ export function useChessLessons({
       title: created.title,
       screen: "goal" as const,
     };
-  }, [presentShowMeLesson, rememberDraftLesson, restoreCustomLesson]);
+  }, [boardRef, presentShowMeLesson, rememberDraftLesson, restoreCustomLesson]);
 
   const addLessonStep = useCallback(
     async (args: {
@@ -1951,6 +1985,7 @@ export function useChessLessons({
       correct?: string[];
       hint?: string;
       quizType?: QuizState["type"];
+      fen?: string;
       signal?: AbortSignal;
     }) => {
       const type = parseLessonStepType(args.type);
@@ -2017,7 +2052,15 @@ export function useChessLessons({
       const lessonTitle = existing.title;
       const startTeaching = teachingSteps(lessonSteps(existing)).length;
       const totalTeaching = startTeaching + 1;
-      const fromFen = fenAfterTeaching(existing);
+      let fromFen = fenAfterTeaching(existing);
+      if (typeof args.fen === "string" && args.fen.trim()) {
+        try {
+          boardFromFen(args.fen.trim(), true);
+          fromFen = args.fen.trim();
+        } catch (error) {
+          return failed(`${error}`, lessonNumber);
+        }
+      }
       const moves = isRiddle ? [] : resolveStepMoves(draft.what, draft.moves);
       const coach = coachFromDraft(draft, {
         lessonTitle,

@@ -52,6 +52,7 @@ type LessonActions = {
     correct?: string[];
     hint?: string;
     quizType?: QuizState["type"];
+    fen?: string;
     signal?: AbortSignal;
   }) => Promise<{
     success: boolean;
@@ -448,7 +449,8 @@ export function useModelContextTools(actions: ChessActions) {
             },
             fen: {
               type: 'string',
-              description: 'Optional starting FEN for type showme. Default is the starting position.',
+              description:
+                'Optional starting FEN. type lesson: the Goal position (and later riddles unless they pass their own fen). type showme: where the demo starts. Default is the current board.',
             },
           },
           required: ['title'],
@@ -533,6 +535,11 @@ export function useModelContextTools(actions: ChessActions) {
               enum: ['click-square', 'click-piece', 'choose-move'],
               description: 'How the student answers a riddle. Default click-square.',
             },
+            fen: {
+              type: 'string',
+              description:
+                'Optional board FEN for this beat. For a riddle whose pieces are not the Goal position, pass the puzzle FEN here (set-position is frozen while a catalog lesson is on screen). Catalog only; does not move the live board. Default is the position after the previous teaching step.',
+            },
           },
           required: ['lesson'],
         },
@@ -551,6 +558,7 @@ export function useModelContextTools(actions: ChessActions) {
             correct,
             hint: typeof params.hint === 'string' ? params.hint : undefined,
             quizType: (params.quizType as QuizState['type']) || 'click-square',
+            fen: typeof params.fen === 'string' ? params.fen : undefined,
             signal: options?.signal,
           });
           if (result.quiz) {

@@ -55,6 +55,7 @@ type TriangleLessonActions = {
     correct?: string[];
     hint?: string;
     quizType?: QuizState["type"];
+    tfn?: string;
     signal?: AbortSignal;
   }) => Promise<{
     success: boolean;
@@ -447,6 +448,11 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
               enum: ["click-square", "click-piece", "choose-move"],
               description: "How the student answers a riddle. Default click-square (click a figure object).",
             },
+            tfn: {
+              type: "string",
+              description:
+                "Optional figure TFN for this beat. For a riddle whose figure is not the Goal, pass the puzzle TFN here. Catalog only; does not change the live figure. Default is the figure after the previous teaching step.",
+            },
           },
           required: ["lesson"],
         },
@@ -468,6 +474,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
             correct,
             hint: typeof params.hint === "string" ? params.hint : undefined,
             quizType: (params.quizType as QuizState["type"]) || "click-square",
+            tfn: typeof params.tfn === "string" ? params.tfn : undefined,
             signal: options?.signal,
           });
           if (result.quiz) {

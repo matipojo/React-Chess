@@ -138,6 +138,7 @@ export function projectTriangleLessonSession(
 
   teaching.forEach((step, index) => {
     if (
+      (step.kind === "riddle" && Boolean(step.tfn)) ||
       shouldApplySavedStepTfn({
         stepTfn: step.tfn,
         currentTfn: cursorTfn,
