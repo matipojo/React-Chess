@@ -1199,84 +1199,120 @@ export function useChessLessons({
     cancelMoveAnimation?.();
 
     const previous = showmeRunRef.current;
-    const run = (async () => {
-      await previous;
+    const finishIdle = () => {
       if (showmeGenRef.current !== myGen) {
-        return {
-          success: false,
-          message: "Replaced by a newer playback.",
-          data: null as unknown,
-        };
+        return;
       }
-      if (startPly === 0) {
-        rewindShowMeBoard();
-      }
-      showmePlyRef.current = startPly;
-      setShowmePly(startPly);
-      showmePlaybackRef.current = "playing";
-      setShowmePlayback("playing");
-      logLessonDebug("visual", "play-showme-line", {
-        lesson: coach.lesson,
-        moves: planned.length,
-        fromPly: startPly,
-      });
-
-      const moves = coachRef.current?.moves || planned;
-      for (let i = startPly; i < moves.length; i++) {
-        while (
-          showmePlaybackRef.current === "paused" &&
-          showmeGenRef.current === myGen
-        ) {
+      showmePlaybackRef.current = "idle";
+      setShowmePlayback("idle");
+    };
+    const run = (async () => {
+      try {
+        await previous;
+        if (showmeGenRef.current !== myGen) {
+          return {
+            success: false,
+            message: "Replaced by a newer playback.",
+            data: null as unknown,
+          };
+        }
+        if (startPly === 0) {
+          rewindShowMeBoard();
           await new Promise<void>((resolve) => {
-            showmePauseWaitRef.current = resolve;
+            if (typeof window.requestAnimationFrame === "function") {
+              window.requestAnimationFrame(() => resolve());
+              return;
+            }
+            window.setTimeout(resolve, 0);
           });
         }
         if (showmeGenRef.current !== myGen) {
           return {
             success: false,
-            message: "Stopped.",
-            data: { ply: showmePlyRef.current },
+            message: "Replaced by a newer playback.",
+            data: null as unknown,
           };
         }
-
-        const parsed = parseMoveOrCastle(moves[i], boardRef.current.currentTeam);
-        const fromCoords = chessNotationToCoordinates(parsed.from);
-        const toCoords = chessNotationToCoordinates(parsed.to);
-        const from = new Position(fromCoords.x, fromCoords.y);
-        const to = new Position(toCoords.x, toCoords.y);
-        const ok = await animateThenPlay(from, to, {
-          isCancelled: () => showmeGenRef.current !== myGen,
+        showmePlyRef.current = startPly;
+        setShowmePly(startPly);
+        showmePlaybackRef.current = "playing";
+        setShowmePlayback("playing");
+        logLessonDebug("visual", "play-showme-line", {
+          lesson: coach.lesson,
+          moves: planned.length,
+          fromPly: startPly,
         });
-        if (showmeGenRef.current !== myGen) {
-          return {
-            success: false,
-            message: "Stopped.",
-            data: { ply: showmePlyRef.current },
-          };
-        }
-        if (!ok) {
-          showmePlaybackRef.current = "idle";
-          setShowmePlayback("idle");
-          return {
-            success: false,
-            message: `Stopped at ${moves[i]}`,
-            data: { ply: i },
-          };
-        }
-        showmePlyRef.current = i + 1;
-        setShowmePly(i + 1);
-        clearAnnotations();
-      }
 
-      if (showmeGenRef.current === myGen) {
-        showmePlaybackRef.current = "idle";
-        setShowmePlayback("idle");
+        const moves = coachRef.current?.moves || planned;
+        for (let i = startPly; i < moves.length; i++) {
+          while (
+            showmePlaybackRef.current === "paused" &&
+            showmeGenRef.current === myGen
+          ) {
+            await new Promise<void>((resolve) => {
+              showmePauseWaitRef.current = resolve;
+            });
+          }
+          if (showmeGenRef.current !== myGen) {
+            return {
+              success: false,
+              message: "Stopped.",
+              data: { ply: showmePlyRef.current },
+            };
+          }
+
+          let parsed: { from: string; to: string };
+          try {
+            parsed = parseMoveOrCastle(moves[i], boardRef.current.currentTeam);
+          } catch (error) {
+            finishIdle();
+            return {
+              success: false,
+              message: `${error}`,
+              data: { ply: i },
+            };
+          }
+          const fromCoords = chessNotationToCoordinates(parsed.from);
+          const toCoords = chessNotationToCoordinates(parsed.to);
+          const from = new Position(fromCoords.x, fromCoords.y);
+          const to = new Position(toCoords.x, toCoords.y);
+          const ok = await animateThenPlay(from, to, {
+            isCancelled: () => showmeGenRef.current !== myGen,
+          });
+          if (showmeGenRef.current !== myGen) {
+            return {
+              success: false,
+              message: "Stopped.",
+              data: { ply: showmePlyRef.current },
+            };
+          }
+          if (!ok) {
+            finishIdle();
+            return {
+              success: false,
+              message: `Stopped at ${moves[i]}`,
+              data: { ply: i },
+            };
+          }
+          showmePlyRef.current = i + 1;
+          setShowmePly(i + 1);
+          clearAnnotations();
+        }
+
+        finishIdle();
+        return {
+          success: true,
+          message: `Played ${moves.length} move(s)`,
+          data: { played: moves.length },
+        };
+      } catch (error) {
+        finishIdle();
+        return {
+          success: false,
+          message: `${error}`,
+          data: { ply: showmePlyRef.current },
+        };
       }
-      return {
-        success: true,
-        message: `Played ${moves.length} move(s)`,
-        data: { played: moves.length },
-      };
     })();
 
     showmeRunRef.current = run.then(

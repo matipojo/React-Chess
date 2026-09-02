@@ -1,3 +1,4 @@
+import { normalizeFromToMove } from "../utils/chess-notation-utils";
 import { normalizeCoachCopy } from "./coachParagraphs";
 
 export type ShowMeLessonArgs = {
@@ -66,7 +67,22 @@ export function resolveShowMeLesson(args: ShowMeLessonArgs): ShowMeLessonResolve
     };
   }
 
-  const moves = (args.moves || []).map((item) => item.trim()).filter(Boolean);
+  const moves: string[] = [];
+  for (const item of args.moves || []) {
+    const trimmed = item.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const normalized = normalizeFromToMove(trimmed);
+    if (!normalized) {
+      return {
+        ok: false,
+        message:
+          "A showme lesson needs moves (from:to) that auto-play on the board.",
+      };
+    }
+    moves.push(normalized);
+  }
   if (!moves.length) {
     return {
       ok: false,

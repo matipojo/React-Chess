@@ -30,11 +30,45 @@ describe("showme lesson type", () => {
     expect(resolved.moves[resolved.moves.length - 1]).toBe("h5:f7");
   });
 
+  it("normalizes long algebraic planned moves so the board can auto-play them", () => {
+    const resolved = resolveShowMeLesson({
+      title: "Scholar's Mate",
+      paragraphs: ["Watch the queen and bishop crash through on f7."],
+      moves: ["e2-e4", "e7-e5", "Qd1-h5", "Nb8-c6", "Bf1-c4", "Ng8-f6", "Qh5xf7"],
+    });
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) {
+      return;
+    }
+    expect(resolved.moves).toEqual([
+      "e2:e4",
+      "e7:e5",
+      "d1:h5",
+      "b8:c6",
+      "f1:c4",
+      "g8:f6",
+      "h5:f7",
+    ]);
+  });
+
   it("rejects a showme lesson with no move plan", () => {
     expect(
       resolveShowMeLesson({
         title: "Demo",
         paragraphs: ["Watch this."],
+      })
+    ).toEqual({
+      ok: false,
+      message: "A showme lesson needs moves (from:to) that auto-play on the board.",
+    });
+  });
+
+  it("rejects short SAN planned moves that cannot be auto-played", () => {
+    expect(
+      resolveShowMeLesson({
+        title: "Demo",
+        paragraphs: ["Watch this."],
+        moves: ["e4", "e5", "Qh5"],
       })
     ).toEqual({
       ok: false,

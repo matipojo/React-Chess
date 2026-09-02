@@ -35,13 +35,31 @@ export function chessNotationToCoordinates(notation: string): { x: number; y: nu
   };
 }
 
-export function parseMoveNotation(moveNotation: string): { from: string; to: string } {
-  const [fromNotation, toNotation] = moveNotation.split(':');
+/** Castle token or from:to, including long algebraic such as e2-e4 / Ng1-f3 / Bf1xc4. */
+export function normalizeFromToMove(notation: string): string | null {
+  const compact = notation.trim().replace(/\s/g, "").replace(/^\d+\.{1,3}/, "");
+  if (!compact) {
+    return null;
+  }
+  if (/^(O-O-O|0-0-0)/i.test(compact)) {
+    return "O-O-O";
+  }
+  if (/^(O-O|0-0)/i.test(compact)) {
+    return "O-O";
+  }
+  const lan = compact.match(/^(?:[NBRQK])?([a-h][1-8])[-:x×–—→]([a-h][1-8])/i);
+  if (lan) {
+    return `${lan[1].toLowerCase()}:${lan[2].toLowerCase()}`;
+  }
+  return null;
+}
 
-  if (!fromNotation || !toNotation) {
+export function parseMoveNotation(moveNotation: string): { from: string; to: string } {
+  const normalized = normalizeFromToMove(moveNotation);
+  if (!normalized || normalized === "O-O" || normalized === "O-O-O") {
     throw new Error(`Invalid move format: ${moveNotation}. Expected format: "from:to" (e.g., "e2:e4")`);
   }
-
+  const [fromNotation, toNotation] = normalized.split(":");
   return { from: fromNotation, to: toNotation };
 }
 
