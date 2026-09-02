@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { allObjectIds, cloneFigure, defaultScalene, figuresEqual, moveFreePoint } from "../geometry/figure";
-import { applyGan } from "../geometry/gan";
+import { applyGan, parseGanCommand } from "../geometry/gan";
 import { ganAnswerIsCorrect } from "../geometry/hitTest";
 import { figureSummary, measureFigure } from "../geometry/measure";
 import { COACH_GAN_RULE } from "../geometry/notation";
@@ -78,6 +78,43 @@ function fallbackPointerAnimation(before: Figure, after: Figure): FigureAnimatio
 
 function cloneCoach(coach: CoachState | null): CoachState | null {
   return coach ? { ...coach, paragraphs: coach.paragraphs ? [...coach.paragraphs] : undefined, moves: coach.moves ? [...coach.moves] : undefined } : null;
+}
+
+function applyRightMarks(figure: Figure, what?: string, moves?: string[]): Figure {
+  let current = figure;
+  resolveStepGan(what, moves).forEach((cmd) => {
+    const parsed = parseGanCommand(cmd);
+    if (!parsed || parsed.type !== "mark-right") {
+      return;
+    }
+    const result = applyGan(current, cmd);
+    if (!result.error) {
+      current = result.figure;
+    }
+  });
+  return current;
+}
+
+function coachFromSavedStep(
+  item: SavedLesson,
+  step: SavedLessonStep,
+  index: number,
+  total: number
+): CoachState {
+  return {
+    title: step.title,
+    lessonTitle: item.title,
+    body: step.body,
+    paragraphs: step.paragraphs,
+    what: step.what,
+    why: step.why,
+    lesson: item.number,
+    step: index + 1,
+    totalSteps: total,
+    phase: step.kind === "riddle" ? "riddle" : "step",
+    moves: step.moves,
+    fromFen: step.tfn,
+  };
 }
 
 export function useTriangleLessons(options?: {
@@ -397,6 +434,7 @@ export function useTriangleLessons(options?: {
       );
       coachRef.current = coach;
       setCoachState(coach);
+      applyFigure(applyRightMarks(figureRef.current, coach.what, constructions));
       pushSnapshot();
       if (quizState) {
         const quizResult = await askQuiz(quizState, { signal: args.signal });
@@ -604,6 +642,25 @@ export function useTriangleLessons(options?: {
     return playGan(gan);
   }, [playGan]);
 
+  const showCatalogStep = useCallback(
+    (item: SavedLesson, teachingIndex: number, push: boolean) => {
+      const steps = teachingSteps(lessonSteps(item));
+      const step = steps[teachingIndex];
+      if (!step) {
+        return false;
+      }
+      const base = step.tfn ? parseTfn(step.tfn) : cloneFigure(figureRef.current);
+      applyFigure(applyRightMarks(base, step.what, step.moves));
+      coachRef.current = coachFromSavedStep(item, step, teachingIndex, steps.length);
+      setCoachState(coachRef.current);
+      if (push) {
+        pushSnapshot();
+      }
+      return true;
+    },
+    [applyFigure, pushSnapshot]
+  );
+
   const openSavedLesson = useCallback((id: string) => {
     const item = findUserLesson(id, TRIANGLE_CATALOG_KEY);
     if (!item) {
@@ -613,7 +670,7 @@ export function useTriangleLessons(options?: {
     lessonNumberRef.current = item.number || null;
     const slides = projectTriangleLessonSession(item);
     slides.forEach((slide) => {
-      applyFigure(parseTfn(slide.tfn));
+      applyFigure(applyRightMarks(parseTfn(slide.tfn), slide.coach?.what, slide.coach?.moves));
       coachRef.current = cloneCoach(slide.coach);
       setCoachState(coachRef.current);
       const restoredQuiz = slide.quiz
@@ -634,14 +691,33 @@ export function useTriangleLessons(options?: {
     };
   }, [applyFigure, publishHistory, pushSnapshot, restoreSnapshot, wipe]);
 
+  const catalogStepIndex = () => {
+    const current = coachRef.current?.step;
+    return typeof current === "number" && current > 0 ? current - 1 : 0;
+  };
+
   const stepBack = useCallback(() => {
-    if (animating || historyIndexRef.current <= 0) {
+    if (animating) {
       return;
     }
-    const nextIndex = historyIndexRef.current - 1;
-    restoreSnapshot(historyRef.current[nextIndex]);
-    publishHistory(nextIndex, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    if (historyIndexRef.current > 0) {
+      const nextIndex = historyIndexRef.current - 1;
+      restoreSnapshot(historyRef.current[nextIndex]);
+      publishHistory(nextIndex, historyRef.current.length);
+      return;
+    }
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (!item) {
+      return;
+    }
+    const prev = catalogStepIndex() - 1;
+    if (prev >= 0) {
+      showCatalogStep(item, prev, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
 
   const stepNext = useCallback(() => {
     if (animating) {
@@ -651,28 +727,62 @@ export function useTriangleLessons(options?: {
       const nextIndex = historyIndexRef.current + 1;
       restoreSnapshot(historyRef.current[nextIndex]);
       publishHistory(nextIndex, historyRef.current.length);
-    }
-  }, [animating, publishHistory, restoreSnapshot]);
-
-  const stepFirst = useCallback(() => {
-    if (animating || historyIndexRef.current <= 0) {
       return;
     }
-    restoreSnapshot(historyRef.current[0]);
-    publishHistory(0, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (!item) {
+      return;
+    }
+    const next = catalogStepIndex() + 1;
+    const total = teachingSteps(lessonSteps(item)).length;
+    if (next < total) {
+      showCatalogStep(item, next, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
+
+  const stepFirst = useCallback(() => {
+    if (animating) {
+      return;
+    }
+    if (historyIndexRef.current > 0) {
+      restoreSnapshot(historyRef.current[0]);
+      publishHistory(0, historyRef.current.length);
+      return;
+    }
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (item) {
+      showCatalogStep(item, 0, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
 
   const stepLast = useCallback(() => {
     if (animating) {
       return;
     }
     const last = historyRef.current.length - 1;
-    if (last < 0 || historyIndexRef.current >= last) {
+    if (last >= 0 && historyIndexRef.current < last) {
+      restoreSnapshot(historyRef.current[last]);
+      publishHistory(last, historyRef.current.length);
       return;
     }
-    restoreSnapshot(historyRef.current[last]);
-    publishHistory(last, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    const item =
+      typeof coachRef.current?.lesson === "number"
+        ? findUserLessonByNumber(coachRef.current.lesson, TRIANGLE_CATALOG_KEY)
+        : undefined;
+    if (!item) {
+      return;
+    }
+    const steps = teachingSteps(lessonSteps(item));
+    if (steps.length) {
+      showCatalogStep(item, steps.length - 1, true);
+    }
+  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
 
   const savedLesson =
     typeof coach?.lesson === "number"
@@ -703,6 +813,11 @@ export function useTriangleLessons(options?: {
     });
   }, [coach, figure]);
 
+  const canStepBack = historyIndex > 0 || (coach?.step || 1) > 1;
+  const canStepForward =
+    historyIndex >= 0 &&
+    (historyIndex < historyLength - 1 || (coach?.step || 1) < teachingCount);
+
   return {
     figure,
     coach,
@@ -716,6 +831,9 @@ export function useTriangleLessons(options?: {
     userLessons,
     awaitingContinuation,
     expectsRecap,
+    teachingCount,
+    canStepBack,
+    canStepForward,
     coachPlayMoves,
     knownIds: allObjectIds(figure),
     createLesson,
@@ -725,6 +843,8 @@ export function useTriangleLessons(options?: {
     setCoach: (next: CoachState) => {
       coachRef.current = next;
       setCoachState(next);
+      applyFigure(applyRightMarks(figureRef.current, next.what, next.moves));
+      pushSnapshot();
       return {
         lesson: next.lesson || lessonNumberRef.current || 0,
         step: next.step || 1,

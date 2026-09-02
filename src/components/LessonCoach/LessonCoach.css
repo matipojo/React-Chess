@@ -639,6 +639,16 @@
   outline: none;
 }
 
+.lesson-coach[data-link-mode="triangles"] .chess-ref {
+  color: #ff8a80;
+}
+
+.lesson-coach[data-link-mode="triangles"] .chess-ref:hover,
+.lesson-coach[data-link-mode="triangles"] .chess-ref:focus {
+  color: #fff;
+  background: rgba(255, 23, 68, 0.42);
+}
+
 @media (max-width: 640px) {
   .lesson-coach {
     padding: 10px 16px calc(12px + env(safe-area-inset-bottom));

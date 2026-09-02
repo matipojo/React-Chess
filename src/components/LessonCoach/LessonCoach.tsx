@@ -85,7 +85,7 @@ export default function LessonCoach({
   const linkProps = { onHoverSquares, resolvePeekSquares, linkMode, knownIds };
 
   return (
-    <aside className="lesson-coach" dir={dir} lang={lang}>
+    <aside className="lesson-coach" dir={dir} lang={lang} data-link-mode={linkMode || "chess"}>
       <div className="lesson-coach-handle" aria-hidden="true" />
       <div className="lesson-coach-content">
         <LessonCoachHeading

@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
-import { circleGeometry, cloneFigure, moveFreePoint, pointVec, rotateNamed, segmentKey } from "../../geometry/figure";
-import { idsMatchHighlight } from "../../geometry/hitTest";
-import { dist, midpoint, unit, sub, add, scale } from "../../geometry/math";
+import { circleGeometry, cloneFigure, moveFreePoint, oppositeVertex, pointVec, rotateNamed, segmentKey } from "../../geometry/figure";
+import { idsMatchHighlight, isAngleHighlighted } from "../../geometry/hitTest";
+import { dist, midpoint, unit, sub, add, scale, cross } from "../../geometry/math";
 import { animationPointerPath } from "../../geometry/pointerPath";
 import { Figure, FigureAnimation, Vec } from "../../geometry/types";
 import PointerHandAnimation, { PointerHandHandle } from "../PointerHand/PointerHandAnimation";
@@ -113,28 +113,57 @@ function tickMark(a: Vec, b: Vec, count: number): string {
 function rightAnglePath(vertex: Vec, a: Vec, b: Vec): string {
   const ua = unit(sub(a, vertex));
   const ub = unit(sub(b, vertex));
-  const s = 0.22;
+  const s = 0.34;
   const p1 = add(vertex, scale(ua, s));
   const p2 = add(p1, scale(ub, s));
   const p3 = add(vertex, scale(ub, s));
   return `M ${p1.x} ${-p1.y} L ${p2.x} ${-p2.y} L ${p3.x} ${-p3.y}`;
 }
 
+function interiorAngleArms(vertex: Vec, left: Vec, right: Vec, inside: Vec): [Vec, Vec] {
+  const ua = sub(left, vertex);
+  const ub = sub(right, vertex);
+  const up = sub(inside, vertex);
+  const c1 = cross(ua, up);
+  const c2 = cross(up, ub);
+  const c3 = cross(ua, ub);
+  const insideSector = (c1 >= 0 && c2 >= 0 && c3 >= 0) || (c1 <= 0 && c2 <= 0 && c3 <= 0);
+  return insideSector ? [left, right] : [right, left];
+}
+
+function triangleCentroid(a: Vec, b: Vec, c: Vec): Vec {
+  return { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3 };
+}
+
+function angleSweep(ua: Vec, ub: Vec): 0 | 1 {
+  return ua.x * ub.y - ua.y * ub.x < 0 ? 0 : 1;
+}
+
 function angleArc(vertex: Vec, left: Vec, right: Vec, arcs: number): string {
   const ua = unit(sub(left, vertex));
   const ub = unit(sub(right, vertex));
-  const r = 0.38;
+  const r = 0.42;
   const paths: string[] = [];
+  const sweep = angleSweep(ua, ub);
   for (let i = 0; i < arcs; i++) {
-    const rr = r + i * 0.08;
+    const rr = r + i * 0.1;
     const a1 = add(vertex, scale(ua, rr));
     const a2 = add(vertex, scale(ub, rr));
-    const sweep = ua.x * ub.y - ua.y * ub.x < 0 ? 0 : 1;
     paths.push(
       `M ${a1.x} ${-a1.y} A ${rr} ${rr} 0 0 ${sweep} ${a2.x} ${-a2.y}`
     );
   }
   return paths.join(" ");
+}
+
+function angleSector(vertex: Vec, left: Vec, right: Vec): string {
+  const ua = unit(sub(left, vertex));
+  const ub = unit(sub(right, vertex));
+  const r = 0.72;
+  const a1 = add(vertex, scale(ua, r));
+  const a2 = add(vertex, scale(ub, r));
+  const sweep = angleSweep(ua, ub);
+  return `M ${vertex.x} ${-vertex.y} L ${a1.x} ${-a1.y} A ${r} ${r} 0 0 ${sweep} ${a2.x} ${-a2.y} Z`;
 }
 
 const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function GeometryCanvas(
@@ -170,6 +199,17 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
   const width = bounds.maxX - bounds.minX;
   const height = bounds.maxY - bounds.minY;
   const highlights = displayFigure.highlights.concat(peekIds);
+  const hotAngles = displayFigure.triangles.flatMap((t) =>
+    t
+      .map((vertex) => {
+        const opp = oppositeVertex(t, vertex);
+        if (!opp || !isAngleHighlighted(vertex, opp[0], opp[1], highlights)) {
+          return null;
+        }
+        return { vertex, left: opp[0], right: opp[1] };
+      })
+      .filter((item): item is { vertex: string; left: string; right: string } => Boolean(item))
+  );
   const ink =
     liveAnimation && liveAnimation.type === "draw" && previewT > 0
       ? {
@@ -457,6 +497,26 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
               />
             );
           })}
+        {hotAngles.map((ang) => {
+          const v = pointVec(displayFigure, ang.vertex);
+          const a = pointVec(displayFigure, ang.left);
+          const b = pointVec(displayFigure, ang.right);
+          if (!v || !a || !b) {
+            return null;
+          }
+          const thirdName = displayFigure.triangles
+            .find((t) => t.indexOf(ang.vertex) >= 0 && t.indexOf(ang.left) >= 0 && t.indexOf(ang.right) >= 0)
+            ?.find((name) => name !== ang.vertex && name !== ang.left && name !== ang.right);
+          const third = thirdName ? pointVec(displayFigure, thirdName) : null;
+          const inside = third || triangleCentroid(v, a, b);
+          const [left, right] = interiorAngleArms(v, a, b, inside);
+          return (
+            <g key={"hot-ang-" + ang.vertex + ang.left + ang.right} data-angle={"∠" + ang.vertex}>
+              <path className="geometry-angle is-hot" d={angleSector(v, left, right)} />
+              <path className="geometry-angle-arc is-hot" d={angleArc(v, left, right, 1)} fill="none" />
+            </g>
+          );
+        })}
         {displayFigure.strokes.map((s, index) => {
           const a = pointVec(displayFigure, s.a);
           const b = pointVec(displayFigure, s.b);
@@ -464,9 +524,15 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
             return null;
           }
           const id = s.a + s.b;
+          const angleLeg = hotAngles.some(
+            (ang) =>
+              segmentKey(s.a, s.b) === segmentKey(ang.vertex, ang.left) ||
+              segmentKey(s.a, s.b) === segmentKey(ang.vertex, ang.right)
+          );
           const active =
             idsMatchHighlight(id, highlights) ||
-            idsMatchHighlight(segmentKey(s.a, s.b), highlights);
+            idsMatchHighlight(segmentKey(s.a, s.b), highlights) ||
+            angleLeg;
           const cls = [
             "geometry-stroke",
             s.dashed || s.construction ? "is-dashed" : "",
@@ -517,10 +583,11 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
           if (!v || !a || !b) {
             return null;
           }
+          const hot = isAngleHighlighted(r.vertex, r.a, r.b, highlights);
           return (
             <path
               key={"rt" + index}
-              className="geometry-mark"
+              className={hot ? "geometry-mark is-hot" : "geometry-mark"}
               d={rightAnglePath(v, a, b)}
             />
           );
@@ -539,10 +606,11 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
             if (!v || !a || !b) {
               return null;
             }
+            const hot = isAngleHighlighted(vertex, rest[0], rest[1], highlights);
             return (
               <path
                 key={"ang" + gi + ang}
-                className="geometry-mark"
+                className={hot ? "geometry-mark is-hot" : "geometry-mark"}
                 d={angleArc(v, a, b, g.arcs)}
                 fill="none"
               />
@@ -586,15 +654,18 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
         })}
         {names.map((name) => {
           const p = displayFigure.points[name];
-          const active = idsMatchHighlight(name, highlights);
+          const active =
+            idsMatchHighlight(name, highlights) ||
+            hotAngles.some((ang) => ang.vertex === name);
           return (
             <g
               key={name}
               className={active ? "geometry-point is-hot" : "geometry-point"}
               data-point={name}
             >
-              <circle cx={p.x} cy={-p.y} r={p.free ? 0.09 : 0.07} />
-              <text x={p.x + 0.14} y={-p.y - 0.14}>
+              {active ? <circle className="geometry-point-halo" cx={p.x} cy={-p.y} r={0.28} /> : null}
+              <circle cx={p.x} cy={-p.y} r={active ? 0.14 : p.free ? 0.09 : 0.07} />
+              <text x={p.x + 0.16} y={-p.y - 0.16}>
                 {name}
               </text>
             </g>

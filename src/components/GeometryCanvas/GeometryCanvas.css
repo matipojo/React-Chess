@@ -1,5 +1,6 @@
 .geometry-frame {
   --board-size: calc(var(--tile-size, 75px) * 8);
+  --geometry-hot: #ff1744;
   width: var(--board-size);
   height: var(--board-size);
   background: rgba(10, 8, 14, 0.18);
@@ -43,10 +44,27 @@
 }
 
 .geometry-stroke.is-hot,
-.geometry-circle.is-hot {
-  stroke: #81d4fa;
+.geometry-circle.is-hot,
+.geometry-angle-arc.is-hot,
+.geometry-mark.is-hot {
+  stroke: var(--geometry-hot);
+  stroke-width: 0.11;
+  filter: drop-shadow(0 0 6px var(--geometry-hot));
+}
+
+.geometry-angle.is-hot {
+  fill: rgba(255, 23, 68, 0.5);
+  stroke: none;
+}
+
+.geometry-angle-arc.is-hot {
+  fill: none;
+  stroke-width: 0.09;
+}
+
+.geometry-mark.is-hot {
   stroke-width: 0.08;
-  filter: drop-shadow(0 0 0.08px #81d4fa);
+  fill: none;
 }
 
 .geometry-circle {
@@ -63,7 +81,7 @@
 
 .geometry-mark {
   stroke: #fff59d;
-  stroke-width: 0.035;
+  stroke-width: 0.05;
   fill: none;
 }
 
@@ -73,9 +91,16 @@
   stroke-width: 0.02;
 }
 
-.geometry-point.is-hot circle {
-  fill: #81d4fa;
-  stroke: #e3f2fd;
+.geometry-point-halo {
+  fill: rgba(255, 23, 68, 0.32);
+  stroke: var(--geometry-hot);
+  stroke-width: 0.045;
+}
+
+.geometry-point.is-hot circle:not(.geometry-point-halo) {
+  fill: var(--geometry-hot);
+  stroke: #ffebee;
+  stroke-width: 0.035;
 }
 
 .geometry-point text,
@@ -88,6 +113,11 @@
   stroke: rgba(0, 0, 0, 0.75);
   stroke-width: 0.04px;
   pointer-events: none;
+}
+
+.geometry-point.is-hot text {
+  fill: var(--geometry-hot);
+  stroke: rgba(0, 0, 0, 0.85);
 }
 
 .geometry-hand circle {

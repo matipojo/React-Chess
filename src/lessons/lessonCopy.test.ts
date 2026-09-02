@@ -145,6 +145,22 @@ describe("lesson copy", () => {
         isShowme: true,
       })
     ).toBe(false);
+    expect(
+      shouldShowLessonNav({
+        expectsRecap: false,
+        generatingNext: false,
+        hasLineMoves: false,
+        stepCount: 3,
+      })
+    ).toBe(true);
+    expect(
+      shouldShowLessonNav({
+        expectsRecap: false,
+        generatingNext: false,
+        hasLineMoves: false,
+        stepCount: 1,
+      })
+    ).toBe(false);
   });
 
   it("builds one show-me explanation without why, what, or step numbers", () => {
