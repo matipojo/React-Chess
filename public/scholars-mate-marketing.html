@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Scholar's Mate</title>
+  <style>
+    :root {
+      --bg: #100814;
+      --chat: #16101c;
+      --line: rgba(226, 210, 255, 0.14);
+      --text: #f4eefc;
+      --muted: #b7a6cc;
+      --accent: #9b74d8;
+      --user: #3a2458;
+      --zoom-in: 720ms;
+      --zoom-out: 1700ms;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    body.demo,
+    body.demo * { cursor: none !important; }
+    .stage {
+      display: grid;
+      grid-template-columns: 79fr 21fr;
+      height: 100%;
+      background:
+        radial-gradient(ellipse at 12% 0%, rgba(192, 132, 252, 0.22), transparent 46%),
+        radial-gradient(ellipse at 92% 100%, rgba(34, 211, 238, 0.1), transparent 40%),
+        var(--bg);
+      transition: grid-template-columns var(--zoom-out) cubic-bezier(0.22, 0.75, 0.28, 1);
+    }
+    .stage.is-chat-focus {
+      grid-template-columns: 0fr 100fr;
+      transition-duration: var(--zoom-in);
+      transition-timing-function: cubic-bezier(0.22, 0.08, 0.25, 1);
+    }
+    .stage.no-motion,
+    .stage.no-motion * {
+      transition: none !important;
+      animation: none !important;
+    }
+    .board-pane {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 0.85s ease;
+    }
+    .stage.is-chat-focus .board-pane {
+      opacity: 0;
+    }
+    .board-pane iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 280ms ease;
+    }
+    .board-pane iframe.is-ready { opacity: 1; }
+    .chat {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+      background: var(--chat);
+      border-left: 1px solid var(--line);
+    }
+    .stage.is-chat-focus .chat {
+      border-left-color: transparent;
+      justify-content: center;
+    }
+    .chat-top {
+      padding: 22px 22px 14px;
+      border-bottom: 1px solid var(--line);
+      transition: padding var(--zoom-in) ease, opacity 0.5s ease;
+    }
+    .stage.is-chat-focus .chat-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 36px 14vw 0;
+      border-bottom: none;
+      opacity: 0.7;
+    }
+    .chat-kicker {
+      margin: 0 0 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      transition: font-size var(--zoom-in) ease;
+    }
+    .stage.is-chat-focus .chat-kicker { font-size: 18px; }
+    .chat-title {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      transition: font-size var(--zoom-in) ease;
+    }
+    .stage.is-chat-focus .chat-title { font-size: 42px; }
+    .messages {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      padding: 22px 22px 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 14px;
+      transition: padding var(--zoom-in) ease, gap var(--zoom-in) ease;
+    }
+    .stage.is-chat-focus .messages {
+      flex: 0 0 auto;
+      padding: 0 12vw 28px;
+      gap: 22px;
+      max-height: 42vh;
+    }
+    .bubble {
+      max-width: 92%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      font-size: 15px;
+      line-height: 1.45;
+      opacity: 0;
+      transform: translateY(8px);
+      animation: rise 280ms ease forwards;
+      transition: font-size var(--zoom-in) ease, padding var(--zoom-in) ease, max-width var(--zoom-in) ease;
+    }
+    .bubble.is-instant {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+    .stage.is-chat-focus .bubble {
+      font-size: 34px;
+      padding: 22px 28px;
+      max-width: 820px;
+      border-radius: 24px;
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--user);
+      box-shadow: 0 0 0 1px rgba(192, 132, 252, 0.22);
+    }
+    .bubble.assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--muted);
+    }
+    .composer {
+      padding: 12px 16px 20px;
+      transition: padding var(--zoom-in) ease;
+    }
+    .stage.is-chat-focus .composer {
+      padding: 0 12vw 8vh;
+    }
+    .box {
+      min-height: 52px;
+      border: 1px solid rgba(192, 132, 252, 0.28);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 18px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+      line-height: 1.4;
+      color: var(--text);
+      transition: font-size var(--zoom-in) ease, min-height var(--zoom-in) ease, padding var(--zoom-in) ease, max-width var(--zoom-in) ease, border-radius var(--zoom-in) ease;
+    }
+    .stage.is-chat-focus .box {
+      font-size: 42px;
+      min-height: 112px;
+      padding: 30px 36px;
+      max-width: 980px;
+      border-radius: 32px;
+      border-color: rgba(192, 132, 252, 0.55);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+    }
+    .box.is-sent { opacity: 0.35; }
+    .placeholder { color: #7d6d93; }
+    .caret {
+      display: inline-block;
+      width: 2px;
+      height: 1.05em;
+      margin-left: 2px;
+      background: var(--accent);
+      vertical-align: text-bottom;
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes rise {
+      to { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="board-pane">
+      <iframe id="board" title="Chessboard" src="/chess"></iframe>
+    </div>
+    <aside class="chat">
+      <div class="chat-top">
+        <p class="chat-kicker">Tutor chat</p>
+        <h1 class="chat-title">Generative Learning</h1>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <div class="box" id="box"><span class="placeholder" id="draft">Message the tutor</span></div>
+      </div>
+    </aside>
+  </div>
+  <script>
+    const PROMPT = "show me the Scholar’s Mate";
+    const params = new URLSearchParams(window.location.search);
+    const CHAPTER = (params.get("chapter") || "all").toLowerCase();
+    const HOLD = params.get("hold") === "1";
+
+    // Keep these in sync with chapter cuts. First move must not start
+    // until zoom-out (1700ms) plus a full-screen rest beat.
+    const T = {
+      zoomIn: 900,
+      zoomOut: 1800,
+      afterZoomOutHold: 900,
+      typeSpace: 140,
+      typeChar: 78,
+      afterType: 520,
+      afterUserBubble: 420,
+      afterAssistant: 900,
+      chapterHold: 700,
+      playReady: 400,
+      playDuration: 26000,
+      afterMate: 1600,
+    };
+
+    const stage = document.querySelector(".stage");
+    const board = document.getElementById("board");
+    const box = document.getElementById("box");
+    const draft = document.getElementById("draft");
+    const messages = document.getElementById("messages");
+    const CLEAN = `
+      .lesson-debug, .page-chrome, .board-undo-bar,
+      .app-header-actions, .area-switch { display: none !important; }
+      .app-header { background: transparent; border-bottom: none; box-shadow: none; }
+    `;
+
+    function dressIframe() {
+      try {
+        const doc = board.contentDocument;
+        if (!doc) return;
+        doc.getElementById("marketing-demo-css")?.remove();
+        const style = doc.createElement("style");
+        style.id = "marketing-demo-css";
+        style.textContent = CLEAN;
+        doc.documentElement.appendChild(style);
+        board.classList.add("is-ready");
+      } catch (error) {
+        board.classList.add("is-ready");
+      }
+    }
+
+    board.addEventListener("load", () => {
+      dressIframe();
+      try {
+        board.blur();
+        board.contentWindow.blur();
+        board.contentWindow.addEventListener("keydown", onStartKey, true);
+      } catch (error) {}
+      window.focus();
+      document.body.focus();
+    });
+
+    function wait(ms) {
+      return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    function addBubble(text, who, instant) {
+      const el = document.createElement("div");
+      el.className = "bubble " + who + (instant ? " is-instant" : "");
+      el.textContent = text;
+      messages.appendChild(el);
+    }
+
+    function seedSentChat() {
+      messages.replaceChildren();
+      box.classList.add("is-sent");
+      draft.textContent = "Message the tutor";
+      draft.classList.add("placeholder");
+      addBubble(PROMPT, "user", true);
+      addBubble("Showing it on the board.", "assistant", true);
+    }
+
+    function mark(name) {
+      window.__marks = window.__marks || [];
+      window.__marks.push({ name, t: performance.now() });
+      document.body.dataset.mark = name;
+    }
+
+    function finishChapter(name) {
+      mark("done:" + name);
+      document.body.dataset.chapter = "done";
+      document.title = "chapter-done:" + name;
+    }
+
+    async function typePrompt() {
+      draft.classList.remove("placeholder");
+      draft.textContent = "";
+      const caret = document.createElement("span");
+      caret.className = "caret";
+      box.appendChild(caret);
+      for (const ch of PROMPT) {
+        draft.textContent += ch;
+        await wait(ch === " " ? T.typeSpace : T.typeChar);
+      }
+      await wait(T.afterType);
+      caret.remove();
+      box.classList.add("is-sent");
+      draft.textContent = "Message the tutor";
+      draft.classList.add("placeholder");
+      addBubble(PROMPT, "user");
+      await wait(T.afterUserBubble);
+      addBubble("Showing it on the board.", "assistant");
+      await wait(T.afterAssistant);
+    }
+
+    async function zoomIn() {
+      mark("zoom-in");
+      stage.classList.add("is-chat-focus");
+      await wait(T.zoomIn);
+    }
+
+    async function zoomOut() {
+      mark("zoom-out");
+      stage.classList.remove("is-chat-focus");
+      await wait(T.zoomOut);
+    }
+
+    async function playLine() {
+      mark("play");
+      board.classList.remove("is-ready");
+      board.src = "/chess?showme=scholars-mate";
+      await wait(T.playDuration);
+      await wait(T.afterMate);
+    }
+
+    async function runChatChapter() {
+      await zoomIn();
+      await typePrompt();
+      await wait(T.chapterHold);
+      finishChapter("chat");
+    }
+
+    async function runZoomOutChapter() {
+      await wait(T.chapterHold);
+      await zoomOut();
+      await wait(T.afterZoomOutHold);
+      finishChapter("zoomout");
+    }
+
+    async function runPlayChapter() {
+      await wait(T.playReady);
+      await wait(T.afterZoomOutHold);
+      await playLine();
+      finishChapter("play");
+    }
+
+    async function runAll() {
+      await zoomIn();
+      await typePrompt();
+      await zoomOut();
+      await wait(T.afterZoomOutHold);
+      await playLine();
+      finishChapter("all");
+    }
+
+    function prepareIdleChapter() {
+      stage.classList.add("no-motion");
+      if (CHAPTER === "zoomout") {
+        stage.classList.add("is-chat-focus");
+        seedSentChat();
+      } else if (CHAPTER === "play") {
+        seedSentChat();
+      }
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => stage.classList.remove("no-motion"));
+      });
+    }
+
+    let started = false;
+    window.startDemo = function startDemo() {
+      if (started) return;
+      started = true;
+      document.body.classList.add("demo");
+      document.body.dataset.chapter = CHAPTER;
+      const run =
+        CHAPTER === "chat" ? runChatChapter :
+        CHAPTER === "zoomout" ? runZoomOutChapter :
+        CHAPTER === "play" ? runPlayChapter :
+        runAll;
+      void run();
+    };
+
+    function onStartKey(event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        window.startDemo();
+      }
+    }
+    window.addEventListener("keydown", onStartKey, true);
+    document.addEventListener("keydown", onStartKey, true);
+    document.addEventListener("click", () => window.startDemo());
+    window.focus();
+
+    prepareIdleChapter();
+
+    if (!HOLD) {
+      window.setTimeout(window.startDemo, 900);
+    }
+  </script>
+</body>
+</html>
