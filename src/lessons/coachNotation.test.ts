@@ -12,14 +12,14 @@ describe("coach notation", () => {
 
   it("rejects the Italian SAN line and accepts long algebraic", () => {
     const san = coachNotationViolation([
-      "הקו הבסיסי הוא 1.e4 e5 2.Nf3 Nc6 3.Bc4 — והרָץ כבר מביט אל f7",
+      "הקו הבסיסי הוא 1.e4 e5 2.Nf3 Nc6 3.Bc4, והרָץ כבר מביט אל f7",
     ]);
     expect(san).toContain("1.e4");
     expect(san).toContain("Nf3");
     expect(san).toContain("e2-e4");
     expect(
       coachNotationViolation([
-        "הקו הבסיסי הוא 1.e2-e4 e7-e5 2.Ng1-f3 Nb8-c6 3.Bf1-c4 — והרָץ כבר מביט אל f7",
+        "הקו הבסיסי הוא 1.e2-e4 e7-e5 2.Ng1-f3 Nb8-c6 3.Bf1-c4, והרָץ כבר מביט אל f7",
       ])
     ).toBeNull();
   });

@@ -15,7 +15,7 @@ describe("LessonCoach empty state", () => {
       getByText(/Ask it to show you a line and it plays the moves live/)
     ).toBeTruthy();
     expect(getByRole("button", { name: "Show Scholar's Mate" })).toBeTruthy();
-    expect(getByRole("button", { name: "Teach me the Italian" })).toBeTruthy();
+    expect(getByRole("button", { name: "Teach me the Italian opening" })).toBeTruthy();
     expect(getByRole("button", { name: "Quiz me on forks" })).toBeTruthy();
   });
 

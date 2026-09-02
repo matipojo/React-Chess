@@ -4,7 +4,7 @@ import { registerModelContextTools } from "../utils/registerModelContextTools";
 import { listSitePages, navigateToSitePage, parseSitePageId } from "../utils/sitePages";
 
 const LIST_PAGES_MESSAGE =
-  "This is the Generative Learning home page. The sub-navigation includes Chess and Triangles, both working interactive learning apps. Circuits, Chemistry, Music, and Maps are coming later. Call open-page with page=chess or page=triangles. Teaching tools for a subject are not on this home page — they appear after that navigation.";
+  "This is the Generative Learning home page. The sub-navigation includes Chess and Triangles, both working interactive learning apps. Circuits, Chemistry, Music, and Maps are coming later. Call open-page with page=chess or page=triangles. Teaching tools for a subject are not on this home page. They appear after that navigation.";
 
 export function useHomePageTools() {
   useEffect(() => {

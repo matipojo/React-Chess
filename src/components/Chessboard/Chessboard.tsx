@@ -106,7 +106,11 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
         pendingAnimationCallbackRef.current = onComplete ?? null;
         startAnimationTimerRef.current = window.setTimeout(() => {
           startAnimationTimerRef.current = null;
-          simpleHandAnimationRef.current?.playMove(from, to, team);
+          if (!simpleHandAnimationRef.current) {
+            handleAnimationComplete();
+            return;
+          }
+          simpleHandAnimationRef.current.playMove(from, to, team);
         }, 100);
       } else {
         onComplete?.();
@@ -114,6 +118,18 @@ const Chessboard = React.forwardRef<ChessboardHandle, Props>(function Chessboard
     },
     cancelMoveAnimation,
   }));
+
+  useEffect(() => {
+    return () => {
+      if (startAnimationTimerRef.current !== null) {
+        window.clearTimeout(startAnimationTimerRef.current);
+        startAnimationTimerRef.current = null;
+      }
+      const callback = pendingAnimationCallbackRef.current;
+      pendingAnimationCallbackRef.current = null;
+      callback?.();
+    };
+  }, []);
 
   function tileSize(chessboard: HTMLDivElement) {
     return chessboard.getBoundingClientRect().width / 8;

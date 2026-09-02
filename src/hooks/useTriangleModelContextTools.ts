@@ -364,7 +364,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "add-lesson-step",
         description:
-          "Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not change the live figure; why first, then the construction; student taps Play when they reach that slide. type riddle stores the puzzle — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. " +
+          "Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not change the live figure; why first, then the construction; student taps Play when they reach that slide. type riddle stores the puzzle. The student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next. State the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -465,7 +465,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-lesson-recap",
         description:
-          "Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons or a riddle — those have no recap. Then how_to_ask_the_user. " +
+          "Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons or a riddle. Those have no recap. Then how_to_ask_the_user. " +
           COACH_GAN_RULE +
           " " +
           TRIANGLE_WAIT_TURN_RULE,
@@ -632,7 +632,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-page-background",
         description:
-          "Saves a custom page background for the currently selected board theme only (Classic or Purple). WebMCP tool arguments are JSON only — pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. Use clear: true to remove the image for the current theme only.",
+          "Saves a custom page background for the currently selected board theme only (Classic or Purple). WebMCP tool arguments are JSON only. Pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. Use clear: true to remove the image for the current theme only.",
         inputSchema: {
           type: "object",
           properties: {
