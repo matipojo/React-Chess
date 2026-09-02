@@ -49,8 +49,37 @@ describe("AboutPage", () => {
     expect(getByText("Choose a subject")).toBeTruthy();
     expect(getByText("Open the chessboard")).toBeTruthy();
     expect(getByText("Open the canvas")).toBeTruthy();
-    expect(container.querySelector("#chessboard")).toBeTruthy();
-    expect(container.querySelector(".geometry-canvas")).toBeTruthy();
+    expect(container.querySelector("#chessboard")).toBeNull();
+    expect(container.querySelector(".geometry-canvas")).toBeNull();
+    expect(getByRole("img", { name: "Scholar's Mate demo" }).getAttribute("src")).toMatch(
+      /scholars-mate-poster\.jpg$/
+    );
+    expect(
+      getByRole("img", { name: "Altitude to the hypotenuse demo" }).getAttribute("src")
+    ).toMatch(/triangles-altitude-poster\.jpg$/);
+    expect(getByRole("button", { name: "Play Chess demo" })).toBeTruthy();
+    expect(getByRole("button", { name: "Play Triangles demo" })).toBeTruthy();
+  });
+
+  it("plays and stops a homepage demo gif, and playing one stops the other", () => {
+    const { getByRole } = renderAbout();
+    const chessPoster = getByRole("img", { name: "Scholar's Mate demo" });
+    expect(chessPoster.getAttribute("src")).toMatch(/scholars-mate-poster\.jpg$/);
+    getByRole("button", { name: "Play Chess demo" }).click();
+    expect(getByRole("img", { name: "Scholar's Mate demo" }).getAttribute("src")).toMatch(
+      /scholars-mate\.gif\?play=/
+    );
+    getByRole("button", { name: "Play Triangles demo" }).click();
+    expect(getByRole("img", { name: "Scholar's Mate demo" }).getAttribute("src")).toMatch(
+      /scholars-mate-poster\.jpg$/
+    );
+    expect(
+      getByRole("img", { name: "Altitude to the hypotenuse demo" }).getAttribute("src")
+    ).toMatch(/triangles-altitude\.gif\?play=/);
+    getByRole("button", { name: "Stop Triangles demo" }).click();
+    expect(
+      getByRole("img", { name: "Altitude to the hypotenuse demo" }).getAttribute("src")
+    ).toMatch(/triangles-altitude-poster\.jpg$/);
   });
 
   it("copies example prompts and says Codex is not available in Chrome", async () => {

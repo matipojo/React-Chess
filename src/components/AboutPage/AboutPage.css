@@ -346,69 +346,64 @@
   font-size: 13px;
 }
 
-.about-demo-board {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  min-width: 0;
-  container-type: size;
-  display: flex;
-  align-items: stretch;
-  justify-content: stretch;
-}
-
-.about-demo-board .chessboard-frame,
-.about-demo-board .geometry-frame {
-  --axis-gutter: 0px;
-  --board-size: 100cqw;
-  --tile-size: calc(100cqw / 8);
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  box-sizing: border-box;
-}
-
-.about-demo-board .chessboard-frame {
-  grid-template-columns: var(--board-size);
-  grid-template-rows: var(--board-size);
-}
-
-.about-demo-board .chessboard-wrap,
-.about-demo-board #chessboard,
-.about-demo-board .board-arrows {
-  grid-column: 1;
-  grid-row: 1;
-  width: 100%;
-  height: 100%;
-}
-
-.about-demo-board #chessboard {
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(8, 1fr);
-}
-
-.about-demo-board .chessboard-axis-rank,
-.about-demo-board .chessboard-axis-file {
-  display: none;
-}
-
-.about-demo-board .tile {
-  width: 100%;
-  height: 100%;
+.about-gif {
   position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #140f1c;
 }
 
-.about-demo-board .tile .chess-piece {
+.about-gif img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-gif-toggle {
   position: absolute;
-  inset: 8%;
-  width: auto;
-  height: auto;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 20, 40, 0.78);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(8, 4, 16, 0.35);
 }
 
-.about-demo-board .tile img {
-  width: 80%;
+.about-gif-toggle svg {
+  width: 26px;
+  height: 26px;
+  margin-left: 3px;
+}
+
+.about-gif-toggle:hover {
+  background: var(--about-accent);
+}
+
+.about-gif.is-playing .about-gif-toggle {
+  left: 12px;
+  top: auto;
+  bottom: 12px;
+  transform: none;
+  width: 40px;
+  height: 40px;
+}
+
+.about-gif.is-playing .about-gif-toggle svg {
+  width: 16px;
+  height: 16px;
+  margin-left: 0;
 }
 
 .about-tutor {

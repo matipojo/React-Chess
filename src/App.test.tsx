@@ -23,8 +23,10 @@ describe("App routes", () => {
     expect(nav.querySelector(".about-subnav-triangles")?.getAttribute("href")).toBe(
       TRIANGLES_PATH
     );
-    expect(container.querySelector("#chessboard")).toBeTruthy();
-    expect(container.querySelector(".geometry-canvas")).toBeTruthy();
+    expect(container.querySelector("#chessboard")).toBeNull();
+    expect(container.querySelector(".geometry-canvas")).toBeNull();
+    expect(getByRole("img", { name: "Scholar's Mate demo" })).toBeTruthy();
+    expect(getByRole("img", { name: "Altitude to the hypotenuse demo" })).toBeTruthy();
     unmount();
   });
 

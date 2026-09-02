@@ -1,15 +1,7 @@
 import { FormEvent, useState } from "react";
-import Chessboard from "../Chessboard/Chessboard";
-import GeometryCanvas from "../GeometryCanvas/GeometryCanvas";
-import { boardFromFen } from "../../utils/board-setup";
-import { figureFromTemplate } from "../../geometry/templates";
 import { copyPlainText } from "../../lessons/waitForUser";
-import {
-  ABOUT_DEMO_FIGURE_ID,
-  ABOUT_EXAMPLE_PROMPTS,
-  ITALIAN_GAME_ARROWS,
-  ITALIAN_GAME_FEN,
-} from "./aboutDemo";
+import { ABOUT_DEMO_CLIPS, ABOUT_EXAMPLE_PROMPTS, AboutDemoClipId } from "./aboutDemo";
+import DemoGif from "./DemoGif";
 import {
   CHESS_PATH,
   HOME_PATH,
@@ -27,12 +19,11 @@ import {
 } from "../../utils/codexPrompt";
 import { CopiedCheckIcon, CopyIcon } from "../LessonCoach/LessonCoachIcons";
 import "../LessonCoach/LessonCoach.css";
-import "../GeometryCanvas/GeometryCanvas.css";
-import "../../board-themes.css";
 import "./AboutPage.css";
 
-const italianBoard = boardFromFen(ITALIAN_GAME_FEN, true);
-const demoFigure = figureFromTemplate(ABOUT_DEMO_FIGURE_ID);
+function demoAsset(path: string) {
+  return `${process.env.PUBLIC_URL}/${path}`;
+}
 
 function pieceSrc(name: string) {
   return `${process.env.PUBLIC_URL}/assets/images/${name}.png`;
@@ -234,6 +225,7 @@ function MiniSurface() {
 
 export default function AboutPage() {
   useHomePageTools();
+  const [playingId, setPlayingId] = useState<AboutDemoClipId | null>(null);
 
   return (
     <div className="about-page">
@@ -275,33 +267,27 @@ export default function AboutPage() {
           <ExamplePrompts />
         </section>
 
-        <section className="about-demo" data-board-theme="purple" aria-label="Example boards">
+        <section className="about-demo" aria-label="Lesson demos">
           <div className="about-demo-surfaces">
-            <article className="about-demo-surface">
-              <div className="about-demo-board">
-                <Chessboard
-                  playMove={() => false}
-                  pieces={italianBoard.pieces}
-                  arrows={ITALIAN_GAME_ARROWS}
-                  locked
+            {ABOUT_DEMO_CLIPS.map((clip) => (
+              <article key={clip.id} className="about-demo-surface">
+                <DemoGif
+                  src={demoAsset(clip.src)}
+                  poster={demoAsset(clip.poster)}
+                  label={clip.label}
+                  alt={clip.alt}
+                  playing={playingId === clip.id}
+                  onPlay={() => setPlayingId(clip.id)}
+                  onStop={() =>
+                    setPlayingId((current) => (current === clip.id ? null : current))
+                  }
                 />
-              </div>
-              <a href={appHref(CHESS_PATH)}>
-                <strong>Chess</strong>
-                <span>Learn on a real chessboard</span>
-              </a>
-            </article>
-            <article className="about-demo-surface">
-              <div className="about-demo-board">
-                {demoFigure ? (
-                  <GeometryCanvas figure={demoFigure} locked />
-                ) : null}
-              </div>
-              <a href={appHref(TRIANGLES_PATH)}>
-                <strong>Triangles</strong>
-                <span>Learn on a figure you can move</span>
-              </a>
-            </article>
+                <a href={appHref(clip.href === "chess" ? CHESS_PATH : TRIANGLES_PATH)}>
+                  <strong>{clip.label}</strong>
+                  <span>{clip.blurb}</span>
+                </a>
+              </article>
+            ))}
           </div>
           <aside className="lesson-coach about-tutor">
             <div className="lesson-coach-content">

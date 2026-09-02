@@ -3,6 +3,7 @@ import { chessNotationToCoordinates } from "../../utils/chess-notation-utils";
 import { PieceType } from "../../Types";
 import { figureFromTemplate } from "../../geometry/templates";
 import {
+  ABOUT_DEMO_CLIPS,
   ABOUT_DEMO_FIGURE_ID,
   ABOUT_EXAMPLE_PROMPTS,
   ITALIAN_GAME_ARROWS,
@@ -48,6 +49,12 @@ describe("about demo position", () => {
     ABOUT_EXAMPLE_PROMPTS.forEach((prompt) => {
       expect(prompt.charAt(0)).toMatch(/[A-Z]/);
     });
+  });
+
+  it("lists chess and triangle demo clips for the homepage", () => {
+    expect(ABOUT_DEMO_CLIPS.map((clip) => clip.id)).toEqual(["chess", "triangles"]);
+    expect(ABOUT_DEMO_CLIPS[0].src).toBe("demos/scholars-mate.gif");
+    expect(ABOUT_DEMO_CLIPS[1].src).toBe("demos/triangles-altitude.gif");
   });
 });
 

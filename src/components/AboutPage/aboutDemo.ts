@@ -17,3 +17,34 @@ export const ABOUT_EXAMPLE_PROMPTS = [
   "Teach me the Italian",
   "Teach SAS congruence with two triangles",
 ];
+
+export type AboutDemoClipId = "chess" | "triangles";
+
+export const ABOUT_DEMO_CLIPS: Array<{
+  id: AboutDemoClipId;
+  label: string;
+  blurb: string;
+  href: "chess" | "triangles";
+  src: string;
+  poster: string;
+  alt: string;
+}> = [
+  {
+    id: "chess",
+    label: "Chess",
+    blurb: "Learn on a real chessboard",
+    href: "chess",
+    src: "demos/scholars-mate.gif",
+    poster: "demos/scholars-mate-poster.jpg",
+    alt: "Scholar's Mate demo",
+  },
+  {
+    id: "triangles",
+    label: "Triangles",
+    blurb: "Learn on a figure you can move",
+    href: "triangles",
+    src: "demos/triangles-altitude.gif",
+    poster: "demos/triangles-altitude-poster.jpg",
+    alt: "Altitude to the hypotenuse demo",
+  },
+];
