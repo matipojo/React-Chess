@@ -475,7 +475,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Teaching steps write the saved lesson only; they do not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle AND shows it on the chess page now (question in the coach, 30s timer, click a square). Do not wait for the click. A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -814,7 +814,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'ask-quiz',
         description:
-          'Prefer add-lesson-step with type riddle so the puzzle is stored on the catalog lesson. Use this tool only for a one-off quiz that is not a lesson step. Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
+          'Prefer add-lesson-step with type riddle so the puzzle is stored on the catalog lesson and shown on the chess page. Use this tool only for a one-off quiz that is not a lesson step. Show a puzzle question in the coach panel, hide teaching spoilers, and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -922,7 +922,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'how_to_offer_a_hint',
         description:
-          'Returns instructions for offering an opt-in Give me a hint visualization button in this chat. Takes no arguments. Call this instead of how_to_ask_the_user while the student is solving, before add-lesson-step type riddle (or ask-quiz for a one-off). Do not spoil the solution in coach text or in this chat until they tap the button. Follow the returned prompt, then add the riddle step.',
+          'Returns instructions for offering an opt-in Give me a hint visualization button in this chat. Takes no arguments. Call this instead of how_to_ask_the_user while the student is solving, before add-lesson-step type riddle (or ask-quiz for a one-off). Do not spoil the solution in coach text or in this chat until they tap the button. Follow the returned prompt, then add the riddle step so the puzzle appears on the chess page.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const accent = readBoardChatAccent();

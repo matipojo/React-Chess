@@ -196,6 +196,7 @@ export function projectLessonSession(
 
   teaching.forEach((step, index) => {
     if (
+      (step.kind === "riddle" && step.fen) ||
       shouldApplySavedStepFen({
         stepFen: step.fen,
         currentFen: cursorFen,

@@ -25,11 +25,11 @@ export function buildHowToAskTheUserPrompt(accent: string, text = CHAT_BUTTON_TE
 export function buildGiveMeAHintPrompt(accent: string, text = CHAT_BUTTON_TEXT): string {
   return [
     `REQUIRED: use your inline visualization / interactive widget UI to create a real clickable button in this chat — not on the open chess page.`,
-    `The puzzle is already on the chess board. Do not explain how to solve it. Do not name the tactic, the piece, or the key square until they tap the hint button.`,
+    `The puzzle is not on the chess page yet. Do not tell the student it is ready. Do not explain how to solve it. Do not name the tactic, the piece, or the key square until they tap the hint button.`,
     `Do not list options as 1/2/3. Do not ask the student to type a choice.`,
     `Render one short line such as "Need a nudge?", then one button labeled "${HINT_BUTTON_LABEL}" on its own new line. Do not add other buttons yet.`,
     visualizationButtonStyle(accent, text),
-    `Leave the button on screen. Then call add-lesson-step with type riddle (question and correct squares) to store the puzzle on the lesson. Use ask-quiz only if this puzzle is not a catalog lesson step. If they tap ${HINT_BUTTON_LABEL}, give a small nudge in this chat — not the full answer, and not on the chess page.`,
+    `Leave the button on screen. Then call add-lesson-step with type riddle (question and correct squares). That tool puts the puzzle on the chess page — wait for it to succeed before you say the quiz is ready. Use ask-quiz only if this puzzle is not a catalog lesson step. If they tap ${HINT_BUTTON_LABEL}, give a small nudge in this chat — not the full answer, and not on the chess page.`,
   ].join(" ");
 }
 

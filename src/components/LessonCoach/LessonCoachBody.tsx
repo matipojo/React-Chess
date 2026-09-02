@@ -16,12 +16,14 @@ type Props = LessonCoachLinkProps &
     extraParagraphs: string[];
     leftoverMoves: string;
     whatLabel?: string;
+    hideCopy?: boolean;
   };
 
 export default function LessonCoachBody({
   coach,
   extraParagraphs,
   leftoverMoves,
+  hideCopy = false,
   onHoverSquares,
   resolvePeekSquares,
   playMoves,
@@ -46,21 +48,19 @@ export default function LessonCoachBody({
 
   return (
     <>
-      {coach.phase === "goal" && (
-        <p className="lesson-coach-recap-label">Goal</p>
-      )}
-      {coach.phase === "step" && (
-        <p className="lesson-coach-recap-label">Step</p>
-      )}
-      {coach.phase === "riddle" && (
+      {hideCopy || coach.phase === "riddle" ? (
         <p className="lesson-coach-recap-label">Riddle</p>
-      )}
-      {isShowme && <p className="lesson-coach-recap-label">Show me</p>}
-      {coach.phase === "recap" && (
+      ) : coach.phase === "goal" ? (
+        <p className="lesson-coach-recap-label">Goal</p>
+      ) : coach.phase === "step" ? (
+        <p className="lesson-coach-recap-label">Step</p>
+      ) : isShowme ? (
+        <p className="lesson-coach-recap-label">Show me</p>
+      ) : coach.phase === "recap" ? (
         <p className="lesson-coach-recap-label">Recap</p>
-      )}
+      ) : null}
       <div className="lesson-coach-body">
-        {!isShowme && coach.why && (
+        {!hideCopy && !isShowme && coach.why && (
           <p className="lesson-coach-why">
             <span className="lesson-coach-field-label">Why</span>
             <LessonLinkedText
@@ -72,7 +72,7 @@ export default function LessonCoachBody({
             />
           </p>
         )}
-        {!isShowme && (coach.what || leftoverMoves) && (
+        {!hideCopy && !isShowme && (coach.what || leftoverMoves) && (
           <p className="lesson-coach-what">
             <span className="lesson-coach-field-label">{whatLabel}</span>
             {coach.what && (
@@ -101,7 +101,7 @@ export default function LessonCoachBody({
             ) : null}
           </p>
         )}
-        {extraParagraphs.map((paragraph, index) => {
+        {!hideCopy && extraParagraphs.map((paragraph, index) => {
           const { dir: paragraphDir } = detectTextDirection(paragraph);
           return (
             <p key={index} dir={paragraphDir}>
@@ -115,7 +115,7 @@ export default function LessonCoachBody({
             </p>
           );
         })}
-        {isShowme && (
+        {isShowme && !hideCopy && (
           <LessonCoachPlayback
             playback={playback}
             onPlayLine={onPlayLine}

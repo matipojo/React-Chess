@@ -133,6 +133,53 @@ describe("lesson document vs session", () => {
     expect(lastTeachingSlideIndex(slides)).toBe(1);
   });
 
+  it("opens a later riddle on its saved fen, not the position after earlier moves", () => {
+    const start = boardToFen(startingLearnBoard());
+    const afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+    const lesson: SavedLesson = {
+      id: "custom:lesson-5",
+      kind: "custom",
+      title: "The Italian Game",
+      body: "Open with the king's pawn.",
+      savedAt: 1,
+      number: 5,
+      recap: { title: "Italian Game checklist", paragraphs: ["Center, knight, bishop."] },
+      steps: [
+        {
+          title: "Claim the center",
+          body: "",
+          kind: "step",
+          why: "Control d5 and f5.",
+          what: "Play e2-e4.",
+          moves: ["e2:e4"],
+          fen: start,
+        },
+        {
+          title: "White's first move",
+          body: "",
+          kind: "riddle",
+          quiz: {
+            question: "Pick White's first move in the Italian Game.",
+            type: "click-square",
+            correct: ["e4", "e2-e4"],
+          },
+          fen: start,
+        },
+      ],
+    };
+    const slides = projectLessonSession(lesson, start);
+    expect(slides.map((slide) => slide.coach?.phase)).toEqual([
+      "goal",
+      "step",
+      "riddle",
+      "recap",
+    ]);
+    expect(slides[2].fen.split(" ")[0]).toBe(start.split(" ")[0]);
+    expect(slides[2].fen.split(" ")[0]).not.toBe(afterE4.split(" ")[0]);
+    expect(slides[2].quiz?.question).toBe("Pick White's first move in the Italian Game.");
+    expect(lastTeachingSlideIndex(slides)).toBe(2);
+  });
+
   it("projects a show-me lesson as a single slide, not Goal/Step/Recap", () => {
     const start = boardToFen(startingLearnBoard());
     const lesson: SavedLesson = {

@@ -345,6 +345,33 @@ export function useChessLessons({
     resolveWait({ action: "", source: "cancelled" });
   }, [clearQuizWatchers, resolveWait, setQuiz, setQuizFeedback]);
 
+  const armQuiz = useCallback((nextQuiz: QuizState) => {
+    cancelQuiz();
+    const liveQuiz: QuizState = {
+      ...nextQuiz,
+      correct: [...nextQuiz.correct],
+      timedOut: false,
+      answered: false,
+    };
+    lastQuizRef.current = liveQuiz;
+    setQuiz(liveQuiz);
+    setQuizFeedback("");
+    setQuizSecondsLeft(QUIZ_TIMEOUT_SECONDS);
+    setHighlights((prev) =>
+      prev.filter((mark) => mark.kind !== "wrong" && mark.kind !== "correct")
+    );
+    const deadline = Date.now() + QUIZ_TIMEOUT_MS;
+    persistedQuizDeadline = deadline;
+    quizTimerRef.current = window.setTimeout(expireQuiz, QUIZ_TIMEOUT_MS);
+    quizTickRef.current = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setQuizSecondsLeft(left);
+      if (left <= 0) {
+        expireQuiz();
+      }
+    }, 250);
+  }, [cancelQuiz, expireQuiz, setQuiz, setQuizFeedback]);
+
   const answerQuiz = useCallback((square: string, from?: string) => {
     const current = quizRef.current;
     if (!current || current.answered) {
@@ -498,15 +525,19 @@ export function useChessLessons({
         snap.arrows.map((item) => ({ ...item })),
         cloneCoach(snap.coach)
       );
-      cancelQuiz();
-      if (snap.quiz) {
-        const liveQuiz = {
-          ...snap.quiz,
-          correct: [...snap.quiz.correct],
-        };
-        lastQuizRef.current = liveQuiz;
-        setQuiz(liveQuiz);
-        setQuizFeedback("");
+      if (snap.quiz && !snap.quiz.answered) {
+        armQuiz(snap.quiz);
+      } else {
+        cancelQuiz();
+        if (snap.quiz) {
+          const liveQuiz = {
+            ...snap.quiz,
+            correct: [...snap.quiz.correct],
+          };
+          lastQuizRef.current = liveQuiz;
+          setQuiz(liveQuiz);
+          setQuizFeedback("");
+        }
       }
       if (loadedLineRef.current) {
         loadedLineRef.current.ply = snap.ply;
@@ -515,7 +546,7 @@ export function useChessLessons({
         seedExperimentBaseline(snap);
       }
     },
-    [applyBoard, applyOverlays, cancelQuiz, seedExperimentBaseline, setQuiz, setQuizFeedback]
+    [applyBoard, applyOverlays, armQuiz, cancelQuiz, seedExperimentBaseline, setQuiz, setQuizFeedback]
   );
 
   const resetHistory = useCallback(() => {
@@ -1555,32 +1586,9 @@ export function useChessLessons({
       correct: nextQuiz.correct,
     });
     enterLearnMode();
-    cancelQuiz();
-    const liveQuiz: QuizState = {
-      ...nextQuiz,
-      correct: [...nextQuiz.correct],
-      timedOut: false,
-      answered: false,
-    };
-    lastQuizRef.current = liveQuiz;
-    setQuiz(liveQuiz);
-    setQuizFeedback("");
-    setQuizSecondsLeft(QUIZ_TIMEOUT_SECONDS);
-    setHighlights((prev) =>
-      prev.filter((mark) => mark.kind !== "wrong" && mark.kind !== "correct")
-    );
+    armQuiz(nextQuiz);
     return new Promise<QuizResult>((resolve) => {
       quizResolverRef.current = resolve;
-      const deadline = Date.now() + QUIZ_TIMEOUT_MS;
-      persistedQuizDeadline = deadline;
-      quizTimerRef.current = window.setTimeout(expireQuiz, QUIZ_TIMEOUT_MS);
-      quizTickRef.current = window.setInterval(() => {
-        const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-        setQuizSecondsLeft(left);
-        if (left <= 0) {
-          expireQuiz();
-        }
-      }, 250);
       const signal = options?.signal;
       if (!signal) {
         return;
@@ -1593,7 +1601,7 @@ export function useChessLessons({
       signal.addEventListener("abort", onAbort);
       quizAbortCleanupRef.current = () => signal.removeEventListener("abort", onAbort);
     });
-  }, [cancelQuiz, enterLearnMode, expireQuiz]);
+  }, [armQuiz, enterLearnMode, expireQuiz]);
 
   const waitForUser = useCallback((
     next: WaitForUserState,
@@ -1816,6 +1824,33 @@ export function useChessLessons({
     };
   }, [presentShowMeLesson, rememberDraftLesson]);
 
+  const presentLiveRiddle = useCallback(
+    (lessonNumber: number) => {
+      const item = findUserLessonByNumber(lessonNumber);
+      if (!item) {
+        return;
+      }
+      enterLearnMode();
+      activeLessonNumberRef.current = lessonNumber;
+      const snaps = projectLessonHistory(item);
+      const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
+      const index = lastTeachingSlideIndex(slides);
+      const snap = snaps[index];
+      if (!snap) {
+        return;
+      }
+      logLessonDebug("visual", "present-riddle", {
+        lesson: lessonNumber,
+        historyIndex: index,
+        historyLength: snaps.length,
+        question: snap.quiz ? snap.quiz.question : "",
+      });
+      restoreSnapshot(snap);
+      publishHistory(index, snaps.length);
+    },
+    [enterLearnMode, projectLessonHistory, publishHistory, restoreSnapshot]
+  );
+
   const addLessonStep = useCallback(
     async (args: {
       lesson?: number;
@@ -1895,7 +1930,9 @@ export function useChessLessons({
       const lessonTitle = existing.title;
       const startTeaching = teachingSteps(lessonSteps(existing)).length;
       const totalTeaching = startTeaching + 1;
-      const fromFen = fenAfterTeaching(existing);
+      const fromFen = isRiddle
+        ? boardToFen(boardRef.current)
+        : fenAfterTeaching(existing);
       const moves = isRiddle ? [] : resolveStepMoves(draft.what, draft.moves);
       const coach = coachFromDraft(draft, {
         lessonTitle,
@@ -1929,7 +1966,11 @@ export function useChessLessons({
         },
       });
       setUserLessons(catalog);
-      refreshViewingLesson(lessonNumber);
+      if (isRiddle && quiz) {
+        presentLiveRiddle(lessonNumber);
+      } else {
+        refreshViewingLesson(lessonNumber);
+      }
       logLessonDebug("visual", "add-lesson-step", {
         lesson: lessonNumber,
         step: totalTeaching,
@@ -1939,9 +1980,11 @@ export function useChessLessons({
       const recapExpected = lessonExpectsRecap(totalTeaching);
       return {
         success: true,
-        message: recapExpected
+        message: isRiddle
+          ? `The riddle is on the chess page now (lesson ${lessonNumber}, step ${totalTeaching}). Coach shows the question only — no why/move spoilers. Student clicks a square. Do not wait for the click.`
+          : recapExpected
           ? `Stored teaching step ${totalTeaching} of lesson ${lessonNumber} in the catalog (not a recap). Live session unchanged. Next: add-lesson-step for another beat, OR set-lesson-recap if this was the last beat.`
-          : `Stored the only teaching step of lesson ${lessonNumber} in the catalog. Live session unchanged. No recap. For a riddle, call how_to_offer_a_hint then add-lesson-step with type riddle.`,
+          : `Stored the only teaching step of lesson ${lessonNumber} in the catalog. Live session unchanged. No recap.`,
         lesson: lessonNumber,
         step: totalTeaching,
         totalSteps: totalTeaching,
@@ -1955,7 +1998,7 @@ export function useChessLessons({
         recapExpected,
       };
     },
-    [refreshViewingLesson, rememberDraftLesson]
+    [boardRef, presentLiveRiddle, refreshViewingLesson, rememberDraftLesson]
   );
 
   const applyLessonRecap = useCallback(
@@ -2111,7 +2154,7 @@ export function useChessLessons({
           "create-lesson type lesson (default) — Goal, then add-lesson-step Why/Move beats.",
         showme:
           "create-lesson type showme — one explanation; the planned line auto-plays with Pause, Stop, and Replay on the coach.",
-        riddle: "add-lesson-step type riddle — a puzzle on a catalog lesson.",
+        riddle: "add-lesson-step type riddle — a puzzle stored on a catalog lesson and shown on the chess page now.",
       },
     };
   }, [userLessons]);
