@@ -70,12 +70,14 @@
   color: var(--about-ink);
 }
 
-.about-subnav-chess {
+.about-subnav-chess,
+.about-subnav-triangles {
   color: #fff;
   background: var(--about-accent);
 }
 
-.about-subnav-chess:hover {
+.about-subnav-chess:hover,
+.about-subnav-triangles:hover {
   background: var(--about-accent-strong);
   color: #fff;
 }

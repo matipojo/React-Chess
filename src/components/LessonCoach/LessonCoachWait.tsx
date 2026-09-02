@@ -10,7 +10,7 @@ import {
   isCodexHost,
   sharePromptWithHost,
 } from "../../utils/codexPrompt";
-import ChessLinkedText from "./ChessLinkedText";
+import LessonLinkedText from "./LessonLinkedText";
 import { LessonCoachLinkProps } from "./LessonCoachTypes";
 
 type Props = LessonCoachLinkProps & {
@@ -27,6 +27,8 @@ export default function LessonCoachWait({
   onWaitChoice,
   onHoverSquares,
   resolvePeekSquares,
+  linkMode,
+  knownIds,
 }: Props) {
   const [copiedId, setCopiedId] = useState<string>("");
   const openInCodex = isCodexHost();
@@ -47,8 +49,10 @@ export default function LessonCoachWait({
     <div className="lesson-coach-wait">
       <p className="lesson-coach-quiz-label">Your turn</p>
       <p>
-        <ChessLinkedText
+        <LessonLinkedText
           text={waitPrompt || ""}
+          linkMode={linkMode}
+          knownIds={knownIds}
           onHoverSquares={onHoverSquares}
           resolvePeekSquares={resolvePeekSquares}
         />
@@ -87,8 +91,10 @@ export default function LessonCoachWait({
                   onWaitChoice?.(choice.id, choice.label);
                 }}
               >
-                <ChessLinkedText
+                <LessonLinkedText
                   text={choice.label}
+                  linkMode={linkMode}
+                  knownIds={knownIds}
                   onHoverSquares={onHoverSquares}
                   resolvePeekSquares={resolvePeekSquares}
                 />

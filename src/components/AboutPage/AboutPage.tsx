@@ -7,7 +7,12 @@ import {
   ITALIAN_GAME_ARROWS,
   ITALIAN_GAME_FEN,
 } from "./aboutDemo";
-import { ABOUT_HASH, PLAY_HASH } from "../../utils/appRoute";
+import {
+  ABOUT_PATH,
+  CHESS_PATH,
+  TRIANGLES_PATH,
+  appHref,
+} from "../../utils/appRoute";
 import { useHomePageTools } from "../../hooks/useHomePageTools";
 import {
   buildCodexPromptHref,
@@ -232,16 +237,19 @@ export default function AboutPage() {
   return (
     <div className="about-page">
       <header className="about-header">
-        <a className="about-brand" href={ABOUT_HASH}>
+        <a className="about-brand" href={appHref(ABOUT_PATH)}>
           <LogoMark />
           <span>Living Learning Surfaces</span>
         </a>
         <nav className="about-subnav" aria-label="Learning surfaces">
-          <a href={ABOUT_HASH} aria-current="page">
+          <a href={appHref(ABOUT_PATH)} aria-current="page">
             Home
           </a>
-          <a className="about-subnav-chess" href={PLAY_HASH}>
+          <a className="about-subnav-chess" href={appHref(CHESS_PATH)}>
             Chess
+          </a>
+          <a className="about-subnav-triangles" href={appHref(TRIANGLES_PATH)}>
+            Triangles
           </a>
         </nav>
       </header>
@@ -414,16 +422,16 @@ export default function AboutPage() {
         <section className="about-section">
           <h2>The pattern is broader</h2>
           <div className="about-subjects">
-            <a className="about-subject is-active" href={PLAY_HASH}>
+            <a className="about-subject is-active" href={appHref(CHESS_PATH)}>
               <img src={pieceSrc("knight_w")} alt="" />
               <strong>Chess</strong>
               <span>Working demo. Available now.</span>
             </a>
-            <div className="about-subject is-soon">
+            <a className="about-subject is-active" href={appHref(TRIANGLES_PATH)}>
               <span className="about-subject-icon">△</span>
               <strong>Geometry</strong>
-              <span>Coming later</span>
-            </div>
+              <span>Working demo. Available now.</span>
+            </a>
             <div className="about-subject is-soon">
               <span className="about-subject-icon">⎋</span>
               <strong>Circuits</strong>

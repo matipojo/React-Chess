@@ -1,0 +1,108 @@
+.geometry-frame {
+  --board-size: calc(var(--tile-size, 75px) * 8);
+  width: var(--board-size);
+  height: var(--board-size);
+  background: rgba(10, 8, 14, 0.18);
+  backdrop-filter: blur(8px) saturate(1.15);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.geometry-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.08), transparent 55%),
+    linear-gradient(160deg, rgba(40, 48, 40, 0.55), rgba(18, 22, 18, 0.8));
+  cursor: grab;
+  touch-action: none;
+}
+
+.geometry-frame[data-quiz="true"] .geometry-canvas {
+  cursor: pointer;
+}
+
+.geometry-axes line {
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 0.03;
+}
+
+.geometry-stroke {
+  stroke: #e8f5e9;
+  stroke-width: 0.055;
+  stroke-linecap: round;
+}
+
+.geometry-stroke.is-dashed {
+  stroke: #b3e5fc;
+  stroke-dasharray: 0.12 0.1;
+  stroke-width: 0.045;
+}
+
+.geometry-stroke.is-hot,
+.geometry-circle.is-hot {
+  stroke: #81d4fa;
+  stroke-width: 0.08;
+  filter: drop-shadow(0 0 0.08px #81d4fa);
+}
+
+.geometry-circle {
+  stroke: #ce93d8;
+  stroke-width: 0.04;
+}
+
+.geometry-ghost {
+  stroke: #ffcc80;
+  stroke-width: 0.05;
+  stroke-dasharray: 0.1 0.08;
+  opacity: 0.9;
+}
+
+.geometry-mark {
+  stroke: #fff59d;
+  stroke-width: 0.035;
+  fill: none;
+}
+
+.geometry-point circle {
+  fill: #fff;
+  stroke: #263238;
+  stroke-width: 0.02;
+}
+
+.geometry-point.is-hot circle {
+  fill: #81d4fa;
+  stroke: #e3f2fd;
+}
+
+.geometry-point text,
+.geometry-label {
+  fill: #fff;
+  font-size: 0.28px;
+  font-weight: 700;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  paint-order: stroke fill;
+  stroke: rgba(0, 0, 0, 0.75);
+  stroke-width: 0.04px;
+  pointer-events: none;
+}
+
+.geometry-hand circle {
+  fill: var(--play, var(--accent, #779556));
+  stroke: #fff;
+  stroke-width: 0.03;
+}
+
+[data-board-theme="purple"] .geometry-frame {
+  background: rgba(24, 10, 42, 0.2);
+  border-color: rgba(226, 210, 255, 0.28);
+}
+
+[data-board-theme="purple"] .geometry-canvas {
+  background:
+    radial-gradient(ellipse at 18% 0%, rgba(192, 132, 252, 0.28), transparent 48%),
+    linear-gradient(160deg, rgba(40, 18, 60, 0.7), rgba(16, 8, 28, 0.9));
+}

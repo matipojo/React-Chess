@@ -6,6 +6,8 @@ import { ChessRefPart } from "../../utils/chess-text-links";
 export type LessonCoachLinkProps = {
   onHoverSquares?: (squares: string[]) => void;
   resolvePeekSquares?: (ref: ChessRefPart) => string[];
+  linkMode?: "chess" | "triangles";
+  knownIds?: string[];
 };
 
 export type LessonCoachPlayProps = {
@@ -48,4 +50,6 @@ export type LessonCoachProps = LessonCoachLinkProps &
     nextGenerating?: boolean;
     historyIndex?: number;
     historyLength?: number;
+    whatLabel?: string;
+    examplePrompts?: string[];
   };

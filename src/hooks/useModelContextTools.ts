@@ -89,6 +89,32 @@ type LessonActions = {
   listLessons: () => unknown;
 };
 
+export const CHESS_TOOL_NAMES = [
+  "get-board-state",
+  "make-move",
+  "get-possible-moves",
+  "restart-game",
+  "promote-pawn",
+  "enter-learn-mode",
+  "exit-learn-mode",
+  "list-lessons",
+  "set-position",
+  "create-lesson",
+  "add-lesson-step",
+  "set-lesson-recap",
+  "set-coach",
+  "annotate-board",
+  "clear-lesson",
+  "load-game",
+  "goto-move",
+  "play-line",
+  "demonstrate-piece",
+  "ask-quiz",
+  "set-page-background",
+  "how_to_offer_a_hint",
+  "how_to_ask_the_user",
+] as const;
+
 type ChessActions = {
   getBoard: () => Board;
   playMove: (piece: Piece, destination: Position) => boolean;

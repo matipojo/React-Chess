@@ -45,11 +45,15 @@ export default function LessonCoach({
   nextGenerating,
   historyIndex,
   historyLength,
+  linkMode,
+  knownIds,
+  whatLabel,
+  examplePrompts,
 }: LessonCoachProps) {
   const waiting = Boolean(waitPrompt && waitChoices && waitChoices.length > 0);
 
   if (!coach && !quizQuestion && !waiting) {
-    return <LessonCoachEmpty />;
+    return <LessonCoachEmpty examplePrompts={examplePrompts} />;
   }
 
   const extraParagraphs = coach ? extraCoachParagraphs(coach) : [];
@@ -78,7 +82,7 @@ export default function LessonCoach({
       .join("\n")
   );
 
-  const linkProps = { onHoverSquares, resolvePeekSquares };
+  const linkProps = { onHoverSquares, resolvePeekSquares, linkMode, knownIds };
 
   return (
     <aside className="lesson-coach" dir={dir} lang={lang}>
@@ -98,6 +102,7 @@ export default function LessonCoach({
             playMoves={playMoves}
             onPlayMove={onPlayMove}
             playBusy={playBusy}
+            whatLabel={whatLabel}
             onPlayLine={onPlayLine}
             onPauseLine={onPauseLine}
             onStopLine={onStopLine}

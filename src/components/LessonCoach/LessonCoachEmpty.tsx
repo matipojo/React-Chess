@@ -10,9 +10,14 @@ import {
 } from "../../utils/codexPrompt";
 import { CopiedCheckIcon, CopyIcon } from "./LessonCoachIcons";
 
-export default function LessonCoachEmpty() {
+export default function LessonCoachEmpty({
+  examplePrompts,
+}: {
+  examplePrompts?: string[];
+}) {
   const [copiedId, setCopiedId] = useState<string>("");
   const openInCodex = isCodexHost();
+  const prompts = examplePrompts || EXAMPLE_LESSON_PROMPTS;
 
   return (
     <aside className="lesson-coach">
@@ -21,7 +26,7 @@ export default function LessonCoachEmpty() {
         <p className="lesson-coach-kicker">Generative Learning</p>
         <h2>Your turn, generate your lesson</h2>
         <div className="lesson-coach-examples">
-          {EXAMPLE_LESSON_PROMPTS.map((prompt) =>
+          {prompts.map((prompt) =>
             openInCodex ? (
               <a
                 key={prompt}

@@ -1,6 +1,6 @@
 import { CoachState } from "../../lessons/types";
-import ChessLinkedText from "./ChessLinkedText";
 import { ResetIcon } from "./LessonCoachIcons";
+import LessonLinkedText from "./LessonLinkedText";
 import { LessonCoachLinkProps } from "./LessonCoachTypes";
 
 type Props = LessonCoachLinkProps & {
@@ -15,6 +15,8 @@ export default function LessonCoachHeading({
   canReset,
   onHoverSquares,
   resolvePeekSquares,
+  linkMode,
+  knownIds,
 }: Props) {
   return (
     <div className="lesson-coach-heading">
@@ -24,8 +26,10 @@ export default function LessonCoachHeading({
           coach.phase !== "goal" &&
           coach.phase !== "showme" && (
             <p className="lesson-coach-topic">
-              <ChessLinkedText
+              <LessonLinkedText
                 text={coach.lessonTitle}
+                linkMode={linkMode}
+                knownIds={knownIds}
                 onHoverSquares={onHoverSquares}
                 resolvePeekSquares={resolvePeekSquares}
               />
@@ -33,8 +37,10 @@ export default function LessonCoachHeading({
           )}
         {coach && (
           <h2>
-            <ChessLinkedText
+            <LessonLinkedText
               text={coach.title}
+              linkMode={linkMode}
+              knownIds={knownIds}
               onHoverSquares={onHoverSquares}
               resolvePeekSquares={resolvePeekSquares}
             />

@@ -1,8 +1,8 @@
 import { CoachState } from "../../lessons/types";
 import { showmeControls } from "../../lessons/showMe";
 import { detectTextDirection } from "../../utils/text-direction";
-import ChessLinkedText from "./ChessLinkedText";
 import LessonCoachPlayback from "./LessonCoachPlayback";
+import LessonLinkedText from "./LessonLinkedText";
 import {
   LessonCoachLinkProps,
   LessonCoachPlayProps,
@@ -15,6 +15,7 @@ type Props = LessonCoachLinkProps &
     coach: CoachState;
     extraParagraphs: string[];
     leftoverMoves: string;
+    whatLabel?: string;
   };
 
 export default function LessonCoachBody({
@@ -32,6 +33,9 @@ export default function LessonCoachBody({
   onReplayLine,
   showmePlayback = "idle",
   showmePly = 0,
+  linkMode,
+  knownIds,
+  whatLabel = "Move",
 }: Props) {
   const isShowme = coach.phase === "showme";
   const playback = showmeControls(
@@ -59,8 +63,10 @@ export default function LessonCoachBody({
         {!isShowme && coach.why && (
           <p className="lesson-coach-why">
             <span className="lesson-coach-field-label">Why</span>
-            <ChessLinkedText
+            <LessonLinkedText
               text={coach.why}
+              linkMode={linkMode}
+              knownIds={knownIds}
               onHoverSquares={onHoverSquares}
               resolvePeekSquares={resolvePeekSquares}
             />
@@ -68,10 +74,12 @@ export default function LessonCoachBody({
         )}
         {!isShowme && (coach.what || leftoverMoves) && (
           <p className="lesson-coach-what">
-            <span className="lesson-coach-field-label">Move</span>
+            <span className="lesson-coach-field-label">{whatLabel}</span>
             {coach.what && (
-              <ChessLinkedText
+              <LessonLinkedText
                 text={coach.what}
+                linkMode={linkMode}
+                knownIds={knownIds}
                 onHoverSquares={onHoverSquares}
                 resolvePeekSquares={resolvePeekSquares}
                 playMoves={playMoves}
@@ -80,8 +88,10 @@ export default function LessonCoachBody({
               />
             )}
             {leftoverMoves ? (
-              <ChessLinkedText
+              <LessonLinkedText
                 text={leftoverMoves}
+                linkMode={linkMode}
+                knownIds={knownIds}
                 onHoverSquares={onHoverSquares}
                 resolvePeekSquares={resolvePeekSquares}
                 playMoves={playMoves}
@@ -95,8 +105,10 @@ export default function LessonCoachBody({
           const { dir: paragraphDir } = detectTextDirection(paragraph);
           return (
             <p key={index} dir={paragraphDir}>
-              <ChessLinkedText
+              <LessonLinkedText
                 text={paragraph}
+                linkMode={linkMode}
+                knownIds={knownIds}
                 onHoverSquares={onHoverSquares}
                 resolvePeekSquares={resolvePeekSquares}
               />

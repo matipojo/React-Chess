@@ -14,17 +14,16 @@ import { PieceType, TeamType } from "../../Types";
 import Chessboard, { ChessboardHandle } from "../Chessboard/Chessboard";
 import BoardUndoBar from "../BoardUndoBar/BoardUndoBar";
 import LessonCoach from "../LessonCoach/LessonCoach";
-import LessonCatalogMenu from "../LessonCatalogMenu/LessonCatalogMenu";
 import { Howl } from "howler";
 import { useModelContextTools } from "../../hooks/useModelContextTools";
 import { useChessLessons } from "../../hooks/useChessLessons";
-import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 import { logLessonDebug } from "../../lessons/debugLog";
 import { shouldShowLessonNav } from "../../lessons/lessonCopy";
 import { getFamousGame } from "../../lessons/catalog";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
+import AppHeader from "../AppHeader/AppHeader";
 import "./Referee.css";
 
 const moveSound = new Howl({
@@ -323,24 +322,14 @@ export default function Referee() {
 
   return (
     <>
-      <header className="app-header">
-        <div className="app-header-nav">
-          <h1 className="app-header-title">Generative Learning</h1>
-          <a className="app-header-link" href="#/about">
-            About
-          </a>
-        </div>
-        <div className="app-header-actions">
-          <LessonCatalogMenu
-            lessons={lessons.userLessons}
-            onOpen={(id) => {
-              lessons.openSavedLesson(id);
-            }}
-            onRemove={lessons.deleteSavedLesson}
-          />
-          <LessonDebugConsole />
-        </div>
-      </header>
+      <AppHeader
+        area="chess"
+        lessons={lessons.userLessons}
+        onOpenLesson={(id) => {
+          lessons.openSavedLesson(id);
+        }}
+        onRemoveLesson={lessons.deleteSavedLesson}
+      />
       <div id="app">
         <div className="referee referee-learn">
           <div className="referee-board">

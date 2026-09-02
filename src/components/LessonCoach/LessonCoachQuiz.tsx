@@ -1,4 +1,4 @@
-import ChessLinkedText from "./ChessLinkedText";
+import LessonLinkedText from "./LessonLinkedText";
 import { LessonCoachLinkProps } from "./LessonCoachTypes";
 
 type Props = LessonCoachLinkProps & {
@@ -13,6 +13,8 @@ export default function LessonCoachQuiz({
   quizSecondsLeft,
   onHoverSquares,
   resolvePeekSquares,
+  linkMode,
+  knownIds,
 }: Props) {
   return (
     <div className="lesson-coach-quiz">
@@ -25,16 +27,20 @@ export default function LessonCoachQuiz({
         )}
       </div>
       <p>
-        <ChessLinkedText
+        <LessonLinkedText
           text={quizQuestion}
+          linkMode={linkMode}
+          knownIds={knownIds}
           onHoverSquares={onHoverSquares}
           resolvePeekSquares={resolvePeekSquares}
         />
       </p>
       {quizFeedback && (
         <p className="lesson-coach-feedback">
-          <ChessLinkedText
+          <LessonLinkedText
             text={quizFeedback}
+            linkMode={linkMode}
+            knownIds={knownIds}
             onHoverSquares={onHoverSquares}
             resolvePeekSquares={resolvePeekSquares}
           />

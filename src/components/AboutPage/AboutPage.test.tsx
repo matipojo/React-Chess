@@ -25,7 +25,13 @@ describe("AboutPage", () => {
     expect(getByText("3. Bc4")).toBeTruthy();
     const nav = getByRole("navigation", { name: "Learning surfaces" });
     expect(nav.querySelector('a[aria-current="page"]')?.textContent).toMatch(/Home/);
-    expect(nav.querySelector(".about-subnav-chess")?.getAttribute("href")).toBe("#/");
+    expect(nav.querySelector(".about-subnav-chess")?.getAttribute("href")).toBe("/chess");
+    expect(nav.querySelector(".about-subnav-triangles")?.getAttribute("href")).toBe(
+      "/triangles"
+    );
+    expect(getByRole("link", { name: /Geometry/ }).getAttribute("href")).toBe(
+      "/triangles"
+    );
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelectorAll(".chess-piece").length).toBe(32);
     expect(container.querySelectorAll(".board-arrows line").length).toBe(2);
@@ -175,7 +181,7 @@ describe("AboutPage", () => {
       configurable: true,
       value: modelContext,
     });
-    window.location.hash = "#/about";
+    window.history.pushState({}, "", "/about");
     try {
       const { unmount } = renderAbout();
       expect(registered.map((tool) => tool.name)).toEqual(["list-pages", "open-page"]);
@@ -188,14 +194,15 @@ describe("AboutPage", () => {
       };
       expect(data.currentPage).toBe("about");
       expect(data.subnav.some((item) => item.id === "chess" && item.available)).toBe(true);
+      expect(data.subnav.some((item) => item.id === "triangles" && item.available)).toBe(true);
       const opened = await registered[1].execute({ page: "chess" });
       expect(opened.success).toBe(true);
-      expect(window.location.hash).toBe("#/");
+      expect(window.location.pathname).toBe("/chess");
       unmount();
       expect(registered).toEqual([]);
     } finally {
       delete (document as { modelContext?: unknown }).modelContext;
-      window.location.hash = "";
+      window.history.pushState({}, "", "/");
     }
   });
 });
