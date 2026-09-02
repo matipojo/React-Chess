@@ -13,14 +13,20 @@ import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '.
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
-import { parseLessonFormat, parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
+import { parseLessonFormat, parseLessonStepType, parseSummaryDraft, CATALOG_LIVE_FROZEN_MESSAGE } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
 type LessonActions = {
   learnMode: boolean;
   enterLearnMode: () => void;
   exitLearnMode: () => void;
-  setCoach: (coach: CoachState) => { lesson: number; step: number; totalSteps: number };
+  setCoach: (coach: CoachState) => {
+    lesson: number;
+    step: number;
+    totalSteps: number;
+    skipped?: boolean;
+    message?: string;
+  };
   createLesson: (args: {
     title: string;
     paragraphs?: string[];
@@ -46,6 +52,7 @@ type LessonActions = {
     correct?: string[];
     hint?: string;
     quizType?: QuizState["type"];
+    fen?: string;
     signal?: AbortSignal;
   }) => Promise<{
     success: boolean;
@@ -80,6 +87,7 @@ type LessonActions = {
   }>;
   annotateBoard: (highlights?: BoardHighlight[], arrows?: BoardArrow[]) => void;
   clearLesson: () => void;
+  catalogSessionLive?: boolean;
   setPosition: (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => { success: boolean; message: string };
   loadGame: (id: string) => { success: boolean; message: string; data: unknown } | Promise<{ success: boolean; message: string; data: unknown }>;
   gotoMove: (ply: number) => { success: boolean; message: string; data: unknown };
@@ -413,7 +421,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson. type lesson (default): does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn; then add-lesson-step. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
+          'Create a new catalog lesson. type lesson (default): stores the Goal and moves the student status to the first panel. Later add-lesson-step writes content only and must not move the slider. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -441,7 +449,8 @@ export function useModelContextTools(actions: ChessActions) {
             },
             fen: {
               type: 'string',
-              description: 'Optional starting FEN for type showme. Default is the starting position.',
+              description:
+                'Optional starting FEN. type lesson: the Goal position (and later riddles unless they pass their own fen). type showme: where the demo starts. Default is the current board.',
             },
           },
           required: ['title'],
@@ -475,7 +484,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson. The student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next. State the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only. Do not move the live playhead or board, and never jump the student to the last step while you are still generating. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here, do not jump there). A one-step lesson or riddle has no recap and no Back/Next. State the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -526,6 +535,11 @@ export function useModelContextTools(actions: ChessActions) {
               enum: ['click-square', 'click-piece', 'choose-move'],
               description: 'How the student answers a riddle. Default click-square.',
             },
+            fen: {
+              type: 'string',
+              description:
+                'Optional board FEN for this beat. For a riddle whose pieces are not the Goal position, pass the puzzle FEN here (set-position is frozen while a catalog lesson is on screen). Catalog only; does not move the live board. Default is the position after the previous teaching step.',
+            },
           },
           required: ['lesson'],
         },
@@ -544,6 +558,7 @@ export function useModelContextTools(actions: ChessActions) {
             correct,
             hint: typeof params.hint === 'string' ? params.hint : undefined,
             quizType: (params.quizType as QuizState['type']) || 'click-square',
+            fen: typeof params.fen === 'string' ? params.fen : undefined,
             signal: options?.signal,
           });
           if (result.quiz) {
@@ -627,7 +642,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-coach',
         description:
-          'Update the currently visible coach text only. Does not write the catalog. Prefer create-lesson, add-lesson-step, and set-lesson-recap. ' +
+          'Update the currently visible coach text only when no catalog lesson is on screen. During create-lesson / add-lesson-step this is ignored so the student is not jumped to a later beat. Prefer add-lesson-step. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -684,6 +699,13 @@ export function useModelContextTools(actions: ChessActions) {
             step: asPositiveInt(params.step),
             totalSteps: asPositiveInt(params.totalSteps),
           });
+          if (result.skipped) {
+            return {
+              success: true,
+              message: result.message || 'Live playhead unchanged.',
+              data: result,
+            };
+          }
           return {
             success: true,
             message: `Coach panel updated. Lesson ${result.lesson}, step ${result.step} of ${result.totalSteps}. Prefer add-lesson-step then set-lesson-recap.`,
@@ -721,6 +743,9 @@ export function useModelContextTools(actions: ChessActions) {
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          if (actionsRef.current.lessons.catalogSessionLive) {
+            return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE, data: { skipped: true } };
+          }
           const highlights = Array.isArray(params.highlights) ? params.highlights as BoardHighlight[] : undefined;
           const arrows = Array.isArray(params.arrows) ? params.arrows as BoardArrow[] : undefined;
           actionsRef.current.lessons.annotateBoard(highlights, arrows);
@@ -732,6 +757,9 @@ export function useModelContextTools(actions: ChessActions) {
         description: 'Clear coach text, highlights, arrows, and any pending quiz. Stays in learn mode.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
+          if (actionsRef.current.lessons.catalogSessionLive) {
+            return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE, data: { skipped: true } };
+          }
           actionsRef.current.lessons.clearLesson();
           return { success: true, message: 'Lesson overlay cleared', data: null };
         },
@@ -814,7 +842,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'ask-quiz',
         description:
-          'Prefer add-lesson-step with type riddle so the puzzle is stored on the catalog lesson. Use this tool only for a one-off quiz that is not a lesson step. Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only, never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
+          'Prefer add-lesson-step with type riddle so the puzzle is stored on the catalog lesson. Do not jump the live playhead. Use this tool only for a one-off quiz that is not a lesson step. Show a puzzle question in the coach panel, hide teaching spoilers, and start a 30-second timer. Wait for a square click. The question must state the task only, never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -922,7 +950,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'how_to_offer_a_hint',
         description:
-          'Returns instructions for offering an opt-in Give me a hint visualization button in this chat. Takes no arguments. Call this instead of how_to_ask_the_user while the student is solving, before add-lesson-step type riddle (or ask-quiz for a one-off). Do not spoil the solution in coach text or in this chat until they tap the button. Follow the returned prompt, then add the riddle step.',
+          'Returns instructions for offering an opt-in Give me a hint visualization button in this chat. Takes no arguments. Call this instead of how_to_ask_the_user while the student is solving, before add-lesson-step type riddle (or ask-quiz for a one-off). Do not spoil the solution in coach text or in this chat until they tap the button. Follow the returned prompt, then add the riddle step. Do not jump the live playhead while generating.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const accent = readBoardChatAccent();

@@ -87,7 +87,11 @@ export function ensureGoalTriangles(
 }
 
 function hasGoalCopy(item: SavedLesson): boolean {
-  return Boolean(item.body || (item.paragraphs && item.paragraphs.length));
+  return Boolean(
+    item.body ||
+    (item.paragraphs && item.paragraphs.length) ||
+    (item.kind === "custom" && item.title)
+  );
 }
 
 export function shouldApplySavedStepTfn(input: {
@@ -111,7 +115,7 @@ export function projectTriangleLessonSession(
 ): TriangleLessonSessionSlide[] {
   const steps = item.steps && item.steps.length ? item.steps.map(contentStep) : [];
   const teaching = teachingSteps(steps);
-  const rawStart = (teaching[0] && teaching[0].tfn) || item.tfn || startingTfn;
+  const rawStart = item.tfn || (teaching[0] && teaching[0].tfn) || startingTfn;
   let cursor = ensureGoalTriangles(parseTfn(rawStart), item);
   let cursorTfn = serializeTfn(cursor);
   const slides: TriangleLessonSessionSlide[] = [];
@@ -134,6 +138,7 @@ export function projectTriangleLessonSession(
 
   teaching.forEach((step, index) => {
     if (
+      (step.kind === "riddle" && Boolean(step.tfn)) ||
       shouldApplySavedStepTfn({
         stepTfn: step.tfn,
         currentTfn: cursorTfn,

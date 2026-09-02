@@ -131,8 +131,8 @@ export function contentLesson(
           paragraphs: [...lesson.recap.paragraphs],
         }
       : undefined,
-    fen: (teaching[0] && teaching[0].fen) || lesson.fen,
-    tfn: (teaching[0] && teaching[0].tfn) || lesson.tfn,
+    fen: lesson.fen || (teaching[0] && teaching[0].fen),
+    tfn: lesson.tfn || (teaching[0] && teaching[0].tfn),
     highlights: hasBeats ? undefined : cloneMarks(lesson.highlights),
     arrows: hasBeats ? undefined : cloneArrows(lesson.arrows),
     quiz: hasBeats ? undefined : contentQuiz(lesson.quiz),
@@ -141,7 +141,11 @@ export function contentLesson(
 }
 
 function hasGoalCopy(item: SavedLesson): boolean {
-  return Boolean(item.body || (item.paragraphs && item.paragraphs.length));
+  return Boolean(
+    item.body ||
+    (item.paragraphs && item.paragraphs.length) ||
+    (item.kind === "custom" && item.title)
+  );
 }
 
 export function lastTeachingSlideIndex(slides: LessonSessionSlide[]): number {
@@ -204,7 +208,7 @@ export function projectLessonSession(
 
   const steps = item.steps && item.steps.length ? item.steps.map(contentStep) : [];
   const teaching = teachingSteps(steps);
-  const startFen = (teaching[0] && teaching[0].fen) || item.fen || startingFen;
+  const startFen = item.fen || (teaching[0] && teaching[0].fen) || startingFen;
   let cursorFen = startFen;
   const slides: LessonSessionSlide[] = [];
 
@@ -228,6 +232,7 @@ export function projectLessonSession(
 
   teaching.forEach((step, index) => {
     if (
+      (step.kind === "riddle" && Boolean(step.fen)) ||
       shouldApplySavedStepFen({
         stepFen: step.fen,
         currentFen: cursorFen,

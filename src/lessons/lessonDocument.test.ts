@@ -103,6 +103,25 @@ describe("lesson document vs session", () => {
     expect(fenAfterTeaching(lesson, start).split(" ")[0]).toBe(start.split(" ")[0]);
   });
 
+  it("opens a title-only catalog lesson on a Goal panel", () => {
+    const start = boardToFen(startingLearnBoard());
+    const slides = projectLessonSession(
+      {
+        id: "custom:lesson-9",
+        kind: "custom",
+        title: "Italian Opening",
+        body: "",
+        savedAt: 1,
+        number: 9,
+        steps: [],
+      },
+      start
+    );
+    expect(slides).toHaveLength(1);
+    expect(slides[0].coach?.phase).toBe("goal");
+    expect(slides[0].coach?.title).toBe("Italian Opening");
+  });
+
   it("keeps riddle steps as riddles when projecting a session", () => {
     const start = boardToFen(startingLearnBoard());
     const lesson: SavedLesson = {
@@ -133,6 +152,106 @@ describe("lesson document vs session", () => {
     expect(slides[1].quiz?.question).toBe("Click the fork square.");
     expect(slides[1].coach?.what).toBeUndefined();
     expect(lastTeachingSlideIndex(slides)).toBe(1);
+  });
+
+  it("opens a later riddle on its saved fen, not the position after earlier moves", () => {
+    const start = boardToFen(startingLearnBoard());
+    const afterE4 = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1";
+    const lesson: SavedLesson = {
+      id: "custom:lesson-5",
+      kind: "custom",
+      title: "The Italian Game",
+      body: "Open with the king's pawn.",
+      savedAt: 1,
+      number: 5,
+      recap: { title: "Italian Game checklist", paragraphs: ["Center, knight, bishop."] },
+      steps: [
+        {
+          title: "Claim the center",
+          body: "",
+          kind: "step",
+          why: "Control d5 and f5.",
+          what: "Play e2-e4.",
+          moves: ["e2:e4"],
+          fen: start,
+        },
+        {
+          title: "White's first move",
+          body: "",
+          kind: "riddle",
+          quiz: {
+            question: "Pick White's first move in the Italian Game.",
+            type: "click-square",
+            correct: ["e4", "e2-e4"],
+          },
+          fen: start,
+        },
+      ],
+    };
+    const slides = projectLessonSession(lesson, start);
+    expect(slides.map((slide) => slide.coach?.phase)).toEqual([
+      "goal",
+      "step",
+      "riddle",
+      "recap",
+    ]);
+    expect(slides[2].fen.split(" ")[0]).toBe(start.split(" ")[0]);
+    expect(slides[2].fen.split(" ")[0]).not.toBe(afterE4.split(" ")[0]);
+    expect(slides[2].quiz?.question).toBe("Pick White's first move in the Italian Game.");
+    expect(lastTeachingSlideIndex(slides)).toBe(2);
+  });
+
+  it("keeps a riddle on its puzzle fen, including when it is the first teaching step", () => {
+    const start = boardToFen(startingLearnBoard());
+    const puzzle = "8/8/8/4n3/8/8/8/8 w - - 0 1";
+    const lesson: SavedLesson = {
+      id: "custom:lesson-6",
+      kind: "custom",
+      title: "Knight forks",
+      body: "A knight exam.",
+      savedAt: 1,
+      number: 6,
+      fen: start,
+      recap: { title: "Checklist", paragraphs: ["Look for two hanging pieces."] },
+      steps: [
+        {
+          title: "Find the fork",
+          body: "",
+          kind: "riddle",
+          quiz: {
+            question: "Click the fork square.",
+            type: "click-square",
+            correct: ["c7"],
+          },
+          fen: puzzle,
+        },
+      ],
+    };
+    const content = contentLesson(lesson);
+    expect(content.fen?.split(" ")[0]).toBe(start.split(" ")[0]);
+    const slides = projectLessonSession(lesson, start);
+    expect(slides.map((slide) => slide.coach?.phase)).toEqual(["goal", "riddle", "recap"]);
+    expect(slides[0].fen.split(" ")[0]).toBe(start.split(" ")[0]);
+    expect(slides[1].fen.split(" ")[0]).toBe("8/8/8/4n3/8/8/8/8");
+    expect(slides[1].quiz?.question).toBe("Click the fork square.");
+  });
+
+  it("uses the lesson fen for Goal when no teaching steps exist yet", () => {
+    const puzzle = "8/8/8/4n3/8/8/8/8 w - - 0 1";
+    const lesson: SavedLesson = {
+      id: "custom:lesson-9",
+      kind: "custom",
+      title: "Knight exam",
+      body: "Find the fork.",
+      savedAt: 1,
+      number: 9,
+      fen: puzzle,
+      steps: [],
+    };
+    const slides = projectLessonSession(lesson);
+    expect(slides).toHaveLength(1);
+    expect(slides[0].coach?.phase).toBe("goal");
+    expect(slides[0].fen.split(" ")[0]).toBe("8/8/8/4n3/8/8/8/8");
   });
 
   it("returns a fresh riddle after an attempt ends, including from the catalog step", () => {

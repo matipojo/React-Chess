@@ -58,6 +58,7 @@ export default function LessonCoach({
 
   const extraParagraphs = coach ? extraCoachParagraphs(coach) : [];
   const leftoverMoves = coach ? uncoveredMoveText(coach.what, playMoves) : "";
+  const hideCopy = Boolean(quizQuestion);
   const slideCount = lessonSlideCounter({
     step: coach?.step,
     totalSteps: coach?.totalSteps,
@@ -99,6 +100,7 @@ export default function LessonCoach({
             coach={coach}
             extraParagraphs={extraParagraphs}
             leftoverMoves={leftoverMoves}
+            hideCopy={hideCopy}
             playMoves={playMoves}
             onPlayMove={onPlayMove}
             playBusy={playBusy}

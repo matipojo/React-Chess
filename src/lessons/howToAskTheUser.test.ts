@@ -30,6 +30,8 @@ describe("buildGiveMeAHintPrompt", () => {
     expect(prompt).toContain("background #8a5fc8");
     expect(prompt).toContain("label text #ffffff");
     expect(prompt).toContain("add-lesson-step with type riddle");
+    expect(prompt).toContain("puts the puzzle on the chess page");
+    expect(prompt).not.toContain("already on the chess board");
     expect(prompt).toContain("Use ask-quiz only if this puzzle is not a catalog lesson step");
   });
 

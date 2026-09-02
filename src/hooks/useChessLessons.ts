@@ -1,4 +1,5 @@
 import { Dispatch, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { unstable_batchedUpdates } from "react-dom";
 import { Board } from "../models/Board";
 import { Position } from "../models/Position";
 import { TeamType } from "../Types";
@@ -69,6 +70,8 @@ import {
   parseLessonFormat,
   parseLessonStepType,
   teachingSteps,
+  keptPlayheadIndex,
+  CATALOG_LIVE_FROZEN_MESSAGE,
 } from "../lessons/lessonCopy";
 import {
   applyMovesToBoard,
@@ -749,6 +752,23 @@ export function useChessLessons({
   );
 
   const setCoach = useCallback((next: CoachState) => {
+    const requested =
+      typeof next.lesson === "number" && next.lesson > 0 ? next.lesson : 0;
+    const catalogTarget = requested ? findUserLessonByNumber(requested) : undefined;
+    if (activeLessonNumberRef.current || catalogTarget) {
+      const lesson = activeLessonNumberRef.current || requested;
+      logLessonDebug("visual", "set-coach-skipped", {
+        lesson,
+        title: next.title,
+      });
+      return {
+        lesson,
+        step: coachRef.current?.step || 1,
+        totalSteps: coachRef.current?.totalSteps || 1,
+        skipped: true,
+        message: CATALOG_LIVE_FROZEN_MESSAGE,
+      };
+    }
     const copy = normalizeCoachCopy(next);
     const lessonNumber = resolveLessonNumber(next.lesson);
     const existing = lessonNumber ? findUserLessonByNumber(lessonNumber) : undefined;
@@ -788,11 +808,18 @@ export function useChessLessons({
       lesson: lessonNumber,
       step: stepNumber,
       totalSteps,
+      skipped: false,
     };
   }, [enterLearnMode, resolveLessonNumber, updateCurrentSnapshot]);
 
   const annotateBoard = useCallback(
     (nextHighlights?: BoardHighlight[], nextArrows?: BoardArrow[]) => {
+      if (activeLessonNumberRef.current) {
+        logLessonDebug("visual", "annotate-board-skipped", {
+          lesson: activeLessonNumberRef.current,
+        });
+        return;
+      }
       const resolvedHighlights =
         nextHighlights !== undefined
           ? nextHighlights
@@ -817,6 +844,12 @@ export function useChessLessons({
   );
 
   const clearLesson = useCallback(() => {
+    if (activeLessonNumberRef.current) {
+      logLessonDebug("visual", "clear-lesson-skipped", {
+        lesson: activeLessonNumberRef.current,
+      });
+      return;
+    }
     logLessonDebug("visual", "clear-lesson", {});
     coachRef.current = null;
     highlightsRef.current = [];
@@ -839,6 +872,12 @@ export function useChessLessons({
 
   const setPosition = useCallback(
     (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => {
+      if (activeLessonNumberRef.current) {
+        logLessonDebug("visual", "set-position-skipped", {
+          lesson: activeLessonNumberRef.current,
+        });
+        return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE };
+      }
       hideCheckmate();
       discardParkedLesson();
       learnModeRef.current = true;
@@ -1047,6 +1086,16 @@ export function useChessLessons({
   const playLine = useCallback(
     (moves?: string[], count?: number) => {
       const run = async () => {
+        if (activeLessonNumberRef.current) {
+          logLessonDebug("visual", "play-line-skipped", {
+            lesson: activeLessonNumberRef.current,
+          });
+          return {
+            success: true,
+            message: CATALOG_LIVE_FROZEN_MESSAGE,
+            data: { skipped: true },
+          };
+        }
         enterLearnMode();
         let sequence = moves;
         const line = loadedLineRef.current;
@@ -1491,23 +1540,39 @@ export function useChessLessons({
     (item: SavedLesson): LessonSnapshot[] => {
       const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
       restoringRef.current = true;
-      resetHistory();
-      slides.forEach((slide) => {
-        applyBoard(boardFromFen(slide.fen, true));
-        applyOverlays(slide.highlights, slide.arrows, slide.coach);
-        const restoredQuiz = liveQuizFromSlide(slide.quiz);
-        lastQuizRef.current = restoredQuiz;
-        setQuiz(restoredQuiz);
-        setQuizFeedback("");
-        if (loadedLineRef.current) {
-          loadedLineRef.current.ply = slide.ply;
-        }
-        pushSnapshot();
-      });
+      const snaps: LessonSnapshot[] = slides.map((slide) => ({
+        board: boardFromFen(slide.fen, true),
+        highlights: (slide.highlights || []).map((mark) => ({ ...mark })),
+        arrows: (slide.arrows || []).map((arrow) => ({ ...arrow })),
+        coach: slide.coach ? { ...slide.coach } : null,
+        quiz: liveQuizFromSlide(slide.quiz),
+        ply: slide.ply,
+      }));
+      historyRef.current = snaps;
       restoringRef.current = false;
-      return historyRef.current;
+      return snaps;
     },
-    [applyBoard, applyOverlays, pushSnapshot, resetHistory, setQuiz, setQuizFeedback]
+    []
+  );
+
+  const restoreCatalogIndex = useCallback(
+    (index: number, animated: boolean) => {
+      const lessonNumber = activeLessonNumberRef.current;
+      const item = lessonNumber ? findUserLessonByNumber(lessonNumber) : undefined;
+      const snaps = item ? projectLessonHistory(item) : historyRef.current;
+      const snap = snaps[index];
+      if (!snap) {
+        return;
+      }
+      const finish = () => publishHistory(index, snaps.length);
+      if (animated) {
+        restoreWithAnimation(snap, undefined, finish);
+        return;
+      }
+      restoreSnapshot(snap);
+      finish();
+    },
+    [projectLessonHistory, publishHistory, restoreSnapshot, restoreWithAnimation]
   );
 
   const refreshViewingLesson = useCallback(
@@ -1519,70 +1584,47 @@ export function useChessLessons({
       if (!item) {
         return;
       }
-      const live = takeSnapshot();
-      const liveExperiment = experimentRef.current.map((snap) => ({
-        ...snap,
-        board: snap.board.clone(),
-        highlights: snap.highlights.map((mark) => ({ ...mark })),
-        arrows: snap.arrows.map((arrow) => ({ ...arrow })),
-        coach: cloneCoach(snap.coach),
-        quiz: snap.quiz
-          ? { ...snap.quiz, correct: [...snap.quiz.correct] }
-          : null,
-      }));
-      const liveExperimentIndex = experimentIndexRef.current;
       const keep = Math.max(0, historyIndexRef.current);
-      projectLessonHistory(item);
-      const index = Math.min(keep, Math.max(0, historyRef.current.length - 1));
-      applyBoard(live.board.clone());
-      applyOverlays(
-        live.highlights.map((mark) => ({ ...mark })),
-        live.arrows.map((arrow) => ({ ...arrow })),
-        cloneCoach(live.coach)
-      );
-      lastQuizRef.current = live.quiz
-        ? { ...live.quiz, correct: [...live.quiz.correct] }
-        : null;
-      setQuiz(lastQuizRef.current);
-      experimentRef.current = liveExperiment;
-      publishExperiment(liveExperimentIndex, liveExperiment.length);
-      publishHistory(index, historyRef.current.length);
+      const snaps = projectLessonHistory(item);
+      publishHistory(keptPlayheadIndex(snaps, null, keep), snaps.length);
     },
-    [applyBoard, applyOverlays, projectLessonHistory, publishExperiment, publishHistory, setQuiz, takeSnapshot]
+    [projectLessonHistory, publishHistory]
   );
 
   const restoreCustomLesson = useCallback(
     (item: SavedLesson, options?: { fromStart?: boolean }) => {
-      wipeLearnSession();
-      activeLessonNumberRef.current = item.number || null;
-      const moves = item.moves || [];
-      const lineId =
-        item.kind === "game"
-          ? item.gameId || item.id.replace(/^game:/, "")
-          : item.id;
-      if (moves.length > 0) {
-        loadedLineRef.current = {
-          id: lineId,
-          name: item.title,
-          moves,
-          notes: item.notes || [],
-          ply: 0,
-        };
-      } else {
-        loadedLineRef.current = null;
-      }
-      const snaps = projectLessonHistory(item);
-      const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
-      const lastTeaching = lastTeachingSlideIndex(slides);
-      const activeIndex = options?.fromStart === false ? lastTeaching : 0;
-      if (snaps[activeIndex]) {
-        restoreSnapshot(snaps[activeIndex]);
-        publishHistory(activeIndex, snaps.length);
-      }
+      unstable_batchedUpdates(() => {
+        wipeLearnSession({ resetBoard: false });
+        activeLessonNumberRef.current = item.number || null;
+        const moves = item.moves || [];
+        const lineId =
+          item.kind === "game"
+            ? item.gameId || item.id.replace(/^game:/, "")
+            : item.id;
+        if (moves.length > 0) {
+          loadedLineRef.current = {
+            id: lineId,
+            name: item.title,
+            moves,
+            notes: item.notes || [],
+            ply: 0,
+          };
+        } else {
+          loadedLineRef.current = null;
+        }
+        const snaps = projectLessonHistory(item);
+        const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
+        const lastTeaching = lastTeachingSlideIndex(slides);
+        const activeIndex = options?.fromStart === false ? lastTeaching : 0;
+        if (snaps[activeIndex]) {
+          restoreSnapshot(snaps[activeIndex]);
+          publishHistory(activeIndex, snaps.length);
+        }
+      });
       return {
         success: true,
         message: `Opened ${item.title}`,
-        data: { id: item.id, lesson: item.number, steps: slides.length },
+        data: { id: item.id, lesson: item.number, steps: item.steps ? item.steps.length : 0 },
       };
     },
     [projectLessonHistory, publishHistory, restoreSnapshot, wipeLearnSession]
@@ -1788,10 +1830,8 @@ export function useChessLessons({
       toIndex: historyIndexRef.current - 1,
     });
     const nextIndex = historyIndexRef.current - 1;
-    restoreWithAnimation(historyRef.current[nextIndex], undefined, () => {
-      publishHistory(nextIndex, historyRef.current.length);
-    });
-  }, [animating, publishHistory, restoreWithAnimation]);
+    restoreCatalogIndex(nextIndex, true);
+  }, [animating, restoreCatalogIndex]);
 
   const stepFirst = useCallback(() => {
     if (animating || historyIndexRef.current <= 0) {
@@ -1800,9 +1840,8 @@ export function useChessLessons({
     logLessonDebug("visual", "step-first", {
       fromIndex: historyIndexRef.current,
     });
-    restoreSnapshot(historyRef.current[0]);
-    publishHistory(0, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    restoreCatalogIndex(0, false);
+  }, [animating, restoreCatalogIndex]);
 
   const stepLast = useCallback(() => {
     if (animating) {
@@ -1822,9 +1861,8 @@ export function useChessLessons({
     if (lastIndex < 0 || historyIndexRef.current >= lastIndex) {
       return;
     }
-    restoreSnapshot(historyRef.current[lastIndex]);
-    publishHistory(lastIndex, historyRef.current.length);
-  }, [animating, publishHistory, rebuildToPly, restoreSnapshot]);
+    restoreCatalogIndex(lastIndex, false);
+  }, [animating, rebuildToPly, restoreCatalogIndex]);
 
   const stepNext = useCallback(() => {
     if (animating) {
@@ -1837,9 +1875,7 @@ export function useChessLessons({
     });
     if (historyIndexRef.current >= 0 && historyIndexRef.current < historyRef.current.length - 1) {
       const nextIndex = historyIndexRef.current + 1;
-      restoreWithAnimation(historyRef.current[nextIndex], undefined, () => {
-        publishHistory(nextIndex, historyRef.current.length);
-      });
+      restoreCatalogIndex(nextIndex, true);
       return;
     }
     const line = loadedLineRef.current;
@@ -1858,7 +1894,7 @@ export function useChessLessons({
       source: "next",
     });
     resolveWait({ action: choice.id, source: "choice", label: choice.label });
-  }, [animating, playLine, publishHistory, resolveWait, restoreWithAnimation]);
+  }, [animating, playLine, resolveWait, restoreCatalogIndex]);
 
   const createLesson = useCallback((args: {
     title: string;
@@ -1898,25 +1934,43 @@ export function useChessLessons({
     }
 
     const copy = normalizeCoachCopy({ body: "", paragraphs: args.paragraphs || [] });
+    let fen = typeof args.fen === "string" ? args.fen.trim() : "";
+    if (fen) {
+      try {
+        boardFromFen(fen, true);
+      } catch (error) {
+        return {
+          success: false,
+          message: `${error}`,
+          lesson: 0,
+          title: args.title,
+          screen: "goal" as const,
+        };
+      }
+    } else {
+      fen = boardToFen(boardRef.current);
+    }
     const created = createCatalogLesson({
       title: args.title,
       body: copy.body,
       paragraphs: copy.paragraphs,
+      fen,
     });
     rememberDraftLesson(created.number || null);
     setUserLessons(readUserCatalog());
+    restoreCustomLesson(created, { fromStart: true });
     logLessonDebug("visual", "create-lesson", {
       lesson: created.number,
       title: created.title,
     });
     return {
       success: true,
-      message: `Created catalog lesson ${created.number}: ${created.title}. Goal screen is stored; the live session was not changed. Next: add-lesson-step with lesson: ${created.number}. The student opens it from My lessons.`,
+      message: `Created lesson ${created.number}: ${created.title}. Student status is on the first panel (Goal). Next: add-lesson-step with lesson: ${created.number} — that stores later beats without moving the slider.`,
       lesson: created.number as number,
       title: created.title,
       screen: "goal" as const,
     };
-  }, [presentShowMeLesson, rememberDraftLesson]);
+  }, [boardRef, presentShowMeLesson, rememberDraftLesson, restoreCustomLesson]);
 
   const addLessonStep = useCallback(
     async (args: {
@@ -1931,6 +1985,7 @@ export function useChessLessons({
       correct?: string[];
       hint?: string;
       quizType?: QuizState["type"];
+      fen?: string;
       signal?: AbortSignal;
     }) => {
       const type = parseLessonStepType(args.type);
@@ -1997,7 +2052,15 @@ export function useChessLessons({
       const lessonTitle = existing.title;
       const startTeaching = teachingSteps(lessonSteps(existing)).length;
       const totalTeaching = startTeaching + 1;
-      const fromFen = fenAfterTeaching(existing);
+      let fromFen = fenAfterTeaching(existing);
+      if (typeof args.fen === "string" && args.fen.trim()) {
+        try {
+          boardFromFen(args.fen.trim(), true);
+          fromFen = args.fen.trim();
+        } catch (error) {
+          return failed(`${error}`, lessonNumber);
+        }
+      }
       const moves = isRiddle ? [] : resolveStepMoves(draft.what, draft.moves);
       const coach = coachFromDraft(draft, {
         lessonTitle,
@@ -2041,9 +2104,11 @@ export function useChessLessons({
       const recapExpected = lessonExpectsRecap(totalTeaching);
       return {
         success: true,
-        message: recapExpected
-          ? `Stored teaching step ${totalTeaching} of lesson ${lessonNumber} in the catalog (not a recap). Live session unchanged. Next: add-lesson-step for another beat, OR set-lesson-recap if this was the last beat.`
-          : `Stored the only teaching step of lesson ${lessonNumber} in the catalog. Live session unchanged. No recap. For a riddle, call how_to_offer_a_hint then add-lesson-step with type riddle.`,
+        message: isRiddle
+          ? `Stored riddle step ${totalTeaching} of lesson ${lessonNumber} in the catalog. Live playhead unchanged — did not jump to the last step. The student reaches it with Next.`
+          : recapExpected
+          ? `Stored teaching step ${totalTeaching} of lesson ${lessonNumber} in the catalog (not a recap). Live playhead unchanged — did not jump to the last step. Next: add-lesson-step for another beat, OR set-lesson-recap if this was the last beat.`
+          : `Stored the only teaching step of lesson ${lessonNumber} in the catalog. Live playhead unchanged. No recap.`,
         lesson: lessonNumber,
         step: totalTeaching,
         totalSteps: totalTeaching,
@@ -2213,7 +2278,8 @@ export function useChessLessons({
           "create-lesson type lesson (default): Goal, then add-lesson-step Why/Move beats.",
         showme:
           "create-lesson type showme: one explanation; the planned line auto-plays with Pause, Stop, and Replay on the coach.",
-        riddle: "add-lesson-step type riddle: a puzzle on a catalog lesson.",
+        riddle:
+          "add-lesson-step type riddle: a puzzle stored on a catalog lesson. Do not jump the live playhead while generating.",
       },
     };
   }, [userLessons]);
@@ -2244,6 +2310,7 @@ export function useChessLessons({
     showmePly,
     historyIndex,
     historyLength,
+    catalogSessionLive: Boolean(typeof coach?.lesson === "number"),
     userLessons,
     loadedLine: loadedLineRef,
     enterLearnMode,

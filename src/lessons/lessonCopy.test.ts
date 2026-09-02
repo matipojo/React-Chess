@@ -4,6 +4,8 @@ import {
   coachFromSavedStep,
   lessonExpectsRecap,
   lessonSlideCounter,
+  keptPlayheadIndex,
+  liveMatchesCatalogSlide,
   parseLessonStepType,
   parseStepDrafts,
   parseSummaryDraft,
@@ -204,6 +206,33 @@ describe("lesson copy", () => {
         historyLength: 6,
       })
     ).toEqual({ current: 4, total: 6 });
+  });
+
+  it("keeps the numeric playhead when later catalog steps are appended", () => {
+    const slides = [
+      { coach: { title: "The Italian Game", phase: "goal" as const } },
+      { coach: { title: "Claim the center", phase: "step" as const } },
+      { coach: { title: "Develop with tempo", phase: "step" as const } },
+      { coach: { title: "White's first move", phase: "riddle" as const } },
+      { coach: { title: "Italian Game checklist", phase: "recap" as const } },
+    ];
+    expect(
+      keptPlayheadIndex(slides, { title: "Claim the center", phase: "step" }, 1)
+    ).toBe(1);
+    expect(
+      keptPlayheadIndex(slides, { title: "The Italian Game", phase: "goal" }, 0)
+    ).toBe(0);
+    expect(keptPlayheadIndex(slides, { title: "Unknown" }, 1)).toBe(1);
+    expect(
+      keptPlayheadIndex(slides, { title: "Develop with tempo", phase: "step" }, 1)
+    ).toBe(1);
+    expect(keptPlayheadIndex(slides, { title: "Claim the center" }, 9)).toBe(4);
+    expect(liveMatchesCatalogSlide({ title: "Claim the center", phase: "step" }, slides[1])).toBe(
+      true
+    );
+    expect(liveMatchesCatalogSlide({ title: "Develop with tempo", phase: "step" }, slides[1])).toBe(
+      false
+    );
   });
 
   it("builds riddle coach copy without why/what spoilers", () => {

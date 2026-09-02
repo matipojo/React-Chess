@@ -151,6 +151,37 @@ export function lessonSlideCounter(input: {
   return { current: Math.max(1, Math.min(current, total)), total };
 }
 
+export const CATALOG_LIVE_FROZEN_MESSAGE =
+  "A catalog lesson is on screen. Did not change the live board, figure, coach, or playhead. Store the next beat with add-lesson-step. The student stays on the current slide until they tap Next.";
+
+export function liveMatchesCatalogSlide(
+  live: { title?: string; phase?: CoachState["phase"] } | null | undefined,
+  slide: { coach?: { title?: string; phase?: CoachState["phase"] } | null } | undefined
+): boolean {
+  if (!live?.title || !slide?.coach?.title) {
+    return false;
+  }
+  if (live.title !== slide.coach.title) {
+    return false;
+  }
+  if (live.phase && slide.coach.phase && live.phase !== slide.coach.phase) {
+    return false;
+  }
+  return true;
+}
+
+/** Keep the numeric playhead after catalog history is rebuilt. Do not follow live coach titles — set-coach can rename the current screen to a later beat. */
+export function keptPlayheadIndex(
+  slides: Array<{ coach?: { title?: string; phase?: CoachState["phase"] } | null }>,
+  _live: { title?: string; phase?: CoachState["phase"] } | null | undefined,
+  fallbackIndex: number
+): number {
+  if (!slides.length) {
+    return 0;
+  }
+  return Math.max(0, Math.min(fallbackIndex < 0 ? 0 : fallbackIndex, slides.length - 1));
+}
+
 export function teachingStepIndex(steps: SavedLessonStep[], index: number): {
   step?: number;
   totalSteps?: number;

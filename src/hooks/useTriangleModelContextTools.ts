@@ -3,7 +3,7 @@ import { Figure } from "../geometry/types";
 import { COACH_GAN_RULE, TRIANGLE_WAIT_TURN_RULE } from "../geometry/notation";
 import { missingQuizTargets } from "../geometry/hitTest";
 import { CoachState, QuizResult, QuizState } from "../lessons/types";
-import { parseLessonStepType, parseSummaryDraft } from "../lessons/lessonCopy";
+import { parseLessonStepType, parseSummaryDraft, CATALOG_LIVE_FROZEN_MESSAGE } from "../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
   buildGiveMeAHintPrompt,
@@ -55,6 +55,7 @@ type TriangleLessonActions = {
     correct?: string[];
     hint?: string;
     quizType?: QuizState["type"];
+    tfn?: string;
     signal?: AbortSignal;
   }) => Promise<{
     success: boolean;
@@ -73,7 +74,14 @@ type TriangleLessonActions = {
     message: string;
     lesson: number;
   };
-  setCoach: (coach: CoachState) => { lesson: number; step: number; totalSteps: number };
+  setCoach: (coach: CoachState) => {
+    lesson: number;
+    step: number;
+    totalSteps: number;
+    skipped?: boolean;
+    message?: string;
+  };
+  catalogSessionLive?: boolean;
   askQuiz: (quiz: QuizState, options?: { signal?: AbortSignal }) => Promise<QuizResult>;
   listLessons: () => unknown;
   clearLesson: () => void;
@@ -118,6 +126,13 @@ function asPositiveInt(value: unknown): number | undefined {
     }
   }
   return undefined;
+}
+
+function freezeCatalogLive(actions: { lessons: { catalogSessionLive?: boolean } }): ToolResponse | null {
+  if (!actions.lessons.catalogSessionLive) {
+    return null;
+  }
+  return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE, data: { skipped: true } };
 }
 
 function quizClickToolResponse(
@@ -181,6 +196,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["gan"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const gan = String(params.gan || "").trim();
           if (!gan) {
             return { success: false, message: "Provide a GAN string.", data: null };
@@ -208,6 +227,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const result = actionsRef.current.setFigure({
             template: typeof params.template === "string" ? params.template : undefined,
             tfn: typeof params.tfn === "string" ? params.tfn : undefined,
@@ -229,6 +252,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["point", "x", "y"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const point = String(params.point || "").trim();
           const result = await Promise.resolve(
             actionsRef.current.movePoint(point, {
@@ -257,6 +284,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["around", "deg"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const result = await actionsRef.current.rotateFigure(
             String(params.around || ""),
             Number(params.deg),
@@ -281,6 +312,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["gan"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const result = await actionsRef.current.markFigure(String(params.gan || ""));
           return {
             success: result.success,
@@ -323,7 +358,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "create-lesson",
         description:
-          "Create a new triangle catalog lesson. Goal copy only. Stores the current figure (every triangle and mark) with the Goal so it is restored when the student reopens the lesson. If the Goal names triangles such as △ABC and △DEF, they are placed on the canvas. Next: add-lesson-step. GAN tokens stay Latin (△ABC, h(C,AB)). " +
+          "Create a new triangle catalog lesson. Stores the Goal and moves the student status to the first panel. Later add-lesson-step writes catalog content only and must not move the slider. If the Goal names triangles such as △ABC and △DEF, they are placed on the canvas. GAN tokens stay Latin (△ABC, h(C,AB)). " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -364,7 +399,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "add-lesson-step",
         description:
-          "Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not change the live figure; why first, then the construction; student taps Play when they reach that slide. type riddle stores the puzzle. The student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next. State the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. " +
+          "Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only. Do not change the live figure or jump the student to the last step while you are still generating. Fast teaching steps: why first, then the construction; student taps Play when they reach that slide. type riddle stores the puzzle. The student solves it when they open that slide (do not wait here, do not jump there). A one-step lesson or riddle has no recap and no Back/Next. State the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -413,6 +448,11 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
               enum: ["click-square", "click-piece", "choose-move"],
               description: "How the student answers a riddle. Default click-square (click a figure object).",
             },
+            tfn: {
+              type: "string",
+              description:
+                "Optional figure TFN for this beat. For a riddle whose figure is not the Goal, pass the puzzle TFN here. Catalog only; does not change the live figure. Default is the figure after the previous teaching step.",
+            },
           },
           required: ["lesson"],
         },
@@ -434,6 +474,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
             correct,
             hint: typeof params.hint === "string" ? params.hint : undefined,
             quizType: (params.quizType as QuizState["type"]) || "click-square",
+            tfn: typeof params.tfn === "string" ? params.tfn : undefined,
             signal: options?.signal,
           });
           if (result.quiz) {
@@ -511,7 +552,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-coach",
         description:
-          "Update the currently visible coach text only. Does not write the catalog. Prefer create-lesson, add-lesson-step, and set-lesson-recap. " +
+          "Update the currently visible coach text only when no catalog lesson is on screen. During create-lesson / add-lesson-step this is ignored so the student slider does not jump. Prefer add-lesson-step. " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -549,6 +590,13 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
             step: asPositiveInt(params.step),
             totalSteps: asPositiveInt(params.totalSteps),
           });
+          if (result.skipped) {
+            return {
+              success: true,
+              message: result.message || "Live playhead unchanged.",
+              data: result,
+            };
+          }
           return {
             success: true,
             message: `Coach panel updated. Lesson ${result.lesson}, step ${result.step} of ${result.totalSteps}. Prefer add-lesson-step then set-lesson-recap.`,
@@ -561,6 +609,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
         description: "Clear coach text, highlights, and any pending quiz.",
         inputSchema: { type: "object", properties: {} },
         execute: async (): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           actionsRef.current.lessons.clearLesson();
           return { success: true, message: "Lesson overlay cleared", data: null };
         },

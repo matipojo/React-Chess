@@ -24,10 +24,10 @@ function surfaceCopy(surface: AskSurface) {
   }
   return {
     page: "chess page",
-    puzzle: "The puzzle is already on the chess board.",
+    puzzle: "The puzzle is not on the chess page yet. Do not tell the student it is ready.",
     spoil: "Do not explain how to solve it. Do not name the tactic, the piece, or the key square until they tap the hint button.",
     riddle:
-      "Then call add-lesson-step with type riddle (question and correct squares) to store the puzzle on the lesson. Use ask-quiz only if this puzzle is not a catalog lesson step.",
+      "Then call add-lesson-step with type riddle (question and correct squares). That tool puts the puzzle on the chess page — wait for it to succeed before you say the quiz is ready. Use ask-quiz only if this puzzle is not a catalog lesson step.",
   };
 }
 
