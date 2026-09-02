@@ -2,6 +2,7 @@
   "name": "generative-learning",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "homepage": ".",
   "dependencies": {
     "@mcp-b/webmcp-polyfill": "^5.0.1",
