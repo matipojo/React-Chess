@@ -6,6 +6,7 @@ import {
   readUserCatalog,
   removeUserLesson,
   USER_CATALOG_KEY,
+  TRIANGLE_CATALOG_KEY,
   upsertLessonStep,
   upsertUserLesson,
   createCatalogLesson,
@@ -196,5 +197,34 @@ describe("user catalog", () => {
     expect(created.kind).toBe("showme");
     expect(created.steps).toEqual([]);
     expect(findUserLessonByNumber(1)?.kind).toBe("showme");
+  });
+
+  it("stores the starting triangle figure on a catalog lesson", () => {
+    const created = createCatalogLesson(
+      {
+        title: "SAS Congruence",
+        body: "We will compare △ABC and △DEF.",
+        tfn: "A(-3.2,-1.2) B(-0.4,-1.2) C(-2.4,1.4) D(0.6,-1.2) E(3.4,-1.2) F(1.4,1.4) △ABC △DEF",
+      },
+      TRIANGLE_CATALOG_KEY
+    );
+    expect(created.tfn).toContain("△ABC");
+    expect(created.tfn).toContain("△DEF");
+    expect(findUserLessonByNumber(1, TRIANGLE_CATALOG_KEY)?.tfn).toContain("△DEF");
+    upsertLessonStep({
+      lessonNumber: 1,
+      lessonTitle: "SAS Congruence",
+      step: {
+        title: "Mark sides",
+        body: "",
+        what: "mark(=,AB,DE)",
+        why: "First matching pair.",
+        tfn: created.tfn,
+      },
+      storageKey: TRIANGLE_CATALOG_KEY,
+    });
+    const stored = findUserLessonByNumber(1, TRIANGLE_CATALOG_KEY);
+    expect(stored?.tfn).toContain("△DEF");
+    expect(stored?.steps?.[0].tfn).toContain("△DEF");
   });
 });

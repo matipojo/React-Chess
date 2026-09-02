@@ -151,6 +151,34 @@ export function addTriangle(figure: Figure, a: string, b: string, c: string): vo
   addStroke(figure, c, a);
 }
 
+/** Place a new triangle so it sits beside existing geometry instead of stacking on ABC. */
+export function placeNewTriangle(figure: Figure, a: string, b: string, c: string): void {
+  const names = Object.keys(figure.points);
+  if (!names.length) {
+    ensurePoint(figure, a, DEFAULT_TRIANGLE.A);
+    ensurePoint(figure, b, DEFAULT_TRIANGLE.B);
+    ensurePoint(figure, c, DEFAULT_TRIANGLE.C);
+    return;
+  }
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  names.forEach((name) => {
+    const point = figure.points[name];
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
+  });
+  const width = Math.max(maxX - minX, 2.6);
+  const height = Math.max(maxY - minY, 2.4);
+  const left = maxX + 1;
+  ensurePoint(figure, a, { x: left, y: minY });
+  ensurePoint(figure, b, { x: left + width, y: minY });
+  ensurePoint(figure, c, { x: left + width * 0.36, y: minY + height });
+}
+
 export function ensurePoint(
   figure: Figure,
   name: string,
