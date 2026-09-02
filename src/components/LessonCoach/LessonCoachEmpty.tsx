@@ -2,11 +2,13 @@ import { useState } from "react";
 import { copyPlainText } from "../../lessons/waitForUser";
 import {
   buildCodexPromptHref,
+  COPIED_PROMPT_TIP,
   EXAMPLE_LESSON_PROMPTS,
   isCodexHost,
   openCodexPrompt,
   sharePromptWithHost,
 } from "../../utils/codexPrompt";
+import { CopiedCheckIcon, CopyIcon } from "./LessonCoachIcons";
 
 export default function LessonCoachEmpty() {
   const [copiedId, setCopiedId] = useState<string>("");
@@ -33,24 +35,50 @@ export default function LessonCoachEmpty() {
                 {prompt}
               </a>
             ) : (
-              <button
-                key={prompt}
-                type="button"
-                className="lesson-coach-example"
-                onClick={async () => {
-                  const result = await sharePromptWithHost(
-                    prompt,
-                    copyPlainText
-                  );
-                  if (result !== "copied") {
-                    return;
+              <span key={prompt} className="lesson-coach-example-wrap">
+                <button
+                  type="button"
+                  className={
+                    copiedId === prompt
+                      ? "lesson-coach-example is-copied"
+                      : "lesson-coach-example"
                   }
-                  setCopiedId(prompt);
-                  window.setTimeout(() => setCopiedId(""), 2000);
-                }}
-              >
-                {copiedId === prompt ? "Copied" : prompt}
-              </button>
+                  title="Copy prompt"
+                  aria-describedby={
+                    copiedId === prompt ? "lesson-coach-copied-tip" : undefined
+                  }
+                  onClick={async () => {
+                    const result = await sharePromptWithHost(
+                      prompt,
+                      copyPlainText
+                    );
+                    if (result !== "copied") {
+                      return;
+                    }
+                    setCopiedId(prompt);
+                    window.setTimeout(() => setCopiedId(""), 5500);
+                  }}
+                >
+                  <span className="lesson-coach-example-copy" aria-hidden="true">
+                    <CopyIcon />
+                  </span>
+                  {prompt}
+                </button>
+                {copiedId === prompt ? (
+                  <>
+                    <span className="lesson-coach-example-mark" aria-hidden="true">
+                      <CopiedCheckIcon />
+                    </span>
+                    <span
+                      id="lesson-coach-copied-tip"
+                      className="lesson-coach-example-tip"
+                      role="status"
+                    >
+                      {COPIED_PROMPT_TIP}
+                    </span>
+                  </>
+                ) : null}
+              </span>
             )
           )}
         </div>
