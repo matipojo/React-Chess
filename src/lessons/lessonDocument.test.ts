@@ -227,8 +227,11 @@ describe("lesson document vs session", () => {
         },
       ],
     };
+    const content = contentLesson(lesson);
+    expect(content.fen?.split(" ")[0]).toBe(start.split(" ")[0]);
     const slides = projectLessonSession(lesson, start);
     expect(slides.map((slide) => slide.coach?.phase)).toEqual(["goal", "riddle", "recap"]);
+    expect(slides[0].fen.split(" ")[0]).toBe(start.split(" ")[0]);
     expect(slides[1].fen.split(" ")[0]).toBe("8/8/8/4n3/8/8/8/8");
     expect(slides[1].quiz?.question).toBe("Click the fork square.");
   });

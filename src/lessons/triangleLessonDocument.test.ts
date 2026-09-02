@@ -147,4 +147,33 @@ describe("triangle lesson document", () => {
     expect(parseTfn(slides[2].tfn).equalGroups).toHaveLength(0);
     expect(slides[2].quiz?.question).toBe("Click a pair of matching sides.");
   });
+
+  it("keeps Goal on the lesson figure when a riddle stores a different TFN", () => {
+    const lesson: SavedLesson = {
+      id: "custom:lesson-8",
+      kind: "custom",
+      title: "Altitude",
+      body: "Drop a height in △ABC.",
+      savedAt: 1,
+      number: 8,
+      tfn: FIGURE_TEMPLATES.scalene,
+      steps: [
+        {
+          title: "Where is the height?",
+          body: "",
+          kind: "riddle",
+          quiz: {
+            question: "Click the height.",
+            type: "click-square",
+            correct: ["H"],
+          },
+          tfn: FIGURE_TEMPLATES["two-triangles"],
+        },
+      ],
+    };
+    const slides = projectTriangleLessonSession(lesson);
+    expect(slides.map((slide) => slide.coach?.phase)).toEqual(["goal", "riddle"]);
+    expect(parseTfn(slides[0].tfn).triangles.map((t) => t.join(""))).toEqual(["ABC"]);
+    expect(parseTfn(slides[1].tfn).triangles.map((t) => t.join(""))).toEqual(["ABC", "DEF"]);
+  });
 });

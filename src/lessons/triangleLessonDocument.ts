@@ -115,7 +115,7 @@ export function projectTriangleLessonSession(
 ): TriangleLessonSessionSlide[] {
   const steps = item.steps && item.steps.length ? item.steps.map(contentStep) : [];
   const teaching = teachingSteps(steps);
-  const rawStart = (teaching[0] && teaching[0].tfn) || item.tfn || startingTfn;
+  const rawStart = item.tfn || (teaching[0] && teaching[0].tfn) || startingTfn;
   let cursor = ensureGoalTriangles(parseTfn(rawStart), item);
   let cursorTfn = serializeTfn(cursor);
   const slides: TriangleLessonSessionSlide[] = [];
