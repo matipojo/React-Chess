@@ -1,5 +1,6 @@
 export const EXAMPLE_LESSON_PROMPTS = [
   "Show Scholar's Mate",
+  "Invent an American opening",
   "Teach me the Italian opening",
   "Quiz me on forks",
 ];

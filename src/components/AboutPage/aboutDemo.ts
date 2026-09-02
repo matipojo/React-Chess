@@ -13,7 +13,9 @@ export const ABOUT_DEMO_FIGURE_ID = "right-at-C";
 
 export const ABOUT_EXAMPLE_PROMPTS = [
   "Show Scholar's Mate",
+  "Invent an American opening",
   "Show a right triangle and the altitude to the hypotenuse",
+  "Teach me about two different triangles that share the same base",
   "Teach me the Italian opening",
   "Teach SAS congruence with two triangles",
 ];

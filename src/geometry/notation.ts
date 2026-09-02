@@ -6,6 +6,7 @@ export const TRIANGLE_WAIT_TURN_RULE =
 
 export const TRIANGLE_EXAMPLE_PROMPTS = [
   "Show a right triangle and the altitude to the hypotenuse",
+  "Teach me about two different triangles that share the same base",
   "Teach SAS congruence with two triangles",
   "Quiz me on the centroid",
 ];
