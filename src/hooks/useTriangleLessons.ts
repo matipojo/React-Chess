@@ -30,6 +30,10 @@ import {
   projectTriangleLessonSession,
 } from "../lessons/triangleLessonDocument";
 import {
+  liveQuizFromSlide,
+  quizForRestoredSlide,
+} from "../lessons/lessonDocument";
+import {
   CoachState,
   QuizResult,
   QuizState,
@@ -184,11 +188,60 @@ export function useTriangleLessons(options?: {
     setFigureState(next);
   }, []);
 
+  const clearQuizTimers = useCallback(() => {
+    if (quizTimerRef.current) {
+      window.clearTimeout(quizTimerRef.current);
+      quizTimerRef.current = null;
+    }
+    if (quizTickRef.current) {
+      window.clearInterval(quizTickRef.current);
+      quizTickRef.current = null;
+    }
+  }, []);
+
+  const expireQuiz = useCallback(() => {
+    const current = quizRef.current;
+    if (!current || current.answered) {
+      return;
+    }
+    clearQuizTimers();
+    const next = { ...current, answered: true, timedOut: true };
+    quizRef.current = next;
+    setQuiz(next);
+    setQuizFeedback(formatFigureQuizTimeoutFeedback(current.correct));
+    applyFigure(revealQuizTargets(figureRef.current, current.correct));
+    setQuizSecondsLeft(null);
+    quizResolverRef.current?.({ correct: false, square: "", timedOut: true });
+    quizResolverRef.current = null;
+  }, [applyFigure, clearQuizTimers]);
+
+  const armQuiz = useCallback((nextQuiz: QuizState) => {
+    clearQuizTimers();
+    const liveQuiz = liveQuizFromSlide(nextQuiz);
+    if (!liveQuiz) {
+      quizRef.current = null;
+      setQuiz(null);
+      setQuizFeedback("");
+      setQuizSecondsLeft(null);
+      return;
+    }
+    quizRef.current = liveQuiz;
+    setQuiz(liveQuiz);
+    setQuizFeedback("");
+    setQuizSecondsLeft(QUIZ_TIMEOUT_SECONDS);
+    const deadline = Date.now() + QUIZ_TIMEOUT_MS;
+    quizTickRef.current = window.setInterval(() => {
+      setQuizSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    }, 250);
+    quizTimerRef.current = window.setTimeout(expireQuiz, QUIZ_TIMEOUT_MS);
+  }, [clearQuizTimers, expireQuiz]);
+
   const pushSnapshot = useCallback((quizOverride?: QuizState | null) => {
+    const source = quizOverride !== undefined ? quizOverride : quizRef.current;
     const snap: Snapshot = {
       figure: cloneFigure(figureRef.current),
       coach: cloneCoach(coachRef.current),
-      quiz: quizOverride !== undefined ? quizOverride : quizRef.current,
+      quiz: liveQuizFromSlide(source),
     };
     const next = historyRef.current.slice(0, historyIndexRef.current + 1);
     next.push(snap);
@@ -216,9 +269,25 @@ export function useTriangleLessons(options?: {
     applyFigure(cloneFigure(snap.figure));
     coachRef.current = cloneCoach(snap.coach);
     setCoachState(coachRef.current);
-    quizRef.current = snap.quiz;
-    setQuiz(snap.quiz);
-  }, [applyFigure]);
+    const lesson = lessonNumberRef.current
+      ? findUserLessonByNumber(lessonNumberRef.current, TRIANGLE_CATALOG_KEY)
+      : undefined;
+    const restoredQuiz = quizForRestoredSlide({
+      quiz: snap.quiz,
+      phase: snap.coach?.phase,
+      step: snap.coach?.step,
+      steps: lesson ? lessonSteps(lesson) : undefined,
+    });
+    if (restoredQuiz) {
+      armQuiz(restoredQuiz);
+    } else {
+      clearQuizTimers();
+      quizRef.current = null;
+      setQuiz(null);
+      setQuizFeedback("");
+      setQuizSecondsLeft(null);
+    }
+  }, [applyFigure, armQuiz, clearQuizTimers]);
 
   const restoreWithAnimation = useCallback((snap: Snapshot, nextIndex: number, length: number) => {
     const token = ++animGenRef.current;
@@ -258,26 +327,17 @@ export function useTriangleLessons(options?: {
     }
   }, [publishHistory, restoreSnapshot]);
 
-  const clearQuizTimers = useCallback(() => {
-    if (quizTimerRef.current) {
-      window.clearTimeout(quizTimerRef.current);
-      quizTimerRef.current = null;
-    }
-    if (quizTickRef.current) {
-      window.clearInterval(quizTickRef.current);
-      quizTickRef.current = null;
-    }
-  }, []);
-
   const answerQuiz = useCallback((id: string) => {
-    const current = quiz;
+    const current = quizRef.current;
     if (!current || current.answered) {
       return;
     }
     const correct = ganAnswerIsCorrect(current.correct, id);
     clearQuizTimers();
     const next = { ...current, answered: true };
+    quizRef.current = next;
     setQuiz(next);
+    setQuizSecondsLeft(null);
     if (correct) {
       setQuizFeedback(formatQuizCorrectFeedback());
     } else {
@@ -286,30 +346,15 @@ export function useTriangleLessons(options?: {
     }
     quizResolverRef.current?.({ correct, square: id });
     quizResolverRef.current = null;
-  }, [applyFigure, clearQuizTimers, quiz]);
+  }, [applyFigure, clearQuizTimers]);
 
   const askQuiz = useCallback((nextQuiz: QuizState, options?: { signal?: AbortSignal }) => {
-    setQuiz(nextQuiz);
-    setQuizFeedback("");
-    setQuizSecondsLeft(QUIZ_TIMEOUT_SECONDS);
-    const deadline = Date.now() + QUIZ_TIMEOUT_MS;
-    quizTickRef.current = window.setInterval(() => {
-      setQuizSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
-    }, 250);
+    armQuiz(nextQuiz);
     return new Promise<QuizResult>((resolve) => {
       quizResolverRef.current = resolve;
-      quizTimerRef.current = window.setTimeout(() => {
-        setQuiz((current) => current ? { ...current, answered: true, timedOut: true } : current);
-        setQuizFeedback(formatFigureQuizTimeoutFeedback(nextQuiz.correct));
-        applyFigure(revealQuizTargets(figureRef.current, nextQuiz.correct));
-        resolve({ correct: false, square: "", timedOut: true });
-        quizResolverRef.current = null;
-        clearQuizTimers();
-      }, QUIZ_TIMEOUT_MS);
       if (options?.signal) {
         const onAbort = () => {
-          clearQuizTimers();
-          resolve({ correct: false, square: "" });
+          expireQuiz();
         };
         if (options.signal.aborted) {
           onAbort();
@@ -318,7 +363,7 @@ export function useTriangleLessons(options?: {
         options.signal.addEventListener("abort", onAbort);
       }
     });
-  }, [applyFigure, clearQuizTimers]);
+  }, [armQuiz, expireQuiz]);
 
   const resetSession = useCallback((options?: { resetFigure?: boolean }) => {
     clearQuizTimers();
@@ -333,8 +378,10 @@ export function useTriangleLessons(options?: {
     }
     coachRef.current = null;
     setCoachState(null);
+    quizRef.current = null;
     setQuiz(null);
     setQuizFeedback("");
+    setQuizSecondsLeft(null);
     setAnimating(false);
     setAnimation(null);
     historyRef.current = [];
@@ -495,7 +542,7 @@ export function useTriangleLessons(options?: {
       coachRef.current = coach;
       setCoachState(coach);
       applyFigure(applyRightMarks(figureRef.current, coach.what, constructions));
-      pushSnapshot();
+      pushSnapshot(quizState ? liveQuizFromSlide(quizState) : null);
       if (quizState) {
         const quizResult = await askQuiz(quizState, { signal: args.signal });
         return {
@@ -713,12 +760,27 @@ export function useTriangleLessons(options?: {
       applyFigure(applyRightMarks(base, step.what, step.moves));
       coachRef.current = coachFromSavedStep(item, step, teachingIndex, steps.length);
       setCoachState(coachRef.current);
+      const restoredQuiz = quizForRestoredSlide({
+        quiz: step.quiz,
+        phase: step.kind === "riddle" ? "riddle" : coachRef.current.phase,
+        step: teachingIndex + 1,
+        steps,
+      });
+      if (restoredQuiz) {
+        armQuiz(restoredQuiz);
+      } else {
+        clearQuizTimers();
+        quizRef.current = null;
+        setQuiz(null);
+        setQuizFeedback("");
+        setQuizSecondsLeft(null);
+      }
       if (push) {
-        pushSnapshot();
+        pushSnapshot(restoredQuiz);
       }
       return true;
     },
-    [applyFigure, pushSnapshot]
+    [applyFigure, armQuiz, clearQuizTimers, pushSnapshot]
   );
 
   const openSavedLesson = useCallback((id: string) => {
@@ -733,9 +795,7 @@ export function useTriangleLessons(options?: {
       applyFigure(applyRightMarks(parseTfn(slide.tfn), slide.coach?.what, slide.coach?.moves));
       coachRef.current = cloneCoach(slide.coach);
       setCoachState(coachRef.current);
-      const restoredQuiz = slide.quiz
-        ? { ...slide.quiz, correct: [...slide.quiz.correct], answered: false, timedOut: false }
-        : null;
+      const restoredQuiz = liveQuizFromSlide(slide.quiz);
       quizRef.current = restoredQuiz;
       setQuiz(restoredQuiz);
       pushSnapshot(restoredQuiz);
