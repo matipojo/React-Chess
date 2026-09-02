@@ -1,18 +1,34 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { TRIANGLE_EXAMPLE_PROMPTS } from "../../geometry/notation";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
 import { useTriangleLessons } from "../../hooks/useTriangleLessons";
 import { useTriangleModelContextTools } from "../../hooks/useTriangleModelContextTools";
 import { shouldShowLessonNav } from "../../lessons/lessonCopy";
 import AppHeader from "../AppHeader/AppHeader";
-import GeometryCanvas from "../GeometryCanvas/GeometryCanvas";
+import GeometryCanvas, { GeometryCanvasHandle } from "../GeometryCanvas/GeometryCanvas";
 import LessonCoach from "../LessonCoach/LessonCoach";
 import "../Referee/Referee.css";
 
 export default function TriangleSurface() {
   const { setCustomBackground } = useBoardTheme();
   const [peekIds, setPeekIds] = useState<string[]>([]);
-  const triangles = useTriangleLessons();
+  const canvasRef = useRef<GeometryCanvasHandle>(null);
+  const triangles = useTriangleLessons({
+    playPointer: (animation, onComplete) => {
+      try {
+        if (canvasRef.current) {
+          canvasRef.current.playAnimation(animation, onComplete);
+          return;
+        }
+      } catch {
+        // Fall through so the GAN still commits.
+      }
+      onComplete();
+    },
+    cancelPointer: () => canvasRef.current?.cancelAnimation(),
+  });
+  const trianglesRef = useRef(triangles);
+  trianglesRef.current = triangles;
 
   useTriangleModelContextTools({
     getFigure: triangles.getFigure,
@@ -36,6 +52,30 @@ export default function TriangleSurface() {
       persisted: setCustomBackground(cssUrl),
     }),
   });
+
+  useEffect(() => {
+    const demo = new URLSearchParams(window.location.search).get("demo");
+    if (demo !== "pointer" && demo !== "altitude") {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const start = () => {
+        if (!canvasRef.current) {
+          window.setTimeout(start, 50);
+          return;
+        }
+        if (demo === "pointer") {
+          void trianglesRef.current.movePoint("C", { x: 1.55, y: -0.2 });
+          return;
+        }
+        void trianglesRef.current.applyGan("h(C,AB)");
+      };
+      start();
+    }, 500);
+    return () => window.clearTimeout(timer);
+    // Open a shared demo link the same way chess uses ?piece= / ?showme=.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const lessonOpen = Boolean(triangles.coach || triangles.quiz);
   const quizPending = Boolean(triangles.quiz && !triangles.quiz.answered);
@@ -70,13 +110,14 @@ export default function TriangleSurface() {
         <div className="referee referee-learn">
           <div className="referee-board">
             <GeometryCanvas
+              ref={canvasRef}
               figure={triangles.figure}
               peekIds={peekIds}
               locked={triangles.animating}
               quiz={Boolean(triangles.quiz && !triangles.quiz.answered)}
               animation={triangles.animation}
               onPointMove={(name, position) => {
-                triangles.movePoint(name, position);
+                void triangles.movePoint(name, position, { animate: false });
               }}
               onObjectClick={
                 triangles.quiz && !triangles.quiz.answered

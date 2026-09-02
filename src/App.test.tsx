@@ -1,5 +1,6 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import App from "./App";
+import { ModelContextTool } from "./model-context-types";
 import { CHESS_PATH, TRIANGLES_PATH } from "./utils/appRoute";
 
 function setPath(path: string) {
@@ -9,6 +10,7 @@ function setPath(path: string) {
 describe("App routes", () => {
   afterEach(() => {
     setPath("/");
+    delete (document as { modelContext?: unknown }).modelContext;
   });
 
   it("shows the chess app by default", () => {
@@ -43,5 +45,30 @@ describe("App routes", () => {
     expect(getByText("Not the canvas.")).toBeTruthy();
     expect(queryByRole("heading", { name: "Generative Learning" })).toBeNull();
     unmount();
+  });
+
+  it("lets home-page agent tools open the chess app", async () => {
+    const registered: ModelContextTool[] = [];
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        provideContext: ({ tools }: { tools: ModelContextTool[] }) => {
+          registered.splice(0, registered.length, ...tools);
+        },
+        clearContext: () => {
+          registered.length = 0;
+        },
+      },
+    });
+    setPath("/about");
+    const { findByRole, queryByText } = render(<App />);
+    expect(queryByText("Not the canvas.")).toBeTruthy();
+    const openPage = registered.find((tool) => tool.name === "open-page");
+    expect(openPage).toBeTruthy();
+    await act(async () => {
+      await openPage!.execute({ page: "chess" });
+    });
+    expect(await findByRole("heading", { name: "Generative Learning" })).toBeTruthy();
+    expect(queryByText("Not the canvas.")).toBeNull();
   });
 });

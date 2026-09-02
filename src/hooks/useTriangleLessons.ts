@@ -49,6 +49,28 @@ type Snapshot = {
   quiz: QuizState | null;
 };
 
+function fallbackPointerAnimation(before: Figure, after: Figure): FigureAnimation | undefined {
+  const names = Object.keys(after.points);
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    const prev = before.points[name];
+    const next = after.points[name];
+    if (prev && next && prev.free && (prev.x !== next.x || prev.y !== next.y)) {
+      return {
+        type: "move",
+        name,
+        from: { x: prev.x, y: prev.y },
+        to: { x: next.x, y: next.y },
+      };
+    }
+  }
+  const first = names[0] && after.points[names[0]];
+  if (first) {
+    return { type: "draw", from: first, to: first };
+  }
+  return undefined;
+}
+
 function cloneCoach(coach: CoachState | null): CoachState | null {
   return coach ? { ...coach, paragraphs: coach.paragraphs ? [...coach.paragraphs] : undefined, moves: coach.moves ? [...coach.moves] : undefined } : null;
 }
@@ -90,7 +112,10 @@ function coachFromSavedStep(
   };
 }
 
-export function useTriangleLessons() {
+export function useTriangleLessons(options?: {
+  playPointer?: (animation: FigureAnimation, onComplete: () => void) => void;
+  cancelPointer?: () => void;
+}) {
   const [figure, setFigureState] = useState<Figure>(() => startFigure("scalene"));
   const [coach, setCoachState] = useState<CoachState | null>(null);
   const [quiz, setQuiz] = useState<QuizState | null>(null);
@@ -114,6 +139,10 @@ export function useTriangleLessons() {
   const quizTimerRef = useRef<number | null>(null);
   const quizTickRef = useRef<number | null>(null);
   const animTimerRef = useRef<number | null>(null);
+  const playPointerRef = useRef(options?.playPointer);
+  playPointerRef.current = options?.playPointer;
+  const cancelPointerRef = useRef(options?.cancelPointer);
+  cancelPointerRef.current = options?.cancelPointer;
 
   useEffect(() => {
     setUserLessons(readUserCatalog(TRIANGLE_CATALOG_KEY));
@@ -219,11 +248,17 @@ export function useTriangleLessons() {
 
   const wipe = useCallback(() => {
     clearQuizTimers();
+    if (animTimerRef.current) {
+      window.clearTimeout(animTimerRef.current);
+      animTimerRef.current = null;
+    }
+    cancelPointerRef.current?.();
     applyFigure(startFigure("scalene"));
     coachRef.current = null;
     setCoachState(null);
     setQuiz(null);
     setQuizFeedback("");
+    setAnimating(false);
     setAnimation(null);
     historyRef.current = [];
     publishHistory(-1, 0);
@@ -470,18 +505,55 @@ export function useTriangleLessons() {
   );
 
   const playGan = useCallback(async (notation: string) => {
-    const result = applyGan(figureRef.current, notation);
+    const before = figureRef.current;
+    const result = applyGan(before, notation);
     if (result.error) {
       return { success: false, message: result.error };
     }
-    setAnimating(true);
-    if (result.animation) {
-      setAnimation(result.animation);
+    const animation = result.animation || fallbackPointerAnimation(before, result.figure);
+    const commitUpFront = Boolean(
+      animation && (animation.type === "move" || animation.type === "rotate")
+    );
+    if (commitUpFront) {
+      applyFigure(result.figure);
     }
-    await new Promise((resolve) => {
-      animTimerRef.current = window.setTimeout(resolve, 720);
-    });
-    applyFigure(result.figure);
+    setAnimating(true);
+    if (animation && playPointerRef.current) {
+      setAnimation(animation);
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        const done = () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          if (animTimerRef.current) {
+            window.clearTimeout(animTimerRef.current);
+            animTimerRef.current = null;
+          }
+          if (!commitUpFront) {
+            applyFigure(result.figure);
+          }
+          resolve();
+        };
+        animTimerRef.current = window.setTimeout(done, 4000);
+        try {
+          playPointerRef.current!(animation, done);
+        } catch {
+          done();
+        }
+      });
+    } else if (animation) {
+      setAnimation(animation);
+      await new Promise((resolve) => {
+        animTimerRef.current = window.setTimeout(resolve, 2100);
+      });
+      if (!commitUpFront) {
+        applyFigure(result.figure);
+      }
+    } else if (!commitUpFront) {
+      applyFigure(result.figure);
+    }
     setAnimation(null);
     setAnimating(false);
     return { success: true, message: `Played ${notation}`, created: result.created };
@@ -733,9 +805,12 @@ export function useTriangleLessons() {
     getFigure: () => figureRef.current,
     applyGan: (gan: string) => playGan(gan),
     setFigure: setFigureFromArgs,
-    movePoint: (name: string, position: Vec) => {
-      applyFigure(moveFreePoint(figureRef.current, name, position));
-      return { success: true, message: `Moved ${name}` };
+    movePoint: (name: string, position: Vec, opts?: { animate?: boolean }) => {
+      if (opts?.animate === false) {
+        applyFigure(moveFreePoint(figureRef.current, name, position));
+        return Promise.resolve({ success: true, message: `Moved ${name}` });
+      }
+      return playGan(`move(${name},${position.x},${position.y})`);
     },
     rotateFigure: rotate,
     markFigure: mark,
