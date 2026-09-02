@@ -33,11 +33,22 @@ describe("AboutPage", () => {
       )
     ).toBe(true);
     expect(queryByText("Geometry")).toBeNull();
+    expect(queryByText("Working demo. Available now.")).toBeNull();
+    expect(queryByText("Possible applications — not announced products.")).toBeNull();
+    expect(queryByText("Typical AI")).toBeNull();
+    expect(queryByText("A different approach")).toBeNull();
     expect(
       getAllByText(
         "We build the learning surface once. AI personalizes the lesson endlessly."
       )
     ).toHaveLength(2);
+    expect(getByText("You learn on a real chessboard or triangle canvas — not in a chat.")).toBeTruthy();
+    expect(getByText("Learn here, not in a chat")).toBeTruthy();
+    expect(getByText("Open a board")).toBeTruthy();
+    expect(getByText("Ask for a lesson")).toBeTruthy();
+    expect(getByText("Choose a subject")).toBeTruthy();
+    expect(getByText("Open the chessboard")).toBeTruthy();
+    expect(getByText("Open the canvas")).toBeTruthy();
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeTruthy();
   });

@@ -261,12 +261,11 @@ export default function AboutPage() {
             Generate the learning. <span>Not the canvas.</span>
           </h1>
           <p className="about-lede">
-            We build the learning environment once, and let AI generate the
-            lesson inside it.
+            You learn on a real chessboard or triangle canvas — not in a chat.
           </p>
           <p className="about-lede about-lede-more">
-            Instead of a generic one-off canvas, learners get a professional,
-            persistent surface tailored to the subject.
+            Ask what you want to learn. The AI teaches you there, and the
+            lesson follows you.
           </p>
           <CodexPromptField
             id="about-hero-prompt"
@@ -276,7 +275,7 @@ export default function AboutPage() {
           <ExamplePrompts />
         </section>
 
-        <section className="about-demo" data-board-theme="purple" aria-label="Example learning surfaces">
+        <section className="about-demo" data-board-theme="purple" aria-label="Example boards">
           <div className="about-demo-surfaces">
             <article className="about-demo-surface">
               <div className="about-demo-board">
@@ -289,7 +288,7 @@ export default function AboutPage() {
               </div>
               <a href={appHref(CHESS_PATH)}>
                 <strong>Chess</strong>
-                <span>A surface built for the subject</span>
+                <span>Learn on a real chessboard</span>
               </a>
             </article>
             <article className="about-demo-surface">
@@ -300,14 +299,14 @@ export default function AboutPage() {
               </div>
               <a href={appHref(TRIANGLES_PATH)}>
                 <strong>Triangles</strong>
-                <span>Tools already in place</span>
+                <span>Learn on a figure you can move</span>
               </a>
             </article>
           </div>
           <aside className="lesson-coach about-tutor">
             <div className="lesson-coach-content">
               <p className="lesson-coach-kicker">AI Tutor</p>
-              <p className="lesson-coach-slide-count">Guiding in real time</p>
+              <p className="lesson-coach-slide-count">With you as you learn</p>
               <div className="about-progress" aria-hidden="true">
                 <span className="is-done" />
                 <span className="is-done" />
@@ -317,11 +316,11 @@ export default function AboutPage() {
                 <span />
                 <span />
               </div>
-              <p className="lesson-coach-topic">Inside the surface</p>
-              <h2>The lesson is personalized</h2>
+              <p className="lesson-coach-topic">On the board</p>
+              <h2>The lesson follows you</h2>
               <p>
-                The AI doesn&apos;t build the interface — it creates the lesson
-                inside it.
+                Ask for another explanation, a slower step, or a new topic. The
+                board stays. The lesson changes.
               </p>
               <CodexPromptField
                 id="about-move-prompt"
@@ -333,24 +332,22 @@ export default function AboutPage() {
         </section>
 
         <section className="about-section">
-          <h2>A different approach</h2>
+          <h2>Learn here, not in a chat</h2>
           <div className="about-body">
             <p>
-              Most AI learning today happens in a chat or a generic canvas
-              created on the fly.
+              You don&apos;t have to learn in a chat window, or watch a new
+              canvas appear every time you ask a question.
             </p>
             <p>
-              We take a different approach: a professional, persistent learning
-              surface built for the subject, with the right tools already in
-              place.
+              Chess and triangles already have a board built for them. You open
+              it, and the AI teaches you there.
             </p>
             <p>
-              The AI doesn&apos;t build the interface — it creates the lesson
-              inside it.
+              The AI does not invent a new screen. It uses the board in front
+              of you.
             </p>
             <p>
-              The learner chooses the path. The environment provides the
-              structure.
+              You choose what to do next. The board keeps the structure.
             </p>
           </div>
         </section>
@@ -366,10 +363,10 @@ export default function AboutPage() {
                   <path fill="#4a2a72" d="M10 32h28v8H10z" />
                 </svg>
               </div>
-              <h3>Build the surface once</h3>
+              <h3>Open a board</h3>
               <p>
-                A professional, persistent environment tailored to the subject,
-                with the right tools already in place.
+                Chess or Triangles is already set up for the subject. You just
+                start.
               </p>
             </article>
             <span className="about-step-arrow" aria-hidden="true">
@@ -384,10 +381,10 @@ export default function AboutPage() {
                   <circle cx="28" cy="18" r="2" fill="#fff" />
                 </svg>
               </div>
-              <h3>AI generates the lesson</h3>
+              <h3>Ask for a lesson</h3>
               <p>
-                The AI creates the lesson inside the surface and personalizes
-                pace, explanations, and practice in real time.
+                Tell the AI what you want to learn. It shows the idea on the
+                board and explains as you go.
               </p>
             </article>
             <span className="about-step-arrow" aria-hidden="true">
@@ -404,53 +401,53 @@ export default function AboutPage() {
               </div>
               <h3>You choose the path</h3>
               <p>
-                The learner chooses what to do next, while the environment
-                provides the structure.
+                Slow down, skip ahead, or change topic. The same board stays
+                with you.
               </p>
             </article>
           </div>
         </section>
 
         <section className="about-section">
-          <h2>Not a chat. Not a throwaway canvas.</h2>
+          <h2>Stay on the same board</h2>
           <div className="about-compare">
             <div className="about-compare-col">
-              <h3>Typical AI</h3>
+              <h3>In a chat</h3>
               <div className="about-flow">
                 <span className="about-chip">Chat</span>
                 <span aria-hidden="true">→</span>
-                <span className="about-ghost">Generic canvas</span>
+                <span className="about-ghost">A new canvas</span>
                 <span aria-hidden="true">→</span>
-                <span className="about-ghost">New canvas</span>
+                <span className="about-ghost">Another canvas</span>
                 <span aria-hidden="true">→</span>
-                <span className="about-ghost">New canvas</span>
+                <span className="about-ghost">Another canvas</span>
               </div>
             </div>
             <div className="about-compare-col">
-              <h3>Generative Learning</h3>
+              <h3>On your board</h3>
               <div className="about-flow">
-                <span className="about-chip">Ask</span>
+                <span className="about-chip">You ask</span>
                 <span aria-hidden="true">→</span>
                 <span className="about-chip about-chip-board">
                   <MiniSurface />
-                  Same surface, new lesson
+                  Same board, new lesson
                 </span>
                 <span aria-hidden="true">→</span>
-                <span className="about-chip">Personalized endlessly</span>
+                <span className="about-chip">The lesson follows you</span>
               </div>
             </div>
           </div>
         </section>
 
         <section className="about-section">
-          <h2>One shared surface</h2>
+          <h2>You and the AI share this board</h2>
           <div className="about-shared">
             <div className="about-shared-actor" aria-hidden="true">
               <svg viewBox="0 0 48 48">
                 <circle cx="24" cy="16" r="8" fill="#7c4dcc" />
                 <path fill="#7c4dcc" d="M8 42c2-10 10-16 16-16s14 6 16 16" />
               </svg>
-              <span>Learner</span>
+              <span>You</span>
             </div>
             <span className="about-shared-arrows" aria-hidden="true">
               ↔
@@ -473,23 +470,23 @@ export default function AboutPage() {
             </div>
           </div>
           <p className="about-footnote">
-            Later, teachers could define learning units on this same surface and
-            measure whether each learner reached the required outcome.
+            The lesson lives on the board in front of you — not in a throwaway
+            chat.
           </p>
         </section>
 
         <section className="about-section">
-          <h2>Surfaces built for the subject</h2>
+          <h2>Choose a subject</h2>
           <div className="about-subjects">
             <a className="about-subject is-active" href={appHref(CHESS_PATH)}>
               <img src={pieceSrc("knight_w")} alt="" />
               <strong>Chess</strong>
-              <span>Working demo. Available now.</span>
+              <span>Open the chessboard</span>
             </a>
             <a className="about-subject is-active" href={appHref(TRIANGLES_PATH)}>
               <span className="about-subject-icon">△</span>
               <strong>Triangles</strong>
-              <span>Working demo. Available now.</span>
+              <span>Open the canvas</span>
             </a>
             <div className="about-subject is-soon">
               <span className="about-subject-icon">⎋</span>
@@ -513,7 +510,7 @@ export default function AboutPage() {
             </div>
           </div>
           <p className="about-footnote">
-            Possible applications — not announced products.
+            Chess and Triangles are ready. More subjects later.
           </p>
         </section>
       </main>

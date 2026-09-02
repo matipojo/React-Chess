@@ -4,7 +4,7 @@
 
 We build the learning surface once. AI personalizes the lesson endlessly.
 
-We build a professional, persistent learning environment for the subject, with the right tools already in place. AI generates the lesson *inside* that surface — it does not invent a throwaway canvas — and personalizes pace, explanations, and practice in real time.
+You learn on a chessboard or triangle canvas built for the subject. AI generates the lesson *inside* that surface — it does not invent a throwaway canvas — and personalizes pace, explanations, and practice in real time.
 
 **[Live demo](https://generative-learning.vercel.app/)**
 
