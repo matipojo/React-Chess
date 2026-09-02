@@ -14,7 +14,7 @@ You learn on a chessboard or triangle canvas built for the subject. AI generates
 
 ### Chess
 
-![Chess learning surface](docs/chess.png)
+![Scholar's Mate demo](docs/scholars-mate.gif)
 
 A persistent board, coach, and chess tools. Open [/chess](https://generative-learning.vercel.app/chess).
 
