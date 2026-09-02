@@ -261,7 +261,7 @@ export default function AboutPage() {
             Generate the learning. <span>Not the canvas.</span>
           </h1>
           <p className="about-lede">
-            You learn on a real chessboard or triangle canvas — not in a chat.
+            You learn on a real chessboard or triangle canvas, not in a chat.
           </p>
           <p className="about-lede about-lede-more">
             Ask what you want to learn. Your AI agent teaches you there, and
@@ -470,7 +470,7 @@ export default function AboutPage() {
             </div>
           </div>
           <p className="about-footnote">
-            The lesson lives on the board in front of you — not in a throwaway
+            The lesson lives on the board in front of you, not in a throwaway
             chat.
           </p>
         </section>

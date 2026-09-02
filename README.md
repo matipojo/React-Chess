@@ -4,7 +4,7 @@
 
 We build the learning surface once. Your AI agent personalizes the lesson endlessly.
 
-You learn on a chessboard or triangle canvas built for the subject. Your AI agent generates the lesson *inside* that surface — it does not invent a throwaway canvas — and personalizes pace, explanations, and practice in real time.
+You learn on a chessboard or triangle canvas built for the subject. Your AI agent generates the lesson *inside* that surface. It does not invent a throwaway canvas, and personalizes pace, explanations, and practice in real time.
 
 **[Live demo](https://generative-learning.vercel.app/)**
 
@@ -26,7 +26,7 @@ GAN constructions, a figure canvas, and triangle tools. Open [/triangles](https:
 
 ## How it works
 
-Each surface registers subject tools on `document.modelContext` (WebMCP). Your AI agent does not build the interface — it creates the lesson inside it, then guides you through it.
+Each surface registers subject tools on `document.modelContext` (WebMCP). Your AI agent does not build the interface. It creates the lesson inside it, then guides you through it.
 
 ```
 Home  →  open-page(chess | triangles)
@@ -55,7 +55,7 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000 — the home page — then Chess or Triangles.
+Open http://localhost:3000 (the home page), then Chess or Triangles.
 
 ## Credit
 

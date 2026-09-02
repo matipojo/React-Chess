@@ -34,7 +34,7 @@ describe("AboutPage", () => {
     ).toBe(true);
     expect(queryByText("Geometry")).toBeNull();
     expect(queryByText("Working demo. Available now.")).toBeNull();
-    expect(queryByText("Possible applications — not announced products.")).toBeNull();
+    expect(queryByText("Possible applications - not announced products.")).toBeNull();
     expect(queryByText("Typical AI")).toBeNull();
     expect(queryByText("A different approach")).toBeNull();
     expect(
@@ -42,7 +42,7 @@ describe("AboutPage", () => {
         "We build the learning surface once. Your AI agent personalizes the lesson endlessly."
       )
     ).toHaveLength(2);
-    expect(getByText("You learn on a real chessboard or triangle canvas — not in a chat.")).toBeTruthy();
+    expect(getByText("You learn on a real chessboard or triangle canvas, not in a chat.")).toBeTruthy();
     expect(getByText(/Your AI agent teaches you there/)).toBeTruthy();
     expect(getByText("You and your AI agent share this board")).toBeTruthy();
     expect(queryByText("AI Tutor")).toBeNull();

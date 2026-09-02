@@ -9,7 +9,7 @@ describe("buildHowToAskTheUserPrompt", () => {
     expect(prompt).toContain("#8a5fc8");
     expect(prompt).toContain("Do not list options as 1/2/3");
     expect(prompt).toContain("They must tap a button");
-    expect(prompt).toContain("each button on its own new line");
+    expect(prompt).toContain("Each button on its own new line");
     expect(prompt).toContain("not full row");
     expect(prompt).toContain("airy and spacious");
     expect(prompt).toContain("20px space above the first button");
