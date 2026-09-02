@@ -31,7 +31,7 @@ import "../GeometryCanvas/GeometryCanvas.css";
 import "../../board-themes.css";
 import "./AboutPage.css";
 
-const GITHUB_REPO_URL = "https://github.com/matipojo/webmcp-react-chess";
+const GITHUB_REPO_URL = "https://github.com/matipojo/WebMCP-Generative-Learning";
 
 const italianBoard = boardFromFen(ITALIAN_GAME_FEN, true);
 const demoFigure = figureFromTemplate(ABOUT_DEMO_FIGURE_ID);

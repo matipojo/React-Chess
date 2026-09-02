@@ -56,7 +56,7 @@ describe("AboutPage", () => {
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeTruthy();
     const github = getByRole("link", { name: "GitHub" });
-    expect(github.getAttribute("href")).toBe("https://github.com/matipojo/webmcp-react-chess");
+    expect(github.getAttribute("href")).toBe("https://github.com/matipojo/WebMCP-Generative-Learning");
     expect(github.getAttribute("target")).toBe("_blank");
     expect(github.getAttribute("rel")).toBe("noopener noreferrer");
   });
