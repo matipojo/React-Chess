@@ -76,6 +76,7 @@ import {
   emptyExperimentCursor,
   truncateItems,
 } from "../lessons/experimentHistory";
+import { pieceMoveBetween } from "../utils/board-move-diff";
 
 type LessonSnapshot = {
   board: Board;
@@ -516,6 +517,40 @@ export function useChessLessons({
       }
     },
     [applyBoard, applyOverlays, cancelQuiz, seedExperimentBaseline, setQuiz, setQuizFeedback]
+  );
+
+  const restoreWithAnimation = useCallback(
+    (
+      snap: LessonSnapshot,
+      options?: { keepExperiment?: boolean },
+      afterRestore?: () => void
+    ) => {
+      const apply = () => {
+        restoreSnapshot(snap, options);
+        afterRestore?.();
+      };
+      const move = pieceMoveBetween(boardRef.current, snap.board);
+      if (!move) {
+        apply();
+        return;
+      }
+      const token = ++animTokenRef.current;
+      logLessonDebug("visual", "animate-restore", {
+        from: coordinatesToNotation(move.from.x, move.from.y),
+        to: coordinatesToNotation(move.to.x, move.to.y),
+        team: move.team,
+        ply: snap.ply,
+      });
+      setAnimating(true);
+      animateMove(move.from, move.to, move.team, () => {
+        if (animTokenRef.current !== token) {
+          return;
+        }
+        apply();
+        setAnimating(false);
+      });
+    },
+    [animateMove, boardRef, restoreSnapshot]
   );
 
   const resetHistory = useCallback(() => {
@@ -1698,9 +1733,10 @@ export function useChessLessons({
       fromIndex: experimentIndexRef.current,
       toIndex: nextIndex,
     });
-    restoreSnapshot(experimentRef.current[nextIndex], { keepExperiment: true });
-    publishExperiment(nextIndex, experimentRef.current.length);
-  }, [animating, publishExperiment, restoreSnapshot]);
+    restoreWithAnimation(experimentRef.current[nextIndex], { keepExperiment: true }, () => {
+      publishExperiment(nextIndex, experimentRef.current.length);
+    });
+  }, [animating, publishExperiment, restoreWithAnimation]);
 
   const redoLearnMove = useCallback(() => {
     if (animating || experimentIndexRef.current >= experimentRef.current.length - 1) {
@@ -1711,9 +1747,10 @@ export function useChessLessons({
       fromIndex: experimentIndexRef.current,
       toIndex: nextIndex,
     });
-    restoreSnapshot(experimentRef.current[nextIndex], { keepExperiment: true });
-    publishExperiment(nextIndex, experimentRef.current.length);
-  }, [animating, publishExperiment, restoreSnapshot]);
+    restoreWithAnimation(experimentRef.current[nextIndex], { keepExperiment: true }, () => {
+      publishExperiment(nextIndex, experimentRef.current.length);
+    });
+  }, [animating, publishExperiment, restoreWithAnimation]);
 
   const stepBack = useCallback(() => {
     if (animating || historyIndexRef.current <= 0) {
@@ -1724,9 +1761,10 @@ export function useChessLessons({
       toIndex: historyIndexRef.current - 1,
     });
     const nextIndex = historyIndexRef.current - 1;
-    restoreSnapshot(historyRef.current[nextIndex]);
-    publishHistory(nextIndex, historyRef.current.length);
-  }, [animating, publishHistory, restoreSnapshot]);
+    restoreWithAnimation(historyRef.current[nextIndex], undefined, () => {
+      publishHistory(nextIndex, historyRef.current.length);
+    });
+  }, [animating, publishHistory, restoreWithAnimation]);
 
   const stepFirst = useCallback(() => {
     if (animating || historyIndexRef.current <= 0) {
@@ -1772,8 +1810,9 @@ export function useChessLessons({
     });
     if (historyIndexRef.current >= 0 && historyIndexRef.current < historyRef.current.length - 1) {
       const nextIndex = historyIndexRef.current + 1;
-      restoreSnapshot(historyRef.current[nextIndex]);
-      publishHistory(nextIndex, historyRef.current.length);
+      restoreWithAnimation(historyRef.current[nextIndex], undefined, () => {
+        publishHistory(nextIndex, historyRef.current.length);
+      });
       return;
     }
     const line = loadedLineRef.current;
@@ -1792,7 +1831,7 @@ export function useChessLessons({
       source: "next",
     });
     resolveWait({ action: choice.id, source: "choice", label: choice.label });
-  }, [animating, playLine, publishHistory, resolveWait, restoreSnapshot]);
+  }, [animating, playLine, publishHistory, resolveWait, restoreWithAnimation]);
 
   const createLesson = useCallback((args: {
     title: string;
