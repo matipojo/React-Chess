@@ -1,5 +1,5 @@
-import { dist } from "./math";
-import { circleGeometry, oppositeVertex, pointVec, segmentKey, triangleAtVertex } from "./figure";
+import { centroid, dist } from "./math";
+import { allObjectIds, circleGeometry, oppositeVertex, pointVec, segmentKey, triangleAtVertex } from "./figure";
 import { Figure, Vec } from "./types";
 
 export type HitKind = "point" | "segment" | "angle" | "triangle" | "circle";
@@ -35,6 +35,7 @@ export function hitTestFigure(figure: Figure, world: Vec, threshold = 0.28): Fig
       hits.push({ id: name, kind: "point", distance: d });
     }
   });
+  hitUnlabeledCentroids(figure, world, threshold).forEach((hit) => hits.push(hit));
   figure.strokes.forEach((s) => {
     const a = pointVec(figure, s.a);
     const b = pointVec(figure, s.b);
@@ -78,8 +79,49 @@ export function hitTestFigure(figure: Figure, world: Vec, threshold = 0.28): Fig
   return hits[0] || null;
 }
 
+export function unlabeledCentroidId(triangle: string[]): string {
+  return "g(△" + triangle.join("") + ")";
+}
+
 export function normalizeGanId(value: string): string {
   return value.trim().replace(/\s/g, "");
+}
+
+export function triangleCentroidAt(figure: Figure, triangle: string[]): Vec | null {
+  const a = figure.points[triangle[0]];
+  const b = figure.points[triangle[1]];
+  const c = figure.points[triangle[2]];
+  if (!a || !b || !c) {
+    return null;
+  }
+  return centroid(a, b, c);
+}
+
+export function hitUnlabeledCentroids(figure: Figure, world: Vec, threshold = 0.28): FigureHit[] {
+  const hits: FigureHit[] = [];
+  figure.triangles.forEach((tri) => {
+    const at = triangleCentroidAt(figure, tri);
+    if (!at) {
+      return;
+    }
+    const labeled = Object.keys(figure.points).some((name) => worldDist(figure.points[name], at) <= threshold * 0.55);
+    if (labeled) {
+      return;
+    }
+    const d = worldDist(world, at);
+    if (d <= threshold) {
+      hits.push({ id: unlabeledCentroidId(tri), kind: "point", distance: d });
+    }
+  });
+  return hits;
+}
+
+export function isCentroidToken(value: string): boolean {
+  const n = normalizeGanId(value);
+  if (n === "G") {
+    return true;
+  }
+  return /^g\(△?[A-Z]{3}\)$/i.test(n) || /^cent(?:roid)?\(△?[A-Z]{3}\)$/i.test(n);
 }
 
 export type ParsedAngleId = {
@@ -132,6 +174,9 @@ export function ganAnswerIsCorrect(correct: string[], clicked: string): boolean 
     if (token === dest) {
       return true;
     }
+    if (isCentroidToken(token) && isCentroidToken(dest)) {
+      return true;
+    }
     if (sameAngleId(token, dest)) {
       return true;
     }
@@ -160,6 +205,9 @@ export function idsMatchHighlight(id: string, highlights: string[]): boolean {
     if (h === needle) {
       return true;
     }
+    if (isCentroidToken(h) && isCentroidToken(needle)) {
+      return true;
+    }
     if (sameAngleId(h, needle)) {
       return true;
     }
@@ -181,6 +229,21 @@ export function isAngleHighlighted(
   highlights: string[]
 ): boolean {
   return angleHighlightIds(vertex, left, right).some((id) => idsMatchHighlight(id, highlights));
+}
+
+export function figureHasQuizTarget(figure: Figure, token: string): boolean {
+  const dest = normalizeGanId(token);
+  if (!dest) {
+    return false;
+  }
+  if (isCentroidToken(dest) && figure.triangles.length > 0) {
+    return true;
+  }
+  return allObjectIds(figure).some((id) => ganAnswerIsCorrect([dest], id));
+}
+
+export function missingQuizTargets(figure: Figure, correct: string[]): string[] {
+  return correct.map((item) => item.trim()).filter((item) => item && !figureHasQuizTarget(figure, item));
 }
 
 export { triangleAtVertex };

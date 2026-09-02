@@ -32,4 +32,13 @@ describe("buildGiveMeAHintPrompt", () => {
     expect(prompt).toContain("add-lesson-step with type riddle");
     expect(prompt).toContain("Use ask-quiz only if this puzzle is not a catalog lesson step");
   });
+
+  it("talks about figure objects on the triangle page, not chess squares", () => {
+    const prompt = buildGiveMeAHintPrompt("#8a5fc8", "#ffffff", "triangle");
+    expect(prompt).toContain("triangle page");
+    expect(prompt).toContain("already on the figure");
+    expect(prompt).toContain("correct GAN objects");
+    expect(prompt).not.toContain("chess board");
+    expect(prompt).not.toContain("key square");
+  });
 });

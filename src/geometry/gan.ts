@@ -1,6 +1,7 @@
 import {
   add,
   angleDeg,
+  centroid,
   dist,
   footOfPerpendicular,
   nearlyEqual,
@@ -36,6 +37,7 @@ export type GanCommand =
   | { type: "mid"; name?: string; a: string; b: string }
   | { type: "altitude"; from: string; ontoA: string; ontoB: string }
   | { type: "median"; from: string; ontoA: string; ontoB: string }
+  | { type: "centroid"; a: string; b: string; c: string }
   | { type: "bisector"; vertex: string }
   | { type: "perp-bisector"; a: string; b: string }
   | { type: "parallel"; point: string; a: string; b: string }
@@ -116,6 +118,14 @@ export function parseGanCommand(raw: string): GanCommand | null {
   m = text.match(/^m\(([A-Z]),([A-Z]{2})\)$/i);
   if (m) {
     return { type: "median", from: m[1], ontoA: m[2][0], ontoB: m[2][1] };
+  }
+  m = text.match(/^g\(△([A-Z]{3})\)$/i) || text.match(/^g\(([A-Z]{3})\)$/i);
+  if (m) {
+    return { type: "centroid", a: m[1][0], b: m[1][1], c: m[1][2] };
+  }
+  m = text.match(/^cent(?:roid)?\(△?([A-Z]{3})\)$/i);
+  if (m) {
+    return { type: "centroid", a: m[1][0], b: m[1][1], c: m[1][2] };
   }
   m = text.match(/^b\(∠?([A-Z])\)$/i);
   if (m) {
@@ -459,6 +469,32 @@ export function applyGanCommand(figure: Figure, raw: string): ApplyGanResult {
       from: next.points[command.from],
       to: next.points[midName],
     };
+  } else if (command.type === "centroid") {
+    needPoint(next, command.a);
+    needPoint(next, command.b);
+    needPoint(next, command.c);
+    addTriangle(next, command.a, command.b, command.c);
+    const existing = Object.keys(next.points).find((name) => {
+      const constraint = next.points[name].constraint;
+      return (
+        constraint &&
+        constraint.kind === "centroid" &&
+        [constraint.a, constraint.b, constraint.c].sort().join("") ===
+          [command.a, command.b, command.c].sort().join("")
+      );
+    });
+    const name = existing || nextPointName(next, ["G"]);
+    const at = centroid(next.points[command.a], next.points[command.b], next.points[command.c]);
+    ensurePoint(next, name, at, {
+      constraint: { kind: "centroid", a: command.a, b: command.b, c: command.c },
+    });
+    remember(name);
+    remember("g(△" + command.a + command.b + command.c + ")");
+    animation = {
+      type: "draw",
+      from: next.points[command.a],
+      to: at,
+    };
   } else if (command.type === "bisector") {
     const tri = triangleAtVertex(next, command.vertex);
     if (!tri) {
@@ -775,6 +811,15 @@ export function commandSatisfied(figure: Figure, raw: string): boolean {
       return c && c.kind === "mid" && segmentKey(c.a, c.b) === segmentKey(command.ontoA, command.ontoB);
     });
   }
+  if (command.type === "centroid") {
+    return Object.keys(figure.points).some((name) => {
+      const c = figure.points[name].constraint;
+      if (!c || c.kind !== "centroid") {
+        return false;
+      }
+      return [c.a, c.b, c.c].sort().join("") === [command.a, command.b, command.c].sort().join("");
+    });
+  }
   if (command.type === "bisector") {
     return Object.keys(figure.points).some((name) => {
       const c = figure.points[name].constraint;
@@ -808,6 +853,7 @@ export function isPlayableGan(raw: string): boolean {
     command.type === "mid" ||
     command.type === "altitude" ||
     command.type === "median" ||
+    command.type === "centroid" ||
     command.type === "bisector" ||
     command.type === "perp-bisector" ||
     command.type === "parallel" ||
@@ -845,6 +891,13 @@ export function ganIdsForCommand(raw: string): string[] {
   }
   if (command.type === "median") {
     return ["m(" + command.from + "," + command.ontoA + command.ontoB + ")", command.from];
+  }
+  if (command.type === "centroid") {
+    return [
+      "g(△" + command.a + command.b + command.c + ")",
+      "G",
+      "△" + command.a + command.b + command.c,
+    ];
   }
   if (command.type === "bisector") {
     return ["b(" + command.vertex + ")", "∠" + command.vertex, command.vertex];
