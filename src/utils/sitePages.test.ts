@@ -1,4 +1,4 @@
-import { ABOUT_PATH, CHESS_PATH, TRIANGLES_PATH, appHref } from "./appRoute";
+import { CHESS_PATH, HOME_PATH, TRIANGLES_PATH, appHref } from "./appRoute";
 import {
   currentSitePageId,
   listSitePages,
@@ -11,9 +11,9 @@ describe("sitePages", () => {
     window.history.pushState({}, "", "/");
   });
 
-  it("treats /about as the home page and other paths as chess or triangles", () => {
+  it("treats / as the home page and other paths as chess or triangles", () => {
+    expect(currentSitePageId("/")).toBe("about");
     expect(currentSitePageId("/about")).toBe("about");
-    expect(currentSitePageId("/")).toBe("chess");
     expect(currentSitePageId("/chess")).toBe("chess");
     expect(currentSitePageId("/triangles")).toBe("triangles");
   });
@@ -27,9 +27,12 @@ describe("sitePages", () => {
   });
 
   it("lists chess and triangles in the sub-navigation as available pages", () => {
-    const listed = listSitePages("/about");
+    const listed = listSitePages("/");
     expect(listed.currentPage).toBe("about");
     expect(listed.subnav.map((item) => item.id)).toEqual(["about", "chess", "triangles"]);
+    const home = listed.subnav.find((item) => item.id === "about");
+    expect(home?.href).toBe("/");
+    expect(home?.current).toBe(true);
     const chess = listed.subnav.find((item) => item.id === "chess");
     expect(chess?.available).toBe(true);
     expect(chess?.current).toBe(false);
@@ -39,7 +42,7 @@ describe("sitePages", () => {
   });
 
   it("navigates to the chess app by pushing /chess", () => {
-    window.history.pushState({}, "", ABOUT_PATH);
+    window.history.pushState({}, "", HOME_PATH);
     const result = navigateToSitePage("chess");
     expect(result.success).toBe(true);
     expect(result.data.alreadyThere).toBe(false);
@@ -48,7 +51,7 @@ describe("sitePages", () => {
   });
 
   it("navigates to triangles by pushing /triangles", () => {
-    window.history.pushState({}, "", ABOUT_PATH);
+    window.history.pushState({}, "", HOME_PATH);
     const result = navigateToSitePage("triangles");
     expect(result.success).toBe(true);
     expect(window.location.pathname).toBe(TRIANGLES_PATH);
@@ -59,5 +62,12 @@ describe("sitePages", () => {
     const result = navigateToSitePage("chess");
     expect(result.data.alreadyThere).toBe(true);
     expect(window.location.pathname).toBe(CHESS_PATH);
+  });
+
+  it("navigates home to /", () => {
+    window.history.pushState({}, "", CHESS_PATH);
+    const result = navigateToSitePage("about");
+    expect(result.success).toBe(true);
+    expect(window.location.pathname).toBe("/");
   });
 });

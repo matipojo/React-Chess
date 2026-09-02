@@ -1,11 +1,5 @@
 import { SavedLesson } from "../../lessons/types";
-import {
-  ABOUT_PATH,
-  AppRoute,
-  appHref,
-  CHESS_PATH,
-  TRIANGLES_PATH,
-} from "../../utils/appRoute";
+import { AppRoute, appHref, CHESS_PATH, HOME_PATH, TRIANGLES_PATH } from "../../utils/appRoute";
 import LessonCatalogMenu from "../LessonCatalogMenu/LessonCatalogMenu";
 import LessonDebugConsole from "../LessonDebugConsole/LessonDebugConsole";
 
@@ -42,8 +36,8 @@ export default function AppHeader({
             Triangles
           </a>
         </nav>
-        <a className="app-header-link" href={appHref(ABOUT_PATH)}>
-          About
+        <a className="app-header-link" href={appHref(HOME_PATH)}>
+          Home
         </a>
       </div>
       <div className="app-header-actions">

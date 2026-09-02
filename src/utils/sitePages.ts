@@ -1,4 +1,4 @@
-import { ABOUT_PATH, CHESS_PATH, TRIANGLES_PATH, appHref, parseAppRoute } from "./appRoute";
+import { CHESS_PATH, HOME_PATH, TRIANGLES_PATH, appHref, parseAppRoute } from "./appRoute";
 
 export type SitePageId = "about" | "chess" | "triangles";
 
@@ -15,10 +15,10 @@ export const SITE_NAV: SiteNavItem[] = [
   {
     id: "about",
     label: "Home",
-    href: appHref(ABOUT_PATH),
+    href: appHref(HOME_PATH),
     available: true,
     inSubnav: true,
-    description: "Living Learning Surfaces home page.",
+    description: "Generative Learning home page.",
   },
   {
     id: "chess",
@@ -125,7 +125,7 @@ function pageHref(page: SitePageId): string {
   if (page === "triangles") {
     return appHref(TRIANGLES_PATH);
   }
-  return appHref(ABOUT_PATH);
+  return appHref(HOME_PATH);
 }
 
 export function navigateToSitePage(page: SitePageId): {
@@ -147,7 +147,7 @@ export function navigateToSitePage(page: SitePageId): {
           ? "Already on the chess app. Chess tools such as get-board-state and make-move are on this page."
           : page === "triangles"
             ? "Already on the triangle geometry app. Figure tools such as get-figure-state and apply-gan are on this page."
-            : "Already on the home page. Call open-page with page=chess or page=triangles.",
+            : "Already on the Generative Learning home page. Call open-page with page=chess or page=triangles.",
       data: { page, href, alreadyThere: true },
     };
   }
@@ -158,7 +158,7 @@ export function navigateToSitePage(page: SitePageId): {
         ? "Opening the chess learning app from the sub-navigation. Wait for chess tools such as get-board-state, make-move, enter-learn-mode, and create-lesson to appear, then teach on that page."
         : page === "triangles"
           ? "Opening the triangle geometry app from the sub-navigation. Wait for tools such as get-figure-state, apply-gan, and move-point to appear, then teach on that page."
-          : "Opening the Living Learning Surfaces home page.",
+          : "Opening the Generative Learning home page.",
     data: { page, href, alreadyThere: false },
   };
 }

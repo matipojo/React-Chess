@@ -1,10 +1,16 @@
 import { boardFromFen } from "../../utils/board-setup";
 import { chessNotationToCoordinates } from "../../utils/chess-notation-utils";
 import { PieceType } from "../../Types";
-import { ITALIAN_GAME_ARROWS, ITALIAN_GAME_FEN } from "./aboutDemo";
+import { figureFromTemplate } from "../../geometry/templates";
+import {
+  ABOUT_DEMO_FIGURE_ID,
+  ABOUT_EXAMPLE_PROMPTS,
+  ITALIAN_GAME_ARROWS,
+  ITALIAN_GAME_FEN,
+} from "./aboutDemo";
 
 describe("about demo position", () => {
-  it("uses the Italian Game after Bc4", () => {
+  it("uses a chess position as one example surface", () => {
     const board = boardFromFen(ITALIAN_GAME_FEN, true);
     const at = (square: string) => {
       const coords = chessNotationToCoordinates(square);
@@ -24,4 +30,17 @@ describe("about demo position", () => {
       { from: "f1", to: "c4", color: "#9b74d8" },
     ]);
   });
+
+  it("uses a right triangle as the geometry example surface", () => {
+    const figure = figureFromTemplate(ABOUT_DEMO_FIGURE_ID);
+    expect(figure).toBeTruthy();
+    expect(figure?.triangles).toHaveLength(1);
+    expect(figure?.points.A && figure?.points.B && figure?.points.C).toBeTruthy();
+  });
+
+  it("uses general learning prompts instead of chess-only copy", () => {
+    expect(ABOUT_EXAMPLE_PROMPTS.join(" ")).not.toMatch(/knight|italian|fork|scholar/i);
+    expect(ABOUT_EXAMPLE_PROMPTS).toContain("teach me this at my pace");
+  });
 });
+

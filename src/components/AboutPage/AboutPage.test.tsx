@@ -17,24 +17,26 @@ const CHATGPT_UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ChatGPT/26.715.72359 Chrome/148.0.7778.180 Electron/42.3.0 Safari/537.36";
 
 describe("AboutPage", () => {
-  it("renders the living surface story and a real Italian Game board", () => {
-    const { getByText, getByRole, container } = renderAbout();
-    expect(getByRole("link", { name: "Living Learning Surfaces" })).toBeTruthy();
-    expect(getByText("Not the canvas.")).toBeTruthy();
-    expect(getByText("Italian Game")).toBeTruthy();
-    expect(getByText("3. Bc4")).toBeTruthy();
+  it("renders the generative learning pitch and example surfaces", () => {
+    const { getByText, getByRole, getAllByRole, queryByText, container } = renderAbout();
+    expect(getByRole("link", { name: "Generative Learning" })).toBeTruthy();
+    expect(getByRole("heading", { name: /Personalize the lesson endlessly/ })).toBeTruthy();
+    expect(getByText(/professional, persistent surface/i)).toBeTruthy();
+    expect(getAllByText(/doesn't build the interface/i).length).toBeGreaterThan(0);
+    expect(queryByText("Italian Game")).toBeNull();
     const nav = getByRole("navigation", { name: "Learning surfaces" });
     expect(nav.querySelector('a[aria-current="page"]')?.textContent).toMatch(/Home/);
     expect(nav.querySelector(".about-subnav-chess")?.getAttribute("href")).toBe("/chess");
     expect(nav.querySelector(".about-subnav-triangles")?.getAttribute("href")).toBe(
       "/triangles"
     );
-    expect(getByRole("link", { name: /Geometry/ }).getAttribute("href")).toBe(
-      "/triangles"
-    );
+    expect(
+      getAllByRole("link", { name: /Geometry/ }).every(
+        (link) => link.getAttribute("href") === "/triangles"
+      )
+    ).toBe(true);
     expect(container.querySelector("#chessboard")).toBeTruthy();
-    expect(container.querySelectorAll(".chess-piece").length).toBe(32);
-    expect(container.querySelectorAll(".board-arrows line").length).toBe(2);
+    expect(container.querySelector(".geometry-canvas")).toBeTruthy();
   });
 
   it("copies example prompts and says Codex is not available in Chrome", async () => {
@@ -47,14 +49,14 @@ describe("AboutPage", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     try {
       const { getByRole, getAllByRole } = renderAbout();
-      const button = getByRole("button", { name: "teach me the Italian Game" });
+      const button = getByRole("button", { name: "teach me this at my pace" });
       expect(button.getAttribute("title")).toBe("Copy prompt");
       expect(button.querySelector(".about-example-copy")).toBeTruthy();
       button.click();
       await waitFor(() => {
-        expect(writeText).toHaveBeenCalledWith("teach me the Italian Game");
+        expect(writeText).toHaveBeenCalledWith("teach me this at my pace");
       });
-      expect(getByRole("button", { name: "teach me the Italian Game" })).toBeTruthy();
+      expect(getByRole("button", { name: "teach me this at my pace" })).toBeTruthy();
       expect(getAllByRole("status").some((node) => node.textContent === COPIED_PROMPT_TIP)).toBe(
         true
       );
@@ -80,10 +82,10 @@ describe("AboutPage", () => {
     try {
       const { getByPlaceholderText, getByLabelText, getAllByRole } = renderAbout();
       const input = getByPlaceholderText("What do you want to learn?") as HTMLInputElement;
-      fireEvent.change(input, { target: { value: "how do I castle?" } });
+      fireEvent.change(input, { target: { value: "explain it another way" } });
       getByLabelText("Start learning").click();
       await waitFor(() => {
-        expect(writeText).toHaveBeenCalledWith("how do I castle?");
+        expect(writeText).toHaveBeenCalledWith("explain it another way");
       });
       expect(
         getAllByRole("status").some(
@@ -109,13 +111,13 @@ describe("AboutPage", () => {
     window.open = open;
     try {
       const { getByRole } = renderAbout();
-      const link = getByRole("link", { name: "how does a knight move?" });
+      const link = getByRole("link", { name: "quiz me until I get it" });
       expect(link.getAttribute("href")).toBe(
-        "codex://new?prompt=how%20does%20a%20knight%20move%3F"
+        "codex://new?prompt=quiz%20me%20until%20I%20get%20it"
       );
       link.click();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=how%20does%20a%20knight%20move%3F",
+        "codex://new?prompt=quiz%20me%20until%20I%20get%20it",
         "_blank",
         "noopener"
       );
@@ -140,14 +142,14 @@ describe("AboutPage", () => {
     try {
       const { getByPlaceholderText, getAllByLabelText } = renderAbout();
       const input = getByPlaceholderText("What do you want to learn?");
-      fireEvent.change(input, { target: { value: "teach me forks" } });
+      fireEvent.change(input, { target: { value: "slow down and explain that" } });
       const submit = getAllByLabelText("Start learning")[0];
       expect(submit.getAttribute("href")).toBe(
-        "codex://new?prompt=teach%20me%20forks"
+        "codex://new?prompt=slow%20down%20and%20explain%20that"
       );
       submit.click();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=teach%20me%20forks",
+        "codex://new?prompt=slow%20down%20and%20explain%20that",
         "_blank",
         "noopener"
       );
@@ -181,7 +183,7 @@ describe("AboutPage", () => {
       configurable: true,
       value: modelContext,
     });
-    window.history.pushState({}, "", "/about");
+    window.history.pushState({}, "", "/");
     try {
       const { unmount } = renderAbout();
       expect(registered.map((tool) => tool.name)).toEqual(["list-pages", "open-page"]);
