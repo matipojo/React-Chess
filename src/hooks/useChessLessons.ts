@@ -39,7 +39,13 @@ import {
   parseMoveOrCastle,
 } from "../utils/chess-notation-utils";
 import { logLessonDebug } from "../lessons/debugLog";
-import { fenAfterTeaching, lastTeachingSlideIndex, projectLessonSession } from "../lessons/lessonDocument";
+import {
+  fenAfterTeaching,
+  lastTeachingSlideIndex,
+  liveQuizFromSlide,
+  projectLessonSession,
+  quizForRestoredSlide,
+} from "../lessons/lessonDocument";
 import { fenForDebug, overlaySnapshot } from "../lessons/debugSnapshot";
 import {
   formatQuizCorrectFeedback,
@@ -346,6 +352,33 @@ export function useChessLessons({
     resolveWait({ action: "", source: "cancelled" });
   }, [clearQuizWatchers, resolveWait, setQuiz, setQuizFeedback]);
 
+  const armQuiz = useCallback((nextQuiz: QuizState) => {
+    cancelQuiz();
+    const liveQuiz = liveQuizFromSlide(nextQuiz);
+    if (!liveQuiz) {
+      return;
+    }
+    lastQuizRef.current = liveQuiz;
+    setQuiz(liveQuiz);
+    setQuizFeedback("");
+    setQuizSecondsLeft(QUIZ_TIMEOUT_SECONDS);
+    const kept = highlightsRef.current.filter(
+      (mark) => mark.kind !== "wrong" && mark.kind !== "correct"
+    );
+    highlightsRef.current = kept;
+    setHighlights(kept);
+    const deadline = Date.now() + QUIZ_TIMEOUT_MS;
+    persistedQuizDeadline = deadline;
+    quizTimerRef.current = window.setTimeout(expireQuiz, QUIZ_TIMEOUT_MS);
+    quizTickRef.current = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setQuizSecondsLeft(left);
+      if (left <= 0) {
+        expireQuiz();
+      }
+    }, 250);
+  }, [cancelQuiz, expireQuiz, setQuiz, setQuizFeedback]);
+
   const answerQuiz = useCallback((square: string, from?: string) => {
     const current = quizRef.current;
     if (!current || current.answered) {
@@ -499,15 +532,32 @@ export function useChessLessons({
         snap.arrows.map((item) => ({ ...item })),
         cloneCoach(snap.coach)
       );
-      cancelQuiz();
-      if (snap.quiz) {
-        const liveQuiz = {
-          ...snap.quiz,
-          correct: [...snap.quiz.correct],
-        };
-        lastQuizRef.current = liveQuiz;
-        setQuiz(liveQuiz);
-        setQuizFeedback("");
+      if (options?.keepExperiment) {
+        cancelQuiz();
+        if (snap.quiz) {
+          const liveQuiz = {
+            ...snap.quiz,
+            correct: [...snap.quiz.correct],
+          };
+          lastQuizRef.current = liveQuiz;
+          setQuiz(liveQuiz);
+          setQuizFeedback("");
+        }
+      } else {
+        const lesson = activeLessonNumberRef.current
+          ? findUserLessonByNumber(activeLessonNumberRef.current)
+          : undefined;
+        const restoredQuiz = quizForRestoredSlide({
+          quiz: snap.quiz,
+          phase: snap.coach?.phase,
+          step: snap.coach?.step,
+          steps: lesson ? lessonSteps(lesson) : undefined,
+        });
+        if (restoredQuiz) {
+          armQuiz(restoredQuiz);
+        } else {
+          cancelQuiz();
+        }
       }
       if (loadedLineRef.current) {
         loadedLineRef.current.ply = snap.ply;
@@ -516,7 +566,7 @@ export function useChessLessons({
         seedExperimentBaseline(snap);
       }
     },
-    [applyBoard, applyOverlays, cancelQuiz, seedExperimentBaseline, setQuiz, setQuizFeedback]
+    [applyBoard, applyOverlays, armQuiz, cancelQuiz, seedExperimentBaseline]
   );
 
   const restoreWithAnimation = useCallback(
@@ -562,6 +612,7 @@ export function useChessLessons({
 
   const pushSnapshot = useCallback(() => {
     const snap = takeSnapshot();
+    snap.quiz = liveQuizFromSlide(snap.quiz);
     const next = historyRef.current.slice(0, historyIndexRef.current + 1);
     next.push(snap);
     historyRef.current = next;
@@ -571,6 +622,7 @@ export function useChessLessons({
 
   const updateCurrentSnapshot = useCallback(() => {
     const snap = takeSnapshot();
+    snap.quiz = liveQuizFromSlide(snap.quiz);
     if (historyRef.current.length === 0 || historyIndexRef.current < 0) {
       historyRef.current = [snap];
       publishHistory(0, 1);
@@ -1443,9 +1495,7 @@ export function useChessLessons({
       slides.forEach((slide) => {
         applyBoard(boardFromFen(slide.fen, true));
         applyOverlays(slide.highlights, slide.arrows, slide.coach);
-        const restoredQuiz = slide.quiz
-          ? { ...slide.quiz, correct: [...slide.quiz.correct], answered: false, timedOut: false }
-          : null;
+        const restoredQuiz = liveQuizFromSlide(slide.quiz);
         lastQuizRef.current = restoredQuiz;
         setQuiz(restoredQuiz);
         setQuizFeedback("");
@@ -1626,32 +1676,9 @@ export function useChessLessons({
       correct: nextQuiz.correct,
     });
     enterLearnMode();
-    cancelQuiz();
-    const liveQuiz: QuizState = {
-      ...nextQuiz,
-      correct: [...nextQuiz.correct],
-      timedOut: false,
-      answered: false,
-    };
-    lastQuizRef.current = liveQuiz;
-    setQuiz(liveQuiz);
-    setQuizFeedback("");
-    setQuizSecondsLeft(QUIZ_TIMEOUT_SECONDS);
-    setHighlights((prev) =>
-      prev.filter((mark) => mark.kind !== "wrong" && mark.kind !== "correct")
-    );
+    armQuiz(nextQuiz);
     return new Promise<QuizResult>((resolve) => {
       quizResolverRef.current = resolve;
-      const deadline = Date.now() + QUIZ_TIMEOUT_MS;
-      persistedQuizDeadline = deadline;
-      quizTimerRef.current = window.setTimeout(expireQuiz, QUIZ_TIMEOUT_MS);
-      quizTickRef.current = window.setInterval(() => {
-        const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-        setQuizSecondsLeft(left);
-        if (left <= 0) {
-          expireQuiz();
-        }
-      }, 250);
       const signal = options?.signal;
       if (!signal) {
         return;
@@ -1664,7 +1691,7 @@ export function useChessLessons({
       signal.addEventListener("abort", onAbort);
       quizAbortCleanupRef.current = () => signal.removeEventListener("abort", onAbort);
     });
-  }, [cancelQuiz, enterLearnMode, expireQuiz]);
+  }, [armQuiz, enterLearnMode, expireQuiz]);
 
   const waitForUser = useCallback((
     next: WaitForUserState,

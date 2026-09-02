@@ -4,7 +4,9 @@ import {
   contentQuiz,
   fenAfterTeaching,
   lastTeachingSlideIndex,
+  liveQuizFromSlide,
   projectLessonSession,
+  quizForRestoredSlide,
 } from "./lessonDocument";
 import { SavedLesson } from "./types";
 
@@ -131,6 +133,50 @@ describe("lesson document vs session", () => {
     expect(slides[1].quiz?.question).toBe("Click the fork square.");
     expect(slides[1].coach?.what).toBeUndefined();
     expect(lastTeachingSlideIndex(slides)).toBe(1);
+  });
+
+  it("returns a fresh riddle after an attempt ends, including from the catalog step", () => {
+    const ended = {
+      question: "Click the fork square.",
+      type: "click-square" as const,
+      correct: ["c7"],
+      answered: true,
+      timedOut: true,
+    };
+    expect(liveQuizFromSlide(ended)).toEqual({
+      question: "Click the fork square.",
+      type: "click-square",
+      correct: ["c7"],
+      hint: undefined,
+      answered: false,
+      timedOut: false,
+    });
+    expect(
+      quizForRestoredSlide({
+        quiz: ended,
+        phase: "riddle",
+        step: 1,
+      })?.answered
+    ).toBe(false);
+    expect(
+      quizForRestoredSlide({
+        quiz: null,
+        phase: "riddle",
+        step: 1,
+        steps: [
+          {
+            title: "Find the fork",
+            body: "",
+            kind: "riddle",
+            quiz: {
+              question: "Click the fork square.",
+              type: "click-square",
+              correct: ["c7"],
+            },
+          },
+        ],
+      })?.question
+    ).toBe("Click the fork square.");
   });
 
   it("projects a show-me lesson as a single slide, not Goal/Step/Recap", () => {
