@@ -2138,16 +2138,16 @@ export function useChessLessons({
         steps: teachingSteps(lessonSteps(item)).length,
       })),
       quiz: [
-        "click-square — user clicks a square on the board",
-        "click-piece — user clicks a piece",
+        "click-square: user clicks a square on the board",
+        "click-piece: user clicks a piece",
       ],
       notation: COACH_NOTATION_RULE,
       learningTypes: {
         lesson:
-          "create-lesson type lesson (default) — Goal, then add-lesson-step Why/Move beats.",
+          "create-lesson type lesson (default): Goal, then add-lesson-step Why/Move beats.",
         showme:
-          "create-lesson type showme — one explanation; the planned line auto-plays with Pause, Stop, and Replay on the coach.",
-        riddle: "add-lesson-step type riddle — a puzzle on a catalog lesson.",
+          "create-lesson type showme: one explanation; the planned line auto-plays with Pause, Stop, and Replay on the coach.",
+        riddle: "add-lesson-step type riddle: a puzzle on a catalog lesson.",
       },
     };
   }, [userLessons]);

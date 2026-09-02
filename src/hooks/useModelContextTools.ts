@@ -475,7 +475,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'add-lesson-step',
         description:
-          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
+          'Add ONE catalog item: a teaching Step or a Riddle. Writes the saved lesson only; does not move the live playhead or board. Fast teaching steps do not play the board; why first, then the move; student taps Play when they reach that slide. type riddle stores the puzzle on this lesson. The student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next. State the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. Not used for create-lesson type showme. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -575,7 +575,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-lesson-recap',
         description:
-          'Write or replace the Recap screen after the last teaching step. Catalog only; does not change the live playhead. Skip this for one-step lessons such as a chess exam or riddle — those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
+          'Write or replace the Recap screen after the last teaching step. Catalog only; does not change the live playhead. Skip this for one-step lessons such as a chess exam or riddle. Those have no recap. Recap is not a numbered step. Call this when a multi-step line is complete, or rewrite it after extra add-lesson-step beats. Then how_to_ask_the_user. ' +
           COACH_NOTATION_RULE +
           ' ' +
           WAIT_TURN_RULE,
@@ -766,7 +766,7 @@ export function useModelContextTools(actions: ChessActions) {
       },
       {
         name: 'play-line',
-        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text — use add-lesson-step Play buttons instead. For create-lesson type showme, the line auto-plays; the student uses Pause, Stop, and Replay on the coach (do not call this tool to start that demo). Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
+        description: 'Play moves on the board with the hand animation. During a catalog lesson this does NOT change the coach text. Use add-lesson-step Play buttons instead. For create-lesson type showme, the line auto-plays; the student uses Pause, Stop, and Replay on the coach (do not call this tool to start that demo). Omit moves to continue a loaded famous game. Then call how_to_ask_the_user.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -814,7 +814,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'ask-quiz',
         description:
-          'Prefer add-lesson-step with type riddle so the puzzle is stored on the catalog lesson. Use this tool only for a one-off quiz that is not a lesson step. Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only — never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
+          'Prefer add-lesson-step with type riddle so the puzzle is stored on the catalog lesson. Use this tool only for a one-off quiz that is not a lesson step. Show a puzzle question in the coach panel and start a 30-second timer. Wait for a square click. The question must state the task only, never how to solve it, which tactic to use, or which piece or square to look at. Do not put a hint on the chess page. Before this tool, call how_to_offer_a_hint and render the Give me a hint button in this chat. A correct click shows Correct! in the coach only (do not mark the board). A miss or timeout teaches the correct square on the board and in the coach. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -868,7 +868,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-page-background',
         description:
-          'Saves a custom page background for the currently selected board theme only (Classic or Purple). Switching themes shows that theme’s image, or the default theme background if none was set. WebMCP tool arguments are JSON only — there is no native File transfer — so pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. If the user attached an image in this chat, encode it as base64/data URL and pass it here. Use clear: true to remove the image for the current theme only.',
+          'Saves a custom page background for the currently selected board theme only (Classic or Purple). Switching themes shows that theme’s image, or the default theme background if none was set. WebMCP tool arguments are JSON only. There is no native File transfer, so pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. If the user attached an image in this chat, encode it as base64/data URL and pass it here. Use clear: true to remove the image for the current theme only.',
         inputSchema: {
           type: 'object',
           properties: {

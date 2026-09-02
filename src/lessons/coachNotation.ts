@@ -2,7 +2,7 @@ import { sanMovesNeedingFromTo } from "../utils/chess-text-links";
 
 /** Shared WebMCP instruction: squares stay Latin; moves use long algebraic notation. */
 export const COACH_NOTATION_RULE =
-  'Squares MUST be English algebraic: files a–h and ranks 1–8 (e4, f7, h5). Never transliterate squares. Words may be any language. Moves MUST use long algebraic notation (LAN) so hover can draw the arrow from the exact piece: e2-e4, e7-e5, Ng1-f3, Nb8-c6, Bf1-c4. Captures: e4xd5, Bf1xc4. Never write short SAN for a move (not 1.e4, not e5, not Nf3, not Bc4, not Qh5) — that only highlights the destination, as if the piece is unknown. Bare squares (e4, f7) name a location, not a move. Castling may stay O-O / O-O-O.';
+  'Squares MUST be English algebraic: files a–h and ranks 1–8 (e4, f7, h5). Never transliterate squares. Words may be any language. Moves MUST use long algebraic notation (LAN) so hover can draw the arrow from the exact piece: e2-e4, e7-e5, Ng1-f3, Nb8-c6, Bf1-c4. Captures: e4xd5, Bf1xc4. Never write short SAN for a move (not 1.e4, not e5, not Nf3, not Bc4, not Qh5). That only highlights the destination, as if the piece is unknown. Bare squares (e4, f7) name a location, not a move. Castling may stay O-O / O-O-O.';
 
 const FROM_TO_MOVE = /^[a-h][1-8]:[a-h][1-8]$/i;
 

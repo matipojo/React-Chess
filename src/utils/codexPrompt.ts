@@ -5,7 +5,7 @@ export const EXAMPLE_LESSON_PROMPTS = [
 ];
 
 export const CODEX_UNAVAILABLE_MESSAGE = "Codex is not available";
-export const COPIED_PROMPT_TIP = "Copied. Paste this in the agent chat.";
+export const COPIED_PROMPT_TIP = "Copied. Paste this in your AI agent's chat.";
 
 type NavigatorWithUAData = Navigator & {
   userAgentData?: { brands?: Array<{ brand: string }> };

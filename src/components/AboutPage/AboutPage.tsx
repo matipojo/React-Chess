@@ -255,17 +255,17 @@ export default function AboutPage() {
       <main>
         <section className="about-hero">
           <p className="about-kicker">
-            We build the learning surface once. AI personalizes the lesson endlessly.
+            We build the learning surface once. Your AI agent personalizes the lesson endlessly.
           </p>
           <h1>
             Generate the learning. <span>Not the canvas.</span>
           </h1>
           <p className="about-lede">
-            You learn on a real chessboard or triangle canvas — not in a chat.
+            You learn on a real chessboard or triangle canvas, not in a chat.
           </p>
           <p className="about-lede about-lede-more">
-            Ask what you want to learn. The AI teaches you there, and the
-            lesson follows you.
+            Ask what you want to learn. Your AI agent teaches you there, and
+            the lesson follows you.
           </p>
           <CodexPromptField
             id="about-hero-prompt"
@@ -305,7 +305,7 @@ export default function AboutPage() {
           </div>
           <aside className="lesson-coach about-tutor">
             <div className="lesson-coach-content">
-              <p className="lesson-coach-kicker">AI Tutor</p>
+              <p className="lesson-coach-kicker">Your AI agent</p>
               <p className="lesson-coach-slide-count">With you as you learn</p>
               <div className="about-progress" aria-hidden="true">
                 <span className="is-done" />
@@ -340,11 +340,11 @@ export default function AboutPage() {
             </p>
             <p>
               Chess and triangles already have a board built for them. You open
-              it, and the AI teaches you there.
+              it, and your AI agent teaches you there.
             </p>
             <p>
-              The AI does not invent a new screen. It uses the board in front
-              of you.
+              Your AI agent does not invent a new screen. It uses the board in
+              front of you.
             </p>
             <p>
               You choose what to do next. The board keeps the structure.
@@ -383,8 +383,8 @@ export default function AboutPage() {
               </div>
               <h3>Ask for a lesson</h3>
               <p>
-                Tell the AI what you want to learn. It shows the idea on the
-                board and explains as you go.
+                Tell your AI agent what you want to learn. It shows the idea on
+                the board and explains as you go.
               </p>
             </article>
             <span className="about-step-arrow" aria-hidden="true">
@@ -440,7 +440,7 @@ export default function AboutPage() {
         </section>
 
         <section className="about-section">
-          <h2>You and the AI share this board</h2>
+          <h2>You and your AI agent share this board</h2>
           <div className="about-shared">
             <div className="about-shared-actor" aria-hidden="true">
               <svg viewBox="0 0 48 48">
@@ -466,11 +466,11 @@ export default function AboutPage() {
                 <circle cx="20" cy="18" r="2" fill="#fff" />
                 <circle cx="28" cy="18" r="2" fill="#fff" />
               </svg>
-              <span>AI</span>
+              <span>Your AI agent</span>
             </div>
           </div>
           <p className="about-footnote">
-            The lesson lives on the board in front of you — not in a throwaway
+            The lesson lives on the board in front of you, not in a throwaway
             chat.
           </p>
         </section>
@@ -521,7 +521,7 @@ export default function AboutPage() {
           <div>
             <strong>Generative Learning</strong>
             <p>
-              We build the learning surface once. AI personalizes the lesson endlessly.
+              We build the learning surface once. Your AI agent personalizes the lesson endlessly.
             </p>
           </div>
         </div>

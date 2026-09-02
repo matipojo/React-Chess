@@ -48,7 +48,7 @@ export function isRecapPhase(phase?: CoachState["phase"] | "summary"): boolean {
 
 export type LessonFormat = "lesson" | "showme";
 
-/** Built-in lesson type on create-lesson. Exact enum only — not inferred from wording. */
+/** Built-in lesson type on create-lesson. Exact enum only, not inferred from wording. */
 export function parseLessonFormat(value: unknown): LessonFormat {
   return value === "showme" ? "showme" : "lesson";
 }
