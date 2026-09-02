@@ -262,14 +262,11 @@ export default function AboutPage() {
           </h1>
           <p className="about-lede">
             We build the learning environment once, and let AI generate the
-            lesson inside it. Instead of a generic one-off canvas, learners get
-            a professional, persistent surface tailored to the subject.
+            lesson inside it.
           </p>
           <p className="about-lede about-lede-more">
-            AI personalizes the lesson to how each person learns and guides them
-            through it in real time. The learner chooses the path, while the
-            environment provides the structure — with teacher guidance and
-            measurable progress as a future layer.
+            Instead of a generic one-off canvas, learners get a professional,
+            persistent surface tailored to the subject.
           </p>
           <CodexPromptField
             id="about-hero-prompt"
@@ -324,8 +321,7 @@ export default function AboutPage() {
               <h2>The lesson is personalized</h2>
               <p>
                 The AI doesn&apos;t build the interface — it creates the lesson
-                inside it, then adapts pace, explanations, and practice to each
-                learner.
+                inside it.
               </p>
               <CodexPromptField
                 id="about-move-prompt"
@@ -338,18 +334,25 @@ export default function AboutPage() {
 
         <section className="about-section">
           <h2>A different approach</h2>
-          <p className="about-body">
-            Most AI learning today happens in a chat or a generic canvas created
-            on the fly. We take a different approach: we provide a professional,
-            persistent learning surface built for the subject, with the right
-            tools already in place. The AI doesn&apos;t build the interface — it
-            creates the lesson inside it, personalizes the pace, explanations
-            and practice to each learner, and guides the experience in real
-            time. The learner chooses the path, while the learning environment
-            can provide the structure. In the future, the same shared surface
-            could also let teachers define learning units and measure whether
-            each learner actually reached the required outcome.
-          </p>
+          <div className="about-body">
+            <p>
+              Most AI learning today happens in a chat or a generic canvas
+              created on the fly.
+            </p>
+            <p>
+              We take a different approach: a professional, persistent learning
+              surface built for the subject, with the right tools already in
+              place.
+            </p>
+            <p>
+              The AI doesn&apos;t build the interface — it creates the lesson
+              inside it.
+            </p>
+            <p>
+              The learner chooses the path. The environment provides the
+              structure.
+            </p>
+          </div>
         </section>
 
         <section className="about-section">

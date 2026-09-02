@@ -109,10 +109,10 @@
 }
 
 .about-lede {
-  margin: 0 0 16px;
-  max-width: 62ch;
+  margin: 0 0 12px;
+  max-width: 46ch;
   font-size: 18px;
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--about-muted);
 }
 
@@ -121,11 +121,18 @@
 }
 
 .about-body {
-  margin: 0;
-  max-width: 68ch;
+  max-width: 46ch;
   font-size: 17px;
-  line-height: 1.65;
+  line-height: 1.5;
   color: var(--about-muted);
+}
+
+.about-body p {
+  margin: 0 0 12px;
+}
+
+.about-body p:last-child {
+  margin-bottom: 0;
 }
 
 .about-prompt-label {
