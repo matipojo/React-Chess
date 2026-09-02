@@ -38,9 +38,16 @@ describe("about demo position", () => {
     expect(figure?.points.A && figure?.points.B && figure?.points.C).toBeTruthy();
   });
 
-  it("uses general learning prompts instead of chess-only copy", () => {
-    expect(ABOUT_EXAMPLE_PROMPTS.join(" ")).not.toMatch(/knight|italian|fork|scholar/i);
-    expect(ABOUT_EXAMPLE_PROMPTS).toContain("teach me this at my pace");
+  it("uses mixed chess and triangle prompts with a capital first letter", () => {
+    expect(ABOUT_EXAMPLE_PROMPTS).toEqual([
+      "Show Scholar's Mate",
+      "Show a right triangle and the altitude to the hypotenuse",
+      "Teach me the Italian",
+      "Teach SAS congruence with two triangles",
+    ]);
+    ABOUT_EXAMPLE_PROMPTS.forEach((prompt) => {
+      expect(prompt.charAt(0)).toMatch(/[A-Z]/);
+    });
   });
 });
 

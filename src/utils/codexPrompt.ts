@@ -1,7 +1,7 @@
 export const EXAMPLE_LESSON_PROMPTS = [
-  "show me Scholar's Mate",
-  "teach me the Italian",
-  "quiz me on forks",
+  "Show Scholar's Mate",
+  "Teach me the Italian",
+  "Quiz me on forks",
 ];
 
 export const CODEX_UNAVAILABLE_MESSAGE = "Codex is not available";
@@ -33,6 +33,35 @@ function looksLikeCodexHost(userAgent: string, brands: string[]): boolean {
   return /chatgpt|codex|electron/i.test(haystack);
 }
 
+export function currentPageHref(
+  href = typeof window !== "undefined" ? window.location.href : ""
+): string {
+  return (href || "").trim();
+}
+
+export function capitalizePrompt(prompt: string): string {
+  const trimmed = prompt.trim();
+  if (!trimmed) {
+    return "";
+  }
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+export function promptWithCurrentLocation(
+  prompt: string,
+  href = currentPageHref()
+): string {
+  const capitalized = capitalizePrompt(prompt);
+  const location = currentPageHref(href);
+  if (!capitalized) {
+    return "";
+  }
+  if (!location || capitalized.includes(location)) {
+    return capitalized;
+  }
+  return `${capitalized} using ${location}`;
+}
+
 export function isCodexHost(
   userAgentOrHints:
     | string
@@ -49,8 +78,8 @@ export function isCodexHost(
   return looksLikeCodexHost(userAgent, brands);
 }
 
-export function buildCodexPromptHref(prompt: string): string {
-  return `codex://new?prompt=${encodeURIComponent(prompt)}`;
+export function buildCodexPromptHref(prompt: string, href = currentPageHref()): string {
+  return `codex://new?prompt=${encodeURIComponent(promptWithCurrentLocation(prompt, href))}`;
 }
 
 export function openCodexPrompt(prompt: string): void {
@@ -78,7 +107,7 @@ export async function sharePromptWithHost(
     return "opened";
   }
   try {
-    return (await copyText(prompt)) ? "copied" : "failed";
+    return (await copyText(promptWithCurrentLocation(prompt))) ? "copied" : "failed";
   } catch {
     return "failed";
   }

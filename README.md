@@ -20,9 +20,9 @@ A persistent board, coach, and chess tools. Open [/chess](https://generative-lea
 
 ### Triangles
 
-![Triangle geometry learning surface](docs/triangles.png)
+![Triangles learning surface](docs/triangles.png)
 
-GAN constructions, a figure canvas, and geometry tools. Open [/triangles](https://generative-learning.vercel.app/triangles).
+GAN constructions, a figure canvas, and triangle tools. Open [/triangles](https://generative-learning.vercel.app/triangles).
 
 ## How it works
 

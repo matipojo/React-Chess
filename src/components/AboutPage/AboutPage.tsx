@@ -305,7 +305,7 @@ export default function AboutPage() {
                 ) : null}
               </div>
               <a href={appHref(TRIANGLES_PATH)}>
-                <strong>Geometry</strong>
+                <strong>Triangles</strong>
                 <span>Tools already in place</span>
               </a>
             </article>
@@ -488,7 +488,7 @@ export default function AboutPage() {
             </a>
             <a className="about-subject is-active" href={appHref(TRIANGLES_PATH)}>
               <span className="about-subject-icon">△</span>
-              <strong>Geometry</strong>
+              <strong>Triangles</strong>
               <span>Working demo. Available now.</span>
             </a>
             <div className="about-subject is-soon">

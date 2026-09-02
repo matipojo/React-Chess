@@ -1,5 +1,6 @@
 import { render, waitFor } from "@testing-library/react";
 import LessonCoach from "./LessonCoach";
+import { promptWithCurrentLocation } from "../../utils/codexPrompt";
 import { mockUserAgent, mockWindowOpen } from "./lessonCoachTestUtils";
 
 describe("LessonCoach wait-for-user", () => {
@@ -40,12 +41,14 @@ describe("LessonCoach wait-for-user", () => {
     expect(onWaitChoice).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(writeText).toHaveBeenCalledWith(
-        [
-          "The student answered a wait-for-user prompt. Continue from this choice.",
-          "Q: What do you want to learn today?",
-          "A: Scholar's Mate",
-          "action: scholars-mate",
-        ].join("\n")
+        promptWithCurrentLocation(
+          [
+            "The student answered a wait-for-user prompt. Continue from this choice.",
+            "Q: What do you want to learn today?",
+            "A: Scholar's Mate",
+            "action: scholars-mate",
+          ].join("\n")
+        )
       );
     });
   });

@@ -12,8 +12,8 @@ export const ITALIAN_GAME_ARROWS: BoardArrow[] = [
 export const ABOUT_DEMO_FIGURE_ID = "right-at-C";
 
 export const ABOUT_EXAMPLE_PROMPTS = [
-  "teach me this at my pace",
-  "explain it a different way",
-  "quiz me until I get it",
-  "let me try this myself",
+  "Show Scholar's Mate",
+  "Show a right triangle and the altitude to the hypotenuse",
+  "Teach me the Italian",
+  "Teach SAS congruence with two triangles",
 ];

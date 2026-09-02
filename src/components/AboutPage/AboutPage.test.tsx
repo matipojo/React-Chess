@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import AboutPage from "./AboutPage";
 import { BoardThemeProvider } from "../../hooks/useBoardTheme";
-import { CODEX_UNAVAILABLE_MESSAGE, COPIED_PROMPT_TIP } from "../../utils/codexPrompt";
+import { CODEX_UNAVAILABLE_MESSAGE, COPIED_PROMPT_TIP, promptWithCurrentLocation, buildCodexPromptHref } from "../../utils/codexPrompt";
 
 function renderAbout() {
   return render(
@@ -32,10 +32,11 @@ describe("AboutPage", () => {
       "/triangles"
     );
     expect(
-      getAllByRole("link", { name: /Geometry/ }).every(
+      getAllByRole("link", { name: /Triangles/ }).some(
         (link) => link.getAttribute("href") === "/triangles"
       )
     ).toBe(true);
+    expect(queryByText("Geometry")).toBeNull();
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeTruthy();
   });
@@ -50,14 +51,16 @@ describe("AboutPage", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     try {
       const { getByRole, getAllByRole } = renderAbout();
-      const button = getByRole("button", { name: "teach me this at my pace" });
+      const button = getByRole("button", { name: "Show Scholar's Mate" });
       expect(button.getAttribute("title")).toBe("Copy prompt");
       expect(button.querySelector(".about-example-copy")).toBeTruthy();
       button.click();
       await waitFor(() => {
-        expect(writeText).toHaveBeenCalledWith("teach me this at my pace");
+        expect(writeText).toHaveBeenCalledWith(
+          promptWithCurrentLocation("Show Scholar's Mate")
+        );
       });
-      expect(getByRole("button", { name: "teach me this at my pace" })).toBeTruthy();
+      expect(getByRole("button", { name: "Show Scholar's Mate" })).toBeTruthy();
       expect(getAllByRole("status").some((node) => node.textContent === COPIED_PROMPT_TIP)).toBe(
         true
       );
@@ -86,7 +89,9 @@ describe("AboutPage", () => {
       fireEvent.change(input, { target: { value: "explain it another way" } });
       getByLabelText("Start learning").click();
       await waitFor(() => {
-        expect(writeText).toHaveBeenCalledWith("explain it another way");
+        expect(writeText).toHaveBeenCalledWith(
+          promptWithCurrentLocation("explain it another way")
+        );
       });
       expect(
         getAllByRole("status").some(
@@ -112,13 +117,13 @@ describe("AboutPage", () => {
     window.open = open;
     try {
       const { getByRole } = renderAbout();
-      const link = getByRole("link", { name: "quiz me until I get it" });
+      const link = getByRole("link", { name: "Show a right triangle and the altitude to the hypotenuse" });
       expect(link.getAttribute("href")).toBe(
-        "codex://new?prompt=quiz%20me%20until%20I%20get%20it"
+        buildCodexPromptHref("Show a right triangle and the altitude to the hypotenuse")
       );
       link.click();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=quiz%20me%20until%20I%20get%20it",
+        buildCodexPromptHref("Show a right triangle and the altitude to the hypotenuse"),
         "_blank",
         "noopener"
       );
@@ -146,11 +151,11 @@ describe("AboutPage", () => {
       fireEvent.change(input, { target: { value: "slow down and explain that" } });
       const submit = getAllByLabelText("Start learning")[0];
       expect(submit.getAttribute("href")).toBe(
-        "codex://new?prompt=slow%20down%20and%20explain%20that"
+        buildCodexPromptHref("slow down and explain that")
       );
       submit.click();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=slow%20down%20and%20explain%20that",
+        buildCodexPromptHref("slow down and explain that"),
         "_blank",
         "noopener"
       );

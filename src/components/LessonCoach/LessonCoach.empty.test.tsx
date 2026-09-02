@@ -1,6 +1,6 @@
 import { render, waitFor } from "@testing-library/react";
 import LessonCoach from "./LessonCoach";
-import { COPIED_PROMPT_TIP } from "../../utils/codexPrompt";
+import { COPIED_PROMPT_TIP, buildCodexPromptHref, promptWithCurrentLocation } from "../../utils/codexPrompt";
 import { mockUserAgent, mockWindowOpen } from "./lessonCoachTestUtils";
 
 describe("LessonCoach empty state", () => {
@@ -14,9 +14,9 @@ describe("LessonCoach empty state", () => {
     expect(
       getByText(/Ask it to show you a line and it plays the moves live/)
     ).toBeTruthy();
-    expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
-    expect(getByRole("button", { name: "teach me the Italian" })).toBeTruthy();
-    expect(getByRole("button", { name: "quiz me on forks" })).toBeTruthy();
+    expect(getByRole("button", { name: "Show Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "Teach me the Italian" })).toBeTruthy();
+    expect(getByRole("button", { name: "Quiz me on forks" })).toBeTruthy();
   });
 
   it("opens example prompts with codex:// when the host is Codex", () => {
@@ -24,8 +24,8 @@ describe("LessonCoach empty state", () => {
     try {
       const { getByRole } = render(<LessonCoach coach={null} />);
       expect(
-        getByRole("link", { name: "show me Scholar's Mate" }).getAttribute("href")
-      ).toBe("codex://new?prompt=show%20me%20Scholar's%20Mate");
+        getByRole("link", { name: "Show Scholar's Mate" }).getAttribute("href")
+      ).toBe(buildCodexPromptHref("Show Scholar's Mate"));
     } finally {
       restore();
     }
@@ -38,13 +38,11 @@ describe("LessonCoach empty state", () => {
     const { open, restore: restoreOpen } = mockWindowOpen();
     try {
       const { getByRole } = render(<LessonCoach coach={null} />);
-      const link = getByRole("link", { name: "show me Scholar's Mate" });
-      expect(link.getAttribute("href")).toBe(
-        "codex://new?prompt=show%20me%20Scholar's%20Mate"
-      );
+      const link = getByRole("link", { name: "Show Scholar's Mate" });
+      expect(link.getAttribute("href")).toBe(buildCodexPromptHref("Show Scholar's Mate"));
       link.click();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=show%20me%20Scholar's%20Mate",
+        buildCodexPromptHref("Show Scholar's Mate"),
         "_blank",
         "noopener"
       );
@@ -60,11 +58,11 @@ describe("LessonCoach empty state", () => {
     );
     try {
       const { getByRole, queryByRole } = render(<LessonCoach coach={null} />);
-      const button = getByRole("button", { name: "show me Scholar's Mate" });
+      const button = getByRole("button", { name: "Show Scholar's Mate" });
       expect(button).toBeTruthy();
       expect(button.getAttribute("title")).toBe("Copy prompt");
       expect(button.querySelector(".lesson-coach-example-copy")).toBeTruthy();
-      expect(queryByRole("link", { name: "show me Scholar's Mate" })).toBeNull();
+      expect(queryByRole("link", { name: "Show Scholar's Mate" })).toBeNull();
     } finally {
       restore();
     }
@@ -78,12 +76,14 @@ describe("LessonCoach empty state", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     try {
       const { getByRole, getByText } = render(<LessonCoach coach={null} />);
-      getByRole("button", { name: "show me Scholar's Mate" }).click();
+      getByRole("button", { name: "Show Scholar's Mate" }).click();
       await waitFor(() => {
-        expect(writeText).toHaveBeenCalledWith("show me Scholar's Mate");
+        expect(writeText).toHaveBeenCalledWith(
+          promptWithCurrentLocation("Show Scholar's Mate")
+        );
         expect(getByText(COPIED_PROMPT_TIP)).toBeTruthy();
       });
-      expect(getByRole("button", { name: "show me Scholar's Mate" })).toBeTruthy();
+      expect(getByRole("button", { name: "Show Scholar's Mate" })).toBeTruthy();
     } finally {
       restore();
     }
