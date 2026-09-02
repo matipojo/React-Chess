@@ -1905,18 +1905,19 @@ export function useChessLessons({
     });
     rememberDraftLesson(created.number || null);
     setUserLessons(readUserCatalog());
+    restoreCustomLesson(created, { fromStart: true });
     logLessonDebug("visual", "create-lesson", {
       lesson: created.number,
       title: created.title,
     });
     return {
       success: true,
-      message: `Created catalog lesson ${created.number}: ${created.title}. Content only — the student's slider and live board were not changed. Next: add-lesson-step with lesson: ${created.number}. The student opens it from My lessons, then uses Next.`,
+      message: `Created lesson ${created.number}: ${created.title}. Student status is on the first panel (Goal). Next: add-lesson-step with lesson: ${created.number} — that stores later beats without moving the slider.`,
       lesson: created.number as number,
       title: created.title,
       screen: "goal" as const,
     };
-  }, [presentShowMeLesson, rememberDraftLesson]);
+  }, [presentShowMeLesson, rememberDraftLesson, restoreCustomLesson]);
 
   const addLessonStep = useCallback(
     async (args: {

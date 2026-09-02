@@ -101,6 +101,25 @@ describe("lesson document vs session", () => {
     expect(fenAfterTeaching(lesson, start).split(" ")[0]).toBe(start.split(" ")[0]);
   });
 
+  it("opens a title-only catalog lesson on a Goal panel", () => {
+    const start = boardToFen(startingLearnBoard());
+    const slides = projectLessonSession(
+      {
+        id: "custom:lesson-9",
+        kind: "custom",
+        title: "Italian Opening",
+        body: "",
+        savedAt: 1,
+        number: 9,
+        steps: [],
+      },
+      start
+    );
+    expect(slides).toHaveLength(1);
+    expect(slides[0].coach?.phase).toBe("goal");
+    expect(slides[0].coach?.title).toBe("Italian Opening");
+  });
+
   it("keeps riddle steps as riddles when projecting a session", () => {
     const start = boardToFen(startingLearnBoard());
     const lesson: SavedLesson = {

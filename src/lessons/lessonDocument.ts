@@ -109,7 +109,11 @@ export function contentLesson(
 }
 
 function hasGoalCopy(item: SavedLesson): boolean {
-  return Boolean(item.body || (item.paragraphs && item.paragraphs.length));
+  return Boolean(
+    item.body ||
+    (item.paragraphs && item.paragraphs.length) ||
+    (item.kind === "custom" && item.title)
+  );
 }
 
 export function lastTeachingSlideIndex(slides: LessonSessionSlide[]): number {

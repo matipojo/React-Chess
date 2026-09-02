@@ -357,7 +357,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "create-lesson",
         description:
-          "Create a new triangle catalog lesson. Shows the Goal (starts the student at slide 1). Later add-lesson-step writes catalog content only and must not move the slider. If the Goal names triangles such as △ABC and △DEF, they are placed on the canvas. GAN tokens stay Latin (△ABC, h(C,AB)). " +
+          "Create a new triangle catalog lesson. Stores the Goal and moves the student status to the first panel. Later add-lesson-step writes catalog content only and must not move the slider. If the Goal names triangles such as △ABC and △DEF, they are placed on the canvas. GAN tokens stay Latin (△ABC, h(C,AB)). " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",

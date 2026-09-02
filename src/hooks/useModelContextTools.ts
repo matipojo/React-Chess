@@ -420,7 +420,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson. type lesson (default): writes Goal copy into the saved lesson only. Does not move the student slider, board, coach, or quiz. Then add-lesson-step. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
+          'Create a new catalog lesson. type lesson (default): stores the Goal and moves the student status to the first panel. Later add-lesson-step writes content only and must not move the slider. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
