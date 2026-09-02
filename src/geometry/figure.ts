@@ -1,6 +1,7 @@
 import {
   add,
   angleBisectorDirection,
+  centroid,
   circumcenter,
   dist,
   footOfPerpendicular,
@@ -275,6 +276,18 @@ function constraintPosition(figure: Figure, constraint: PointConstraint): Vec | 
       return null;
     }
     return lineIntersection(a1, a2, b1, b2);
+  }
+  if (constraint.kind === "centroid") {
+    const a = figure.points[constraint.a];
+    const b = figure.points[constraint.b];
+    const c = figure.points[constraint.c];
+    if (!a || !b || !c) {
+      return null;
+    }
+    return centroid(a, b, c);
+  }
+  if (constraint.kind !== "bisect") {
+    return null;
   }
   const vertex = figure.points[constraint.vertex];
   const left = figure.points[constraint.left];

@@ -41,6 +41,10 @@ export function serializeTfn(figure: Figure): string {
         parts.push(
           `${name}=${p.constraint.a1}${p.constraint.a2}∩${p.constraint.b1}${p.constraint.b2}`
         );
+      } else if (p.constraint.kind === "centroid") {
+        parts.push(
+          `g(△${p.constraint.a}${p.constraint.b}${p.constraint.c})`
+        );
       }
     });
   figure.circles.forEach((c) => parts.push(c.id));

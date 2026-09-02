@@ -1,3 +1,5 @@
+import { Position } from "../models/Position";
+import { PieceType } from "../Types";
 import { boardToFen, startingLearnBoard } from "../utils/board-setup";
 import {
   applyMovesToBoard,
@@ -23,6 +25,25 @@ describe("step play buttons", () => {
       "b8:c6",
       "f1:c4",
     ]);
+  });
+
+  it("plays a long algebraic line onto the board", () => {
+    const board = startingLearnBoard();
+    expect(
+      applyMovesToBoard(board, [
+        "e2-e4",
+        "e7-e5",
+        "Qd1-h5",
+        "Nb8-c6",
+        "Bf1-c4",
+        "Ng8-f6",
+        "Qh5xf7",
+      ])
+    ).toBe(true);
+    const mateSquare = board.pieces.find((piece) =>
+      piece.samePosition(new Position(5, 6))
+    );
+    expect(mateSquare?.type).toBe(PieceType.QUEEN);
   });
 
   it("marks the first move ready and the second blocked before anything is played", () => {

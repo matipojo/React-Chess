@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
 import { Figure } from "../geometry/types";
-import { COACH_GAN_RULE } from "../geometry/notation";
+import { COACH_GAN_RULE, TRIANGLE_WAIT_TURN_RULE } from "../geometry/notation";
+import { missingQuizTargets } from "../geometry/hitTest";
 import { CoachState, QuizResult, QuizState } from "../lessons/types";
 import { parseLessonStepType, parseSummaryDraft } from "../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
-import { WAIT_TURN_RULE } from "../lessons/coachNotation";
 import {
   buildGiveMeAHintPrompt,
   buildHowToAskTheUserPrompt,
@@ -168,7 +168,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "apply-gan",
         description:
-          "Execute one GAN construction on the triangle figure and animate it with the cursor. Examples: △ABC, h(C,AB), m(A,BC), b(A), circ(ABC), inc(ABC), mark(90,C), fit(△ABC ≅ △DEF), rot(A,90,△ABC), move(C,1,2). Semicolons run a sequence. " +
+          "Execute one GAN construction on the triangle figure and animate it with the cursor. Examples: △ABC, h(C,AB), m(A,BC), g(△ABC), b(A), circ(ABC), inc(ABC), mark(90,C), fit(△ABC ≅ △DEF), rot(A,90,△ABC), move(C,1,2). Semicolons run a sequence. " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -364,7 +364,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "add-lesson-step",
         description:
-          "Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not change the live figure; why first, then the construction; student taps Play when they reach that slide. type riddle stores the puzzle — the student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next — state the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. " +
+          "Add ONE catalog item: a teaching Step or a Riddle. Fast teaching steps do not change the live figure; why first, then the construction; student taps Play when they reach that slide. type riddle stores the puzzle. The student solves it when they open that slide (do not wait here). A one-step lesson or riddle has no recap and no Back/Next. State the task only, never how to solve. Before a riddle, call how_to_offer_a_hint. After two or more teaching steps, the student sees Generating... on Next until you add-lesson-step or set-lesson-recap. Same lesson number. Never create-lesson again for the same topic. " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -398,7 +398,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
             correct: {
               type: "array",
               items: { type: "string" },
-              description: 'Required for type riddle. Acceptable GAN objects such as ["H", "∠C"].',
+              description: 'Required for type riddle. Acceptable GAN objects such as ["H", "G", "∠C"]. G is the centroid of △ABC even if that intersection is unlabeled.',
             },
             hint: {
               type: "string",
@@ -465,10 +465,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-lesson-recap",
         description:
-          "Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons or a riddle — those have no recap. Then how_to_ask_the_user. " +
+          "Write or replace the Recap screen after the last teaching step. Skip this for one-step lessons or a riddle. Those have no recap. Then how_to_ask_the_user. " +
           COACH_GAN_RULE +
           " " +
-          WAIT_TURN_RULE,
+          TRIANGLE_WAIT_TURN_RULE,
         inputSchema: {
           type: "object",
           properties: {
@@ -584,7 +584,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
             correct: {
               type: "array",
               items: { type: "string" },
-              description: 'Acceptable GAN objects such as ["H", "∠C"]',
+              description: 'Acceptable GAN objects such as ["H", "G", "∠C"]',
             },
             hint: {
               type: "string",
@@ -605,6 +605,18 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           if (!correct.length) {
             return { success: false, message: "Provide at least one correct GAN object", data: null };
           }
+          const missing = missingQuizTargets(actionsRef.current.getFigure(), correct);
+          if (missing.length) {
+            return {
+              success: false,
+              message: `${missing.join(", ")} ${
+                missing.length === 1 ? "is" : "are"
+              } not on the figure. Construct and label ${
+                missing.length === 1 ? "it" : "them"
+              } first (centroid: g(△ABC)).`,
+              data: null,
+            };
+          }
           const result = await actionsRef.current.lessons.askQuiz(
             {
               question: String(params.question || ""),
@@ -620,7 +632,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-page-background",
         description:
-          "Saves a custom page background for the currently selected board theme only (Classic or Purple). WebMCP tool arguments are JSON only — pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. Use clear: true to remove the image for the current theme only.",
+          "Saves a custom page background for the currently selected board theme only (Classic or Purple). WebMCP tool arguments are JSON only. Pass the picture as a data URL or raw base64 in `image`, or an http(s) `url`. Use clear: true to remove the image for the current theme only.",
         inputSchema: {
           type: "object",
           properties: {
@@ -665,7 +677,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
         inputSchema: { type: "object", properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const accent = readBoardChatAccent();
-          const prompt = buildGiveMeAHintPrompt(accent, CHAT_BUTTON_TEXT);
+          const prompt = buildGiveMeAHintPrompt(accent, CHAT_BUTTON_TEXT, "triangle");
           return {
             success: true,
             message: prompt,
@@ -677,11 +689,11 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
         name: "how_to_ask_the_user",
         description:
           "Returns instructions for asking the student in this chat with clickable visualization buttons, not a numbered list and not on the triangle page. Takes no arguments. Call this whenever you need them to choose what happens next, then follow the returned prompt exactly and stop. " +
-          WAIT_TURN_RULE,
+          TRIANGLE_WAIT_TURN_RULE,
         inputSchema: { type: "object", properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const accent = readBoardChatAccent();
-          const prompt = buildHowToAskTheUserPrompt(accent, CHAT_BUTTON_TEXT);
+          const prompt = buildHowToAskTheUserPrompt(accent, CHAT_BUTTON_TEXT, "triangle");
           return {
             success: true,
             message: prompt,

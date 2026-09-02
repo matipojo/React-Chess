@@ -78,7 +78,10 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
     };
 
     const animateMove = (from: Position, to: Position, _team: 'w' | 'b') => {
-      if (!chessboardRef.current) return;
+      if (!chessboardRef.current) {
+        onAnimationComplete?.();
+        return;
+      }
 
       if (timersRef.current.length > 0 || handElementRef.current) {
         cancel();
@@ -196,6 +199,7 @@ const SimpleHandAnimation = React.forwardRef<SimpleHandAnimationRef, SimpleHandA
         originalPiece.style.visibility = 'visible';
         cleanupVisuals();
         setIsAnimating(false);
+        onAnimationComplete?.();
       }
     };
 

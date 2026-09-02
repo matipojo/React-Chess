@@ -27,7 +27,7 @@ export const SITE_NAV: SiteNavItem[] = [
     available: true,
     inSubnav: true,
     description:
-      "Working chess learning app — linked from this home page's sub-navigation. Interactive board, coach, and chess WebMCP tools. Open this page before teaching chess.",
+      "Working chess learning app, linked from this home page's sub-navigation. Interactive board, coach, and chess WebMCP tools. Open this page before teaching chess.",
   },
   {
     id: "triangles",
@@ -36,7 +36,7 @@ export const SITE_NAV: SiteNavItem[] = [
     available: true,
     inSubnav: true,
     description:
-      "Working triangle geometry app — GAN constructions, figure canvas, and geometry WebMCP tools. Open this page before teaching bagrut triangles.",
+      "Working triangle geometry app: GAN constructions, figure canvas, and geometry WebMCP tools. Open this page before teaching bagrut triangles.",
   },
   {
     id: "circuits",

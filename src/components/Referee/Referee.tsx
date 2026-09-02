@@ -188,7 +188,12 @@ export default function Referee() {
       to: coordinatesToNotation(to.x, to.y),
       team,
     });
-    chessboardHandleRef.current?.animateMove(from, to, team, onComplete);
+    const handle = chessboardHandleRef.current;
+    if (!handle) {
+      onComplete?.();
+      return;
+    }
+    handle.animateMove(from, to, team, onComplete);
   }, []);
 
   const cancelMoveAnimation = useCallback(() => {

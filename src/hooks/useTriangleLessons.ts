@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { allObjectIds, cloneFigure, defaultScalene, figuresEqual, moveFreePoint } from "../geometry/figure";
 import { applyGan, parseGanCommand } from "../geometry/gan";
-import { ganAnswerIsCorrect } from "../geometry/hitTest";
+import { ganAnswerIsCorrect, missingQuizTargets } from "../geometry/hitTest";
 import { figureSummary, measureFigure } from "../geometry/measure";
 import { COACH_GAN_RULE } from "../geometry/notation";
 import { coachPlayGan, resolveStepGan } from "../geometry/stepPlay";
@@ -19,9 +19,9 @@ import {
 } from "../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
+  formatFigureQuizIncorrectFeedback,
+  formatFigureQuizTimeoutFeedback,
   formatQuizCorrectFeedback,
-  formatQuizIncorrectFeedback,
-  formatQuizTimeoutFeedback,
   QUIZ_TIMEOUT_MS,
   QUIZ_TIMEOUT_SECONDS,
 } from "../lessons/quizCopy";
@@ -79,6 +79,23 @@ function fallbackPointerAnimation(before: Figure, after: Figure): FigureAnimatio
 
 function cloneCoach(coach: CoachState | null): CoachState | null {
   return coach ? { ...coach, paragraphs: coach.paragraphs ? [...coach.paragraphs] : undefined, moves: coach.moves ? [...coach.moves] : undefined } : null;
+}
+
+function revealQuizTargets(figure: Figure, correct: string[]): Figure {
+  let next = cloneFigure(figure);
+  const wantsCentroid = correct.some((token) => {
+    const n = token.trim().replace(/\s/g, "");
+    return n === "G" || /^g\(△?[A-Z]{3}\)$/i.test(n);
+  });
+  if (wantsCentroid && !next.points.G && next.triangles[0]) {
+    const tri = next.triangles[0];
+    const labeled = applyGan(next, "g(△" + tri.join("") + ")");
+    if (!labeled.error) {
+      next = labeled.figure;
+    }
+  }
+  next.highlights = correct.slice();
+  return next;
 }
 
 function applyRightMarks(figure: Figure, what?: string, moves?: string[]): Figure {
@@ -264,11 +281,8 @@ export function useTriangleLessons(options?: {
     if (correct) {
       setQuizFeedback(formatQuizCorrectFeedback());
     } else {
-      setQuizFeedback(formatQuizIncorrectFeedback(current.correct));
-      applyFigure({
-        ...figureRef.current,
-        highlights: current.correct.slice(),
-      });
+      setQuizFeedback(formatFigureQuizIncorrectFeedback(current.correct));
+      applyFigure(revealQuizTargets(figureRef.current, current.correct));
     }
     quizResolverRef.current?.({ correct, square: id });
     quizResolverRef.current = null;
@@ -286,11 +300,8 @@ export function useTriangleLessons(options?: {
       quizResolverRef.current = resolve;
       quizTimerRef.current = window.setTimeout(() => {
         setQuiz((current) => current ? { ...current, answered: true, timedOut: true } : current);
-        setQuizFeedback(formatQuizTimeoutFeedback(nextQuiz.correct));
-        applyFigure({
-          ...figureRef.current,
-          highlights: nextQuiz.correct.slice(),
-        });
+        setQuizFeedback(formatFigureQuizTimeoutFeedback(nextQuiz.correct));
+        applyFigure(revealQuizTargets(figureRef.current, nextQuiz.correct));
         resolve({ correct: false, square: "", timedOut: true });
         quizResolverRef.current = null;
         clearQuizTimers();
@@ -403,7 +414,15 @@ export function useTriangleLessons(options?: {
       });
       if (isRiddle) {
         if (!question || !correct.length) {
-          return failed("A riddle needs question and at least one correct GAN object (∠C, H, AB).");
+          return failed("A riddle needs question and at least one correct GAN object (∠C, H, AB, G).");
+        }
+        const missing = missingQuizTargets(figureRef.current, correct);
+        if (missing.length) {
+          return failed(
+            `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} not on the figure. Construct and label ${
+              missing.length === 1 ? "it" : "them"
+            } first (centroid: g(△ABC)) so the student can click ${missing.length === 1 ? "it" : "them"}.`
+          );
         }
       } else if (!args.title.trim() || !(args.why || "").trim() || !(args.what || "").trim()) {
         return failed("Each step needs title, why, and what (GAN construction).");
