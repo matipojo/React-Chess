@@ -723,6 +723,32 @@
   line-height: 1.5;
 }
 
+.about-footer-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.about-footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--about-muted);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.about-footer-github:hover {
+  color: var(--about-accent);
+}
+
+.about-footer-github svg {
+  width: 18px;
+  height: 18px;
+}
+
 .about-footer-credit {
   margin: 0;
   color: var(--about-muted);
