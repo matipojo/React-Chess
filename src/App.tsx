@@ -8,11 +8,13 @@ import Referee from './components/Referee/Referee';
 import TriangleSurface from './components/TriangleSurface/TriangleSurface';
 import { BoardThemeProvider, useBoardTheme } from './hooks/useBoardTheme';
 import { useAppRoute } from './hooks/useAppRoute';
+import { usePageIdentity } from './hooks/usePageIdentity';
 import { cssBackgroundImage } from './utils/pageBackground';
 
 function AppShell() {
   const { theme, customBackground } = useBoardTheme();
   const route = useAppRoute();
+  usePageIdentity(route);
 
   if (route === "about") {
     return <AboutPage />;

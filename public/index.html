@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="%PUBLIC_URL%/favicon-home.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta
@@ -25,6 +25,29 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Generative Learning</title>
+    <script>
+      (function () {
+        var base = "%PUBLIC_URL%";
+        if (base === "." || base === "/") base = "";
+        else if (base.charAt(base.length - 1) === "/") base = base.slice(0, -1);
+        var path = (location.pathname || "/").toLowerCase();
+        var file = "/favicon-home.svg";
+        var title = "Generative Learning";
+        if (path.indexOf("/triangles") !== -1) {
+          file = "/favicon-triangles.svg";
+          title = "Triangles \u00b7 Generative Learning";
+        } else if (path.indexOf("/chess") !== -1) {
+          file = "/favicon-chess.svg";
+          title = "Chess \u00b7 Generative Learning";
+        }
+        document.title = title;
+        var el = document.getElementById("app-favicon");
+        if (el) {
+          el.setAttribute("type", "image/svg+xml");
+          el.setAttribute("href", base + file);
+        }
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
