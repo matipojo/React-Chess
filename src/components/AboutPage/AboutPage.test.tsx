@@ -53,6 +53,10 @@ describe("AboutPage", () => {
     expect(getByText("Choose a subject")).toBeTruthy();
     expect(getByText("Open the chessboard")).toBeTruthy();
     expect(getByText("Open the canvas")).toBeTruthy();
+    expect(getByRole("button", { name: "Invent an American opening" })).toBeTruthy();
+    expect(
+      getByRole("button", { name: "Teach me about two different triangles that share the same base" })
+    ).toBeTruthy();
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeTruthy();
     const github = getByRole("link", { name: "GitHub" });

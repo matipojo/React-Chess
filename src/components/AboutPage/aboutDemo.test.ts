@@ -41,7 +41,9 @@ describe("about demo position", () => {
   it("uses mixed chess and triangle prompts with a capital first letter", () => {
     expect(ABOUT_EXAMPLE_PROMPTS).toEqual([
       "Show Scholar's Mate",
+      "Invent an American opening",
       "Show a right triangle and the altitude to the hypotenuse",
+      "Teach me about two different triangles that share the same base",
       "Teach me the Italian opening",
       "Teach SAS congruence with two triangles",
     ]);

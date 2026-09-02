@@ -1,4 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
+import { TRIANGLE_EXAMPLE_PROMPTS } from "../../geometry/notation";
 import LessonCoach from "./LessonCoach";
 import { COPIED_PROMPT_TIP, buildCodexPromptHref, promptWithCurrentLocation } from "../../utils/codexPrompt";
 import { mockUserAgent, mockWindowOpen } from "./lessonCoachTestUtils";
@@ -15,8 +16,21 @@ describe("LessonCoach empty state", () => {
       getByText(/Ask it to show you a line and it plays the moves live/)
     ).toBeTruthy();
     expect(getByRole("button", { name: "Show Scholar's Mate" })).toBeTruthy();
+    expect(getByRole("button", { name: "Invent an American opening" })).toBeTruthy();
     expect(getByRole("button", { name: "Teach me the Italian opening" })).toBeTruthy();
     expect(getByRole("button", { name: "Quiz me on forks" })).toBeTruthy();
+  });
+
+  it("shows triangle example prompts when provided", () => {
+    const { getByRole } = render(
+      <LessonCoach coach={null} examplePrompts={TRIANGLE_EXAMPLE_PROMPTS} />
+    );
+    expect(TRIANGLE_EXAMPLE_PROMPTS[1]).toBe(
+      "Teach me about two different triangles that share the same base"
+    );
+    TRIANGLE_EXAMPLE_PROMPTS.forEach((prompt) => {
+      expect(getByRole("button", { name: prompt })).toBeTruthy();
+    });
   });
 
   it("opens example prompts with codex:// when the host is Codex", () => {
