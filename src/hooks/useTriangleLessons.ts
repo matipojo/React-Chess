@@ -7,6 +7,7 @@ import { COACH_GAN_RULE } from "../geometry/notation";
 import { coachPlayGan, resolveStepGan } from "../geometry/stepPlay";
 import { FIGURE_TEMPLATES, figureFromTemplate, startFigure, templateNames } from "../geometry/templates";
 import { parseTfn, serializeTfn } from "../geometry/tfn";
+import { figureTransitionAnimation } from "../geometry/figureTransition";
 import { Figure, FigureAnimation, Vec } from "../geometry/types";
 import {
   coachFromDraft,
@@ -145,6 +146,7 @@ export function useTriangleLessons(options?: {
   const quizTimerRef = useRef<number | null>(null);
   const quizTickRef = useRef<number | null>(null);
   const animTimerRef = useRef<number | null>(null);
+  const animGenRef = useRef(0);
   const playPointerRef = useRef(options?.playPointer);
   playPointerRef.current = options?.playPointer;
   const cancelPointerRef = useRef(options?.cancelPointer);
@@ -200,6 +202,44 @@ export function useTriangleLessons(options?: {
     quizRef.current = snap.quiz;
     setQuiz(snap.quiz);
   }, [applyFigure]);
+
+  const restoreWithAnimation = useCallback((snap: Snapshot, nextIndex: number, length: number) => {
+    const token = ++animGenRef.current;
+    const finish = () => {
+      if (animTimerRef.current) {
+        window.clearTimeout(animTimerRef.current);
+        animTimerRef.current = null;
+      }
+      if (animGenRef.current !== token) {
+        return;
+      }
+      restoreSnapshot(snap);
+      publishHistory(nextIndex, length);
+      setAnimation(null);
+      setAnimating(false);
+    };
+    const animation = figureTransitionAnimation(figureRef.current, snap.figure);
+    if (!animation || !playPointerRef.current) {
+      finish();
+      return;
+    }
+    setAnimating(true);
+    setAnimation(animation);
+    let settled = false;
+    const done = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      finish();
+    };
+    animTimerRef.current = window.setTimeout(done, 4000);
+    try {
+      playPointerRef.current(animation, done);
+    } catch {
+      done();
+    }
+  }, [publishHistory, restoreSnapshot]);
 
   const clearQuizTimers = useCallback(() => {
     if (quizTimerRef.current) {
@@ -275,6 +315,7 @@ export function useTriangleLessons(options?: {
       window.clearTimeout(animTimerRef.current);
       animTimerRef.current = null;
     }
+    animGenRef.current += 1;
     cancelPointerRef.current?.();
     if (options?.resetFigure !== false) {
       applyFigure(startFigure("scalene"));
@@ -702,8 +743,7 @@ export function useTriangleLessons(options?: {
     }
     if (historyIndexRef.current > 0) {
       const nextIndex = historyIndexRef.current - 1;
-      restoreSnapshot(historyRef.current[nextIndex]);
-      publishHistory(nextIndex, historyRef.current.length);
+      restoreWithAnimation(historyRef.current[nextIndex], nextIndex, historyRef.current.length);
       return;
     }
     const item =
@@ -717,7 +757,7 @@ export function useTriangleLessons(options?: {
     if (prev >= 0) {
       showCatalogStep(item, prev, true);
     }
-  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
+  }, [animating, restoreWithAnimation, showCatalogStep]);
 
   const stepNext = useCallback(() => {
     if (animating) {
@@ -725,8 +765,7 @@ export function useTriangleLessons(options?: {
     }
     if (historyIndexRef.current >= 0 && historyIndexRef.current < historyRef.current.length - 1) {
       const nextIndex = historyIndexRef.current + 1;
-      restoreSnapshot(historyRef.current[nextIndex]);
-      publishHistory(nextIndex, historyRef.current.length);
+      restoreWithAnimation(historyRef.current[nextIndex], nextIndex, historyRef.current.length);
       return;
     }
     const item =
@@ -741,7 +780,7 @@ export function useTriangleLessons(options?: {
     if (next < total) {
       showCatalogStep(item, next, true);
     }
-  }, [animating, publishHistory, restoreSnapshot, showCatalogStep]);
+  }, [animating, restoreWithAnimation, showCatalogStep]);
 
   const stepFirst = useCallback(() => {
     if (animating) {

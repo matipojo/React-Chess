@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { circleGeometry, cloneFigure, moveFreePoint, oppositeVertex, pointVec, rotateNamed, segmentKey } from "../../geometry/figure";
 import { idsMatchHighlight, isAngleHighlighted } from "../../geometry/hitTest";
 import { dist, midpoint, unit, sub, add, scale, cross } from "../../geometry/math";
+import { remainingDrawEnd, strokeMatchesDraw } from "../../geometry/figureTransition";
 import { animationPointerPath } from "../../geometry/pointerPath";
 import { Figure, FigureAnimation, Vec } from "../../geometry/types";
 import PointerHandAnimation, { PointerHandHandle } from "../PointerHand/PointerHandAnimation";
@@ -540,18 +541,28 @@ const GeometryCanvas = React.forwardRef<GeometryCanvasHandle, Props>(function Ge
           ]
             .filter(Boolean)
             .join(" ");
+          const undoing =
+            liveAnimation &&
+            liveAnimation.type === "draw" &&
+            liveAnimation.reverse &&
+            strokeMatchesDraw(a, b, liveAnimation.from, liveAnimation.to);
+          const start = undoing && liveAnimation.type === "draw" ? liveAnimation.from : a;
+          const end =
+            undoing && liveAnimation.type === "draw"
+              ? remainingDrawEnd(liveAnimation, previewT)
+              : b;
           return (
             <line
               key={index}
               className={cls}
-              x1={a.x}
-              y1={-a.y}
-              x2={b.x}
-              y2={-b.y}
+              x1={start.x}
+              y1={-start.y}
+              x2={end.x}
+              y2={-end.y}
             />
           );
         })}
-        {ink && (
+        {ink && !(liveAnimation && liveAnimation.type === "draw" && liveAnimation.reverse) && (
           <line
             className="geometry-stroke is-dashed"
             x1={ink.from.x}

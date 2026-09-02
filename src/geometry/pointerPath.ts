@@ -5,7 +5,13 @@ export function animationPointerPath(
   animation: FigureAnimation,
   figure: Figure
 ): { from: Vec; to: Vec; grab: boolean } | null {
-  if (animation.type === "draw" || animation.type === "move") {
+  if (animation.type === "draw") {
+    if (animation.reverse) {
+      return { from: animation.to, to: animation.from, grab: true };
+    }
+    return { from: animation.from, to: animation.to, grab: true };
+  }
+  if (animation.type === "move") {
     return { from: animation.from, to: animation.to, grab: true };
   }
   if (animation.type === "rotate") {

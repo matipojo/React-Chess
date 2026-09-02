@@ -78,7 +78,7 @@ export type GhostFigure = {
 };
 
 export type FigureAnimation =
-  | { type: "draw"; from: Vec; to: Vec }
+  | { type: "draw"; from: Vec; to: Vec; reverse?: boolean }
   | { type: "move"; name: string; from: Vec; to: Vec }
   | { type: "rotate"; around: Vec; aroundName: string; names: string[]; deg: number }
   | { type: "fit" };
