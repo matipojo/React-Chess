@@ -13,13 +13,16 @@ import {
   TRIANGLES_PATH,
   appHref,
 } from "../../utils/appRoute";
+import { useHomePageTools } from "../../hooks/useHomePageTools";
 import {
   buildCodexPromptHref,
   CODEX_UNAVAILABLE_MESSAGE,
+  COPIED_PROMPT_TIP,
   isCodexHost,
   openCodexPrompt,
   sharePromptWithHost,
 } from "../../utils/codexPrompt";
+import { CopiedCheckIcon, CopyIcon } from "../LessonCoach/LessonCoachIcons";
 import "../LessonCoach/LessonCoach.css";
 import "../../board-themes.css";
 import "./AboutPage.css";
@@ -159,25 +162,49 @@ function ExamplePrompts() {
               {prompt}
             </a>
           ) : (
-            <button
-              key={prompt}
-              type="button"
-              className="about-example"
-              onClick={async () => {
-                const result = await shareLessonPrompt(prompt);
-                if (result !== "copied") {
-                  return;
+            <span key={prompt} className="about-example-wrap">
+              <button
+                type="button"
+                className={
+                  copiedId === prompt ? "about-example is-copied" : "about-example"
                 }
-                setCopiedId(prompt);
-                setStatus(CODEX_UNAVAILABLE_MESSAGE);
-                window.setTimeout(() => {
-                  setCopiedId("");
-                  setStatus("");
-                }, 2500);
-              }}
-            >
-              {copiedId === prompt ? "Copied" : prompt}
-            </button>
+                title="Copy prompt"
+                aria-describedby={
+                  copiedId === prompt ? "about-copied-tip" : undefined
+                }
+                onClick={async () => {
+                  const result = await shareLessonPrompt(prompt);
+                  if (result !== "copied") {
+                    return;
+                  }
+                  setCopiedId(prompt);
+                  setStatus(CODEX_UNAVAILABLE_MESSAGE);
+                  window.setTimeout(() => {
+                    setCopiedId("");
+                    setStatus("");
+                  }, 5500);
+                }}
+              >
+                <span className="about-example-copy" aria-hidden="true">
+                  <CopyIcon />
+                </span>
+                {prompt}
+              </button>
+              {copiedId === prompt ? (
+                <>
+                  <span className="about-example-mark" aria-hidden="true">
+                    <CopiedCheckIcon />
+                  </span>
+                  <span
+                    id="about-copied-tip"
+                    className="about-example-tip"
+                    role="status"
+                  >
+                    {COPIED_PROMPT_TIP}
+                  </span>
+                </>
+              ) : null}
+            </span>
           )
         )}
       </div>
@@ -205,6 +232,8 @@ function MiniBoard() {
 }
 
 export default function AboutPage() {
+  useHomePageTools();
+
   return (
     <div className="about-page">
       <header className="about-header">
@@ -212,9 +241,17 @@ export default function AboutPage() {
           <LogoMark />
           <span>Living Learning Surfaces</span>
         </a>
-        <a className="about-header-link" href={appHref(CHESS_PATH)}>
-          Open the board
-        </a>
+        <nav className="about-subnav" aria-label="Learning surfaces">
+          <a href={appHref(ABOUT_PATH)} aria-current="page">
+            Home
+          </a>
+          <a className="about-subnav-chess" href={appHref(CHESS_PATH)}>
+            Chess
+          </a>
+          <a className="about-subnav-triangles" href={appHref(TRIANGLES_PATH)}>
+            Triangles
+          </a>
+        </nav>
       </header>
 
       <main>
