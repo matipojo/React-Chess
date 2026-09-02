@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import AboutPage from "./AboutPage";
 import { BoardThemeProvider } from "../../hooks/useBoardTheme";
-import { CODEX_UNAVAILABLE_MESSAGE } from "../../utils/codexPrompt";
+import { CODEX_UNAVAILABLE_MESSAGE, COPIED_PROMPT_TIP } from "../../utils/codexPrompt";
 
 function renderAbout() {
   return render(
@@ -23,8 +23,11 @@ describe("AboutPage", () => {
     expect(getByText("Not the canvas.")).toBeTruthy();
     expect(getByText("Italian Game")).toBeTruthy();
     expect(getByText("3. Bc4")).toBeTruthy();
-    expect(getByRole("link", { name: "Open the board" }).getAttribute("href")).toBe(
-      "/chess"
+    const nav = getByRole("navigation", { name: "Learning surfaces" });
+    expect(nav.querySelector('a[aria-current="page"]')?.textContent).toMatch(/Home/);
+    expect(nav.querySelector(".about-subnav-chess")?.getAttribute("href")).toBe("/chess");
+    expect(nav.querySelector(".about-subnav-triangles")?.getAttribute("href")).toBe(
+      "/triangles"
     );
     expect(getByRole("link", { name: /Geometry/ }).getAttribute("href")).toBe(
       "/triangles"
@@ -44,10 +47,17 @@ describe("AboutPage", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     try {
       const { getByRole, getAllByRole } = renderAbout();
-      getByRole("button", { name: "teach me the Italian Game" }).click();
+      const button = getByRole("button", { name: "teach me the Italian Game" });
+      expect(button.getAttribute("title")).toBe("Copy prompt");
+      expect(button.querySelector(".about-example-copy")).toBeTruthy();
+      button.click();
       await waitFor(() => {
         expect(writeText).toHaveBeenCalledWith("teach me the Italian Game");
       });
+      expect(getByRole("button", { name: "teach me the Italian Game" })).toBeTruthy();
+      expect(getAllByRole("status").some((node) => node.textContent === COPIED_PROMPT_TIP)).toBe(
+        true
+      );
       expect(getAllByRole("status").some((node) => node.textContent === CODEX_UNAVAILABLE_MESSAGE)).toBe(
         true
       );
@@ -147,6 +157,52 @@ describe("AboutPage", () => {
         configurable: true,
         get: () => original,
       });
+    }
+  });
+
+  it("registers list-pages and open-page so an agent can find Chess and open it", async () => {
+    const registered: Array<{
+      name: string;
+      execute: (params: Record<string, unknown>) => Promise<{
+        success: boolean;
+        message: string;
+        data: unknown;
+      }>;
+    }> = [];
+    const modelContext = {
+      provideContext: ({ tools }: { tools: typeof registered }) => {
+        registered.splice(0, registered.length, ...tools);
+      },
+      clearContext: () => {
+        registered.length = 0;
+      },
+    };
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: modelContext,
+    });
+    window.history.pushState({}, "", "/about");
+    try {
+      const { unmount } = renderAbout();
+      expect(registered.map((tool) => tool.name)).toEqual(["list-pages", "open-page"]);
+      const listed = await registered[0].execute({});
+      expect(listed.success).toBe(true);
+      expect(listed.message).toMatch(/sub-navigation includes Chess/i);
+      const data = listed.data as {
+        currentPage: string;
+        subnav: Array<{ id: string; available: boolean }>;
+      };
+      expect(data.currentPage).toBe("about");
+      expect(data.subnav.some((item) => item.id === "chess" && item.available)).toBe(true);
+      expect(data.subnav.some((item) => item.id === "triangles" && item.available)).toBe(true);
+      const opened = await registered[1].execute({ page: "chess" });
+      expect(opened.success).toBe(true);
+      expect(window.location.pathname).toBe("/chess");
+      unmount();
+      expect(registered).toEqual([]);
+    } finally {
+      delete (document as { modelContext?: unknown }).modelContext;
+      window.history.pushState({}, "", "/");
     }
   });
 });
