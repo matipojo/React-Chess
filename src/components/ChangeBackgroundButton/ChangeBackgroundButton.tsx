@@ -22,7 +22,7 @@ function ImageIcon() {
 }
 
 const COPIED_MESSAGE =
-  "Prompt copied. Paste it to your agent to generate a custom background image.";
+  "Prompt copied. Paste it to your AI agent to generate a custom background image.";
 
 export default function ChangeBackgroundButton() {
   const { theme } = useBoardTheme();

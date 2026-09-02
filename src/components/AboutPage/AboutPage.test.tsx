@@ -39,10 +39,14 @@ describe("AboutPage", () => {
     expect(queryByText("A different approach")).toBeNull();
     expect(
       getAllByText(
-        "We build the learning surface once. AI personalizes the lesson endlessly."
+        "We build the learning surface once. Your AI agent personalizes the lesson endlessly."
       )
     ).toHaveLength(2);
     expect(getByText("You learn on a real chessboard or triangle canvas — not in a chat.")).toBeTruthy();
+    expect(getByText(/Your AI agent teaches you there/)).toBeTruthy();
+    expect(getByText("You and your AI agent share this board")).toBeTruthy();
+    expect(queryByText("AI Tutor")).toBeNull();
+    expect(queryByText("The AI teaches you there, and the lesson follows you.")).toBeNull();
     expect(getByText("Learn here, not in a chat")).toBeTruthy();
     expect(getByText("Open a board")).toBeTruthy();
     expect(getByText("Ask for a lesson")).toBeTruthy();
