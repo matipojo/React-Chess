@@ -257,9 +257,11 @@ export default function AboutPage() {
 
       <main>
         <section className="about-hero">
+          <p className="about-kicker">
+            Build the learning surface once. Personalize the lesson endlessly.
+          </p>
           <h1>
-            Build the learning surface once.{" "}
-            <span>Personalize the lesson endlessly.</span>
+            Generate the learning. <span>Not the canvas.</span>
           </h1>
           <p className="about-lede">
             We build the learning environment once, and let AI generate the

@@ -20,7 +20,8 @@ describe("AboutPage", () => {
   it("renders the generative learning pitch and example surfaces", () => {
     const { getByText, getByRole, getAllByRole, getAllByText, queryByText, container } = renderAbout();
     expect(getByRole("link", { name: "Generative Learning" })).toBeTruthy();
-    expect(getByRole("heading", { name: /Personalize the lesson endlessly/ })).toBeTruthy();
+    expect(getAllByText("Build the learning surface once. Personalize the lesson endlessly.").length).toBeGreaterThan(0);
+    expect(getByRole("heading", { name: /Not the canvas/ })).toBeTruthy();
     expect(getByText(/professional, persistent surface/i)).toBeTruthy();
     expect(getAllByText(/doesn't build the interface/i).length).toBeGreaterThan(0);
     expect(queryByText("Italian Game")).toBeNull();

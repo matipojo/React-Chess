@@ -16,7 +16,7 @@ describe("App routes", () => {
   it("shows the home page by default", () => {
     setPath("/");
     const { getByRole, container, unmount } = render(<App />);
-    expect(getByRole("heading", { name: /Personalize the lesson endlessly/ })).toBeTruthy();
+    expect(getByRole("heading", { name: /Not the canvas/ })).toBeTruthy();
     expect(getByRole("link", { name: "Generative Learning" }).getAttribute("href")).toBe("/");
     const nav = getByRole("navigation", { name: "Learning surfaces" });
     expect(nav.querySelector(".about-subnav-chess")?.getAttribute("href")).toBe(CHESS_PATH);
@@ -54,7 +54,7 @@ describe("App routes", () => {
   it("treats /about as the home page", () => {
     setPath("/about");
     const { getByRole, unmount } = render(<App />);
-    expect(getByRole("heading", { name: /Personalize the lesson endlessly/ })).toBeTruthy();
+    expect(getByRole("heading", { name: /Not the canvas/ })).toBeTruthy();
     unmount();
   });
 
@@ -73,13 +73,13 @@ describe("App routes", () => {
     });
     setPath("/");
     const { findByRole, queryByRole } = render(<App />);
-    expect(queryByRole("heading", { name: /Personalize the lesson endlessly/ })).toBeTruthy();
+    expect(queryByRole("heading", { name: /Not the canvas/ })).toBeTruthy();
     const openPage = registered.find((tool) => tool.name === "open-page");
     expect(openPage).toBeTruthy();
     await act(async () => {
       await openPage!.execute({ page: "chess" });
     });
     expect(await findByRole("heading", { name: "Generative Learning" })).toBeTruthy();
-    expect(queryByRole("heading", { name: /Personalize the lesson endlessly/ })).toBeNull();
+    expect(queryByRole("heading", { name: /Not the canvas/ })).toBeNull();
   });
 });

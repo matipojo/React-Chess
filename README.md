@@ -1,85 +1,62 @@
-# React Chess with WebMCP
+# Generative Learning
 
-A chess game that exposes its tools via the new [WebMCP](https://developer.chrome.com/blog/webmcp-epp) API, allowing AI assistants to play chess through `navigator.modelContext`.
+**Generate the learning. Not the canvas.**
 
-## Live Demo
+Build the learning surface once. Personalize the lesson endlessly.
 
-**[Play it on GitHub Pages](https://matipojo.github.io/WebMCP-React-Chess)**
+We build a professional, persistent learning environment for the subject, with the right tools already in place. AI generates the lesson *inside* that surface — it does not invent a throwaway canvas — and personalizes pace, explanations, and practice in real time.
 
-> Requires [Chrome Canary](https://www.google.com/chrome/canary/) with `chrome://flags/#enable-webmcp-testing` enabled.
+**[Live demo](https://generative-learning.vercel.app/)**
 
-## MCP Tools
+> Teaching tools work in [Codex on ChatGPT desktop](https://learn.chatgpt.com/docs/webmcp), or in [Chrome](https://www.google.com/chrome/) with `chrome://flags/#enable-webmcp-testing` enabled.
 
-When `navigator.modelContext` is available, the app registers these tools that any AI assistant can call:
+## Working surfaces
 
-| Tool | Description |
-|------|-------------|
-| `get-board-state` | Returns all piece positions, current turn, and game status |
-| `make-move` | Makes a move using notation like `"e2:e4"` |
-| `get-possible-moves` | Lists legal moves for a piece at a given position |
-| `restart-game` | Resets the board to the starting position |
-| `promote-pawn` | Promotes a pawn to queen, rook, bishop, or knight |
+### Chess
 
-### How it works
+![Chess learning surface](docs/chess.png)
 
-A single React hook (`src/hooks/useModelContextTools.ts`) registers all chess tools with `navigator.modelContext.provideContext()`. Each tool directly calls the game's state and actions — no wrappers, no globals, no indirection.
+A persistent board, coach, and chess tools. Open [/chess](https://generative-learning.vercel.app/chess).
+
+### Triangles
+
+![Triangle geometry learning surface](docs/triangles.png)
+
+GAN constructions, a figure canvas, and geometry tools. Open [/triangles](https://generative-learning.vercel.app/triangles).
+
+## How it works
+
+Each surface registers subject tools on `document.modelContext` (WebMCP). The AI does not build the interface — it creates the lesson inside it, then guides the learner through it.
 
 ```
-Referee component (game state)
-    ↓ passes board + actions
-useModelContextTools hook
-    ↓ registers tools on
-navigator.modelContext
-    ↓ AI assistant calls tools
+Home  →  open-page(chess | triangles)
+             ↓
+      subject surface + tools
+             ↓
+      AI teaches on that surface
 ```
 
----
+### Chess tools
 
-## Original Repo
+`get-board-state`, `make-move`, `get-possible-moves`, `set-position`, `annotate-board`, `create-lesson`, `add-lesson-step`, `enter-learn-mode`, and others on the chess page.
 
----
+### Triangle tools
 
-This chess game is based on [React-Chess](https://github.com/szabolcsthedeveloper/React-Chess) by [@szabolcsthedeveloper](https://github.com/szabolcsthedeveloper).
+`get-figure-state`, `apply-gan`, `set-figure`, `move-point`, `rotate-figure`, `mark-figure`, `measure-figure`, `create-lesson`, and others on the triangles page.
 
-![React Chess Game Preview](https://i.imgur.com/9aAIZKX.png)
+Home-page tools (`list-pages`, `open-page`) only navigate. Teaching tools appear after that page loads.
 
-## Features
+## Getting started
 
-- **Play Chess**: Challenge yourself with a game of chess, optimized for all levels.
-- **Modern UI**: A clean and intuitive interface ensuring a delightful experience.
-- **Responsive Design**: Enjoy the game on any device, desktop, tablet, or mobile.
-- **TypeScript**: Strongly typed to enhance code quality and understandability.
-
-## Getting Started
-
-### Prerequisites
-
-Before you begin, ensure you have the latest version of `npm` installed on your machine.
-
-### Installation
-
-1. Clone the repository:
 ```
-git clone https://github.com/matipojo/React-Chess
-```
-
-2. Navigate to the project directory:
-```
-cd React-Chess
-```
-
-3. Install the project dependencies:
-```
+git clone https://github.com/matipojo/WebMCP-Generative-Learning
+cd WebMCP-Generative-Learning
 npm install
-```
-
-4. Start the development server:
-```
 npm start
 ```
 
-Open http://localhost:3000 to view it in your browser.
+Open http://localhost:3000 — the home page — then Chess or Triangles.
 
-## Usage
+## Credit
 
-Move pieces by clicking and dragging them to the target square. The game enforces legal moves and highlights possible destinations.
+This chess game is based on [React-Chess](https://github.com/szabolcsthedeveloper/React-Chess) by [@szabolcsthedeveloper](https://github.com/szabolcsthedeveloper).
