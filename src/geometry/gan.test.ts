@@ -1,6 +1,6 @@
 import { applyGan, angleAt, commandSatisfied, parseGanCommand } from "./gan";
 import { defaultScalene, emptyFigure, moveFreePoint } from "./figure";
-import { ganAnswerIsCorrect, idsMatchHighlight, isAngleHighlighted } from "./hitTest";
+import { ganAnswerIsCorrect, figureHasQuizTarget, hitUnlabeledCentroids, idsMatchHighlight, isAngleHighlighted } from "./hitTest";
 import { measureFigure } from "./measure";
 import { coachPlayGan } from "./stepPlay";
 import { startFigure } from "./templates";
@@ -22,6 +22,13 @@ describe("GAN parse", () => {
       ontoB: "B",
     });
     expect(parseGanCommand("m(A,BC)")?.type).toBe("median");
+    expect(parseGanCommand("g(△ABC)")).toEqual({
+      type: "centroid",
+      a: "A",
+      b: "B",
+      c: "C",
+    });
+    expect(parseGanCommand("g(ABC)")?.type).toBe("centroid");
     expect(parseGanCommand("b(∠A)")?.type).toBe("bisector");
     expect(parseGanCommand("circ(ABC)")?.type).toBe("circum");
     expect(parseGanCommand("inc(ABC)")?.type).toBe("in");
@@ -69,6 +76,21 @@ describe("apply-gan constructions", () => {
       (name) => med.figure.points[name].constraint?.kind === "mid"
     );
     expect(mid).toBeTruthy();
+  });
+
+  it("labels the centroid as G without requiring it to already exist", () => {
+    const start = startFigure("scalene");
+    const result = applyGan(start, "g(△ABC)");
+    expect(result.error).toBeUndefined();
+    expect(result.figure.points.G).toBeTruthy();
+    expect(result.figure.points.G.constraint?.kind).toBe("centroid");
+    expect(commandSatisfied(result.figure, "g(△ABC)")).toBe(true);
+    const g = result.figure.points.G;
+    expect(g.x).toBeCloseTo((start.points.A.x + start.points.B.x + start.points.C.x) / 3);
+    expect(g.y).toBeCloseTo((start.points.A.y + start.points.B.y + start.points.C.y) / 3);
+    const tfn = serializeTfn(result.figure);
+    expect(tfn).toContain("g(△ABC)");
+    expect(parseTfn(tfn).points.G.constraint?.kind).toBe("centroid");
   });
 
   it("builds circumcircle and incircle", () => {
@@ -150,6 +172,12 @@ describe("GAN text links", () => {
     expect(extractPlayableGan(text)).toEqual(["△ABC", "h(C,AB)", "mark(90,C)"]);
   });
 
+  it("tokenizes the centroid construction", () => {
+    const refs = tokenizeGanText("The centroid is g(△ABC).").filter((part) => part.type === "ref");
+    expect(refs.map((part) => (part.type === "ref" ? part.value : ""))).toEqual(["g(△ABC)"]);
+    expect(extractPlayableGan("Play g(△ABC)")).toEqual(["g(△ABC)"]);
+  });
+
   it("links vertices, sides, and angles in Hebrew naming copy", () => {
     const text = "הקודקודים הם A, B, C. הצלעות הן AB, BC, CA. הזוויות הן ∠A, ∠B, ∠C.";
     const refs = tokenizeGanText(text, ["A", "B", "C"]).filter((part) => part.type === "ref");
@@ -201,6 +229,19 @@ describe("riddle answers", () => {
     expect(ganAnswerIsCorrect(["AB"], "BA")).toBe(true);
     expect(ganAnswerIsCorrect(["△ABC"], "△CAB")).toBe(true);
     expect(ganAnswerIsCorrect(["H"], "C")).toBe(false);
+  });
+
+  it("treats an unlabeled centroid click as G", () => {
+    const figure = startFigure("scalene");
+    const at = {
+      x: (figure.points.A.x + figure.points.B.x + figure.points.C.x) / 3,
+      y: (figure.points.A.y + figure.points.B.y + figure.points.C.y) / 3,
+    };
+    const hits = hitUnlabeledCentroids(figure, at);
+    expect(hits[0]?.id).toBe("g(△ABC)");
+    expect(ganAnswerIsCorrect(["G"], "g(△ABC)")).toBe(true);
+    expect(figureHasQuizTarget(figure, "G")).toBe(true);
+    expect(figureHasQuizTarget(figure, "Q")).toBe(false);
   });
 });
 

@@ -71,6 +71,58 @@ export function formatQuizTimeoutFeedback(correct: string[]): string {
   return `Time's up.\nThe correct squares are ${squares}.`;
 }
 
+export function formatFigureQuizTokens(correct: string[]): string {
+  return correct.map((item) => item.trim()).filter(Boolean).join(", ");
+}
+
+function figureQuizNoun(correct: string[]): { singular: string; plural: string } {
+  const kinds = correct.map((item) => {
+    const token = item.trim();
+    if (token.startsWith("∠")) {
+      return "angle";
+    }
+    if (token.startsWith("△")) {
+      return "triangle";
+    }
+    if (/^g\(△?[A-Z]{3}\)$/i.test(token) || token === "G") {
+      return "point";
+    }
+    if (/^[A-Z](?:'[A-Z]*)?$/.test(token) || /^[A-Z]\d+$/.test(token)) {
+      return "point";
+    }
+    if (/^[A-Z]{2}$/.test(token)) {
+      return "side";
+    }
+    return "object";
+  });
+  const first = kinds[0] || "object";
+  if (kinds.length && kinds.every((kind) => kind === first)) {
+    return {
+      singular: first,
+      plural: first === "side" ? "sides" : first + "s",
+    };
+  }
+  return { singular: "object", plural: "objects" };
+}
+
+export function formatFigureQuizIncorrectFeedback(correct: string[]): string {
+  const objects = formatFigureQuizTokens(correct);
+  const noun = figureQuizNoun(correct);
+  if (correct.length === 1) {
+    return `Not quite.\nThe correct ${noun.singular} is ${objects}.`;
+  }
+  return `Not quite.\nThe correct ${noun.plural} are ${objects}.`;
+}
+
+export function formatFigureQuizTimeoutFeedback(correct: string[]): string {
+  const objects = formatFigureQuizTokens(correct);
+  const noun = figureQuizNoun(correct);
+  if (correct.length === 1) {
+    return `Time's up.\nThe correct ${noun.singular} is ${objects}.`;
+  }
+  return `Time's up.\nThe correct ${noun.plural} are ${objects}.`;
+}
+
 export function formatQuizClickCopy(payload: QuizCopyPayload): string {
   return [
     "The student answered an ask-quiz by clicking a square. Continue from this click.",

@@ -2,6 +2,8 @@ import {
   formatQuizClickCopy,
   formatQuizIncorrectFeedback,
   formatQuizTimeoutFeedback,
+  formatFigureQuizIncorrectFeedback,
+  formatFigureQuizTimeoutFeedback,
   quizAnswerIsCorrect,
 } from "./quizCopy";
 
@@ -37,6 +39,20 @@ describe("quiz teaching copy", () => {
   it("names the correct square after time runs out", () => {
     expect(formatQuizTimeoutFeedback(["f7"])).toBe(
       "Time's up.\nThe correct square is f7."
+    );
+  });
+});
+
+describe("figure quiz teaching copy", () => {
+  it("keeps GAN labels and does not call them squares", () => {
+    expect(formatFigureQuizIncorrectFeedback(["G"])).toBe(
+      "Not quite.\nThe correct point is G."
+    );
+    expect(formatFigureQuizTimeoutFeedback(["G"])).toBe(
+      "Time's up.\nThe correct point is G."
+    );
+    expect(formatFigureQuizTimeoutFeedback(["∠C"])).toBe(
+      "Time's up.\nThe correct angle is ∠C."
     );
   });
 });

@@ -90,6 +90,13 @@ export function triangleArea(a: Vec, b: Vec, c: Vec): number {
   return Math.abs(cross(sub(b, a), sub(c, a))) / 2;
 }
 
+export function centroid(a: Vec, b: Vec, c: Vec): Vec {
+  return {
+    x: (a.x + b.x + c.x) / 3,
+    y: (a.y + b.y + c.y) / 3,
+  };
+}
+
 export function circumcenter(a: Vec, b: Vec, c: Vec): Vec | null {
   const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
   if (Math.abs(d) < EPS) {
