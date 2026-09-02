@@ -52,6 +52,38 @@ export function contentQuiz(quiz?: QuizState | null): QuizState | undefined {
   };
 }
 
+/** History snapshots keep a replayable riddle, even after an attempt ends. */
+export function liveQuizFromSlide(quiz?: QuizState | null): QuizState | null {
+  const clean = contentQuiz(quiz);
+  if (!clean) {
+    return null;
+  }
+  return {
+    ...clean,
+    answered: false,
+    timedOut: false,
+  };
+}
+
+/** Quiz to show when Back/Next lands on a slide. Prefers the snapshot, then the catalog riddle. */
+export function quizForRestoredSlide(input: {
+  quiz?: QuizState | null;
+  phase?: CoachState["phase"];
+  step?: number;
+  steps?: SavedLessonStep[];
+}): QuizState | null {
+  const fromSlide = liveQuizFromSlide(input.quiz);
+  if (fromSlide) {
+    return fromSlide;
+  }
+  if (input.phase !== "riddle" || !input.steps || input.steps.length === 0) {
+    return null;
+  }
+  const teaching = teachingSteps(input.steps);
+  const index = (typeof input.step === "number" && input.step > 0 ? input.step : 1) - 1;
+  return liveQuizFromSlide(teaching[index]?.quiz);
+}
+
 export function catalogStepKind(kind?: SavedLessonStep["kind"]): SavedLessonStep["kind"] {
   if (kind === "recap" || kind === "summary" || kind === "riddle") {
     return kind;

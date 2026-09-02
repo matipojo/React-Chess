@@ -4,6 +4,8 @@ import { useBoardTheme } from "../../hooks/useBoardTheme";
 import { useTriangleLessons } from "../../hooks/useTriangleLessons";
 import { useTriangleModelContextTools } from "../../hooks/useTriangleModelContextTools";
 import { shouldShowLessonNav } from "../../lessons/lessonCopy";
+import { ALTITUDE_DEMO, parseTriangleDemo } from "../../lessons/triangleDemo";
+import { whenDemoShouldStart } from "../../utils/demoStart";
 import AppHeader from "../AppHeader/AppHeader";
 import GeometryCanvas, { GeometryCanvasHandle } from "../GeometryCanvas/GeometryCanvas";
 import LessonCoach from "../LessonCoach/LessonCoach";
@@ -55,25 +57,42 @@ export default function TriangleSurface() {
   });
 
   useEffect(() => {
-    const demo = new URLSearchParams(window.location.search).get("demo");
-    if (demo !== "pointer" && demo !== "altitude") {
+    const demo = parseTriangleDemo(window.location.search);
+    if (!demo) {
       return;
     }
-    const timer = window.setTimeout(() => {
-      const start = () => {
-        if (!canvasRef.current) {
-          window.setTimeout(start, 50);
-          return;
-        }
-        if (demo === "pointer") {
-          void trianglesRef.current.movePoint("C", { x: 1.55, y: -0.2 });
-          return;
-        }
-        void trianglesRef.current.applyGan("h(C,AB)");
-      };
-      start();
-    }, 500);
-    return () => window.clearTimeout(timer);
+    if (demo === "altitude") {
+      trianglesRef.current.setFigure({ template: ALTITUDE_DEMO.template });
+      trianglesRef.current.createLesson({
+        title: ALTITUDE_DEMO.title,
+        paragraphs: ALTITUDE_DEMO.paragraphs,
+      });
+      void trianglesRef.current.addLessonStep({
+        title: ALTITUDE_DEMO.stepTitle,
+        why: ALTITUDE_DEMO.why,
+        what: ALTITUDE_DEMO.gan,
+        moves: [ALTITUDE_DEMO.gan],
+      });
+    }
+    let waitCanvas = 0;
+    const play = () => {
+      if (!canvasRef.current) {
+        waitCanvas = window.setTimeout(play, 50);
+        return;
+      }
+      if (demo === "pointer") {
+        void trianglesRef.current.movePoint("C", { x: 1.55, y: -0.2 });
+        return;
+      }
+      void trianglesRef.current.applyGan(ALTITUDE_DEMO.gan);
+    };
+    const stopWait = whenDemoShouldStart(play, { topLevelDelayMs: 500 });
+    return () => {
+      stopWait();
+      if (waitCanvas) {
+        window.clearTimeout(waitCanvas);
+      }
+    };
     // Open a shared demo link the same way chess uses ?piece= / ?showme=.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
