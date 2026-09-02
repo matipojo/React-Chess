@@ -151,6 +151,8 @@ export function createCatalogLesson(
     body?: string;
     paragraphs?: string[];
     kind?: SavedLesson["kind"];
+    tfn?: string;
+    fen?: string;
   },
   storageKey = USER_CATALOG_KEY
 ): SavedLesson {
@@ -164,6 +166,8 @@ export function createCatalogLesson(
       paragraphs: args.paragraphs,
       number,
       steps: [],
+      tfn: args.tfn,
+      fen: args.fen,
     },
     storageKey
   );
@@ -281,6 +285,8 @@ export function upsertLessonStep(input: UpsertLessonStepInput): SavedLesson[] {
     piece: input.piece !== undefined ? input.piece : existing?.piece,
     square: input.square !== undefined ? input.square : existing?.square,
     color: input.color !== undefined ? input.color : existing?.color,
+    tfn: existing?.tfn,
+    fen: existing?.fen,
   };
 
   return upsertUserLesson(nextItem, storageKey);

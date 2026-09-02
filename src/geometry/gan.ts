@@ -17,6 +17,7 @@ import {
   hasTriangle,
   nextPointName,
   oppositeVertex,
+  placeNewTriangle,
   resolveFigure,
   rotateNamed,
   segmentKey,
@@ -342,9 +343,14 @@ export function applyGanCommand(figure: Figure, raw: string): ApplyGanResult {
   };
 
   if (command.type === "triangle") {
-    needPoint(next, command.a);
-    needPoint(next, command.b);
-    needPoint(next, command.c);
+    const missing = [command.a, command.b, command.c].filter((name) => !next.points[name]);
+    if (missing.length === 3) {
+      placeNewTriangle(next, command.a, command.b, command.c);
+    } else {
+      needPoint(next, command.a);
+      needPoint(next, command.b);
+      needPoint(next, command.c);
+    }
     addTriangle(next, command.a, command.b, command.c);
     remember("△" + command.a + command.b + command.c);
     animation = {

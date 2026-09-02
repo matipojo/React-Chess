@@ -1,4 +1,3 @@
-import { emptyFigure, ensurePoint, addTriangle } from "./figure";
 import { applyGan } from "./gan";
 import { parseTfn } from "./tfn";
 import { Figure } from "./types";
@@ -11,6 +10,8 @@ export const FIGURE_TEMPLATES: Record<string, string> = {
   "30-60-90": "A(0,0) B(2,0) C(0,3.464) △ABC mark(90,A) lab(∠B=60) lab(∠C=30)",
   equilateral: "A(-2,0) B(2,0) C(0,3.464) △ABC mark(=,AB,BC,CA)",
   "ssa-ambiguous": "A(0,0) B(4,0) C(3.2,1.8) △ABC",
+  "two-triangles":
+    "A(-3.2,-1.2) B(-0.4,-1.2) C(-2.4,1.4) D(0.6,-1.2) E(3.4,-1.2) F(1.4,1.4) △ABC △DEF",
 };
 
 export function templateNames(): string[] {
@@ -30,15 +31,8 @@ export function startFigure(id?: string): Figure {
 }
 
 export function twoCongruentTriangles(): Figure {
-  let figure = emptyFigure();
-  ensurePoint(figure, "A", { x: -3.2, y: -1.2 });
-  ensurePoint(figure, "B", { x: -0.4, y: -1.2 });
-  ensurePoint(figure, "C", { x: -2.4, y: 1.4 });
-  addTriangle(figure, "A", "B", "C");
-  ensurePoint(figure, "D", { x: 0.6, y: -1.2 });
-  ensurePoint(figure, "E", { x: 3.4, y: -1.2 });
-  ensurePoint(figure, "F", { x: 1.4, y: 1.4 });
-  addTriangle(figure, "D", "E", "F");
+  const figure =
+    figureFromTemplate("two-triangles") || parseTfn(FIGURE_TEMPLATES["two-triangles"]);
   const marked = applyGan(figure, "mark(=,AB,DE); mark(=,AC,DF)");
   return marked.error ? figure : marked.figure;
 }

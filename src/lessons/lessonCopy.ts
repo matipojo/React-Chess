@@ -255,7 +255,7 @@ export function coachFromSavedStep(
       step: counts.step,
       totalSteps: counts.totalSteps,
       phase: "riddle",
-      fromFen: step.fen,
+      fromFen: step.tfn || step.fen,
     };
   }
   if (!isTeachingStep(step)) {
@@ -292,7 +292,7 @@ export function coachFromSavedStep(
     step: counts.step,
     totalSteps: counts.totalSteps,
     phase: "step",
-    fromFen: step.fen,
+    fromFen: step.tfn || step.fen,
     moves: step.moves,
   };
 }
