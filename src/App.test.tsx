@@ -32,7 +32,7 @@ describe("App routes", () => {
     setPath("/chess");
     const { getByRole, container, unmount } = render(<App />);
     expect(getByRole("heading", { name: "Generative Learning" })).toBeTruthy();
-    expect(getByRole("link", { name: "Home" }).getAttribute("href")).toBe("/");
+    expect(getByRole("link", { name: "Generative Learning" }).getAttribute("href")).toBe("/");
     expect(getByRole("link", { name: "Chess" }).getAttribute("aria-current")).toBe("page");
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeNull();

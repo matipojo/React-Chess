@@ -19,7 +19,9 @@ export default function AppHeader({
   return (
     <header className="app-header">
       <div className="app-header-nav">
-        <h1 className="app-header-title">Generative Learning</h1>
+        <h1 className="app-header-title">
+          <a href={appHref(HOME_PATH)}>Generative Learning</a>
+        </h1>
         <nav className="area-switch" aria-label="Learning area">
           <a
             href={appHref(CHESS_PATH)}
@@ -36,9 +38,6 @@ export default function AppHeader({
             Triangles
           </a>
         </nav>
-        <a className="app-header-link" href={appHref(HOME_PATH)}>
-          Home
-        </a>
       </div>
       <div className="app-header-actions">
         <LessonCatalogMenu

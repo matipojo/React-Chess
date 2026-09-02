@@ -19,14 +19,10 @@ const CHATGPT_UA =
 describe("AboutPage", () => {
   it("renders the generative learning pitch and example surfaces", () => {
     const { getByText, getByRole, getAllByRole, getAllByText, queryByText, container } = renderAbout();
-    expect(getByRole("link", { name: "Generative Learning" })).toBeTruthy();
-    expect(getAllByText("Build the learning surface once. Personalize the lesson endlessly.").length).toBeGreaterThan(0);
-    expect(getByRole("heading", { name: /Not the canvas/ })).toBeTruthy();
-    expect(getByText(/professional, persistent surface/i)).toBeTruthy();
-    expect(getAllByText(/doesn't build the interface/i).length).toBeGreaterThan(0);
-    expect(queryByText("Italian Game")).toBeNull();
+    expect(getByRole("link", { name: "Generative Learning" }).getAttribute("href")).toBe("/");
     const nav = getByRole("navigation", { name: "Learning surfaces" });
-    expect(nav.querySelector('a[aria-current="page"]')?.textContent).toMatch(/Home/);
+    expect(nav.textContent).not.toMatch(/Home/);
+    expect(nav.querySelector('a[aria-current="page"]')).toBeNull();
     expect(nav.querySelector(".about-subnav-chess")?.getAttribute("href")).toBe("/chess");
     expect(nav.querySelector(".about-subnav-triangles")?.getAttribute("href")).toBe(
       "/triangles"

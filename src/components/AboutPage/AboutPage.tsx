@@ -243,9 +243,6 @@ export default function AboutPage() {
           <span>Generative Learning</span>
         </a>
         <nav className="about-subnav" aria-label="Learning surfaces">
-          <a href={appHref(HOME_PATH)} aria-current="page">
-            Home
-          </a>
           <a className="about-subnav-chess" href={appHref(CHESS_PATH)}>
             Chess
           </a>
