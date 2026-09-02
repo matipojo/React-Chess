@@ -3,17 +3,27 @@ import { Figure } from "../geometry/types";
 import { COACH_GAN_RULE, TRIANGLE_WAIT_TURN_RULE } from "../geometry/notation";
 import { missingQuizTargets } from "../geometry/hitTest";
 import { CoachState, QuizResult, QuizState } from "../lessons/types";
-import { parseLessonStepType, parseSummaryDraft, CATALOG_LIVE_FROZEN_MESSAGE } from "../lessons/lessonCopy";
+import { parseLessonStepType, parseSummaryDraft, skippedCatalogLiveTool } from "../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
   buildGiveMeAHintPrompt,
   buildHowToAskTheUserPrompt,
   CHAT_BUTTON_TEXT,
   HINT_BUTTON_LABEL,
+  PAGE_IS_THE_CANVAS,
   readBoardChatAccent,
 } from "../lessons/howToAskTheUser";
 import { parseBackgroundToolArgs, preparePageBackground } from "../utils/pageBackground";
 import { registerModelContextTools, ToolResponse } from "./registerModelContextTools";
+
+/** These mutate the live canvas even while a catalog lesson is being authored. */
+export const TRIANGLE_LIVE_FIGURE_TOOLS = [
+  "apply-gan",
+  "set-figure",
+  "move-point",
+  "rotate-figure",
+  "mark-figure",
+] as const;
 
 export const TRIANGLE_TOOL_NAMES = [
   "get-figure-state",
@@ -132,7 +142,7 @@ function freezeCatalogLive(actions: { lessons: { catalogSessionLive?: boolean } 
   if (!actions.lessons.catalogSessionLive) {
     return null;
   }
-  return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE, data: { skipped: true } };
+  return skippedCatalogLiveTool();
 }
 
 function quizClickToolResponse(
@@ -173,7 +183,8 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "get-figure-state",
         description:
-          "Retrieves the current triangle figure: points, segments, triangles, circles, marks, and measures.",
+          "Retrieves the current triangle figure: points, segments, triangles, circles, marks, and measures. " +
+          PAGE_IS_THE_CANVAS,
         inputSchema: { type: "object", properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const summary = actionsRef.current.summary();
@@ -183,7 +194,9 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "apply-gan",
         description:
-          "Execute one GAN construction on the triangle figure and animate it with the cursor. Examples: △ABC, h(C,AB), m(A,BC), g(△ABC), b(A), circ(ABC), inc(ABC), mark(90,C), fit(△ABC ≅ △DEF), rot(A,90,△ABC), move(C,1,2). Semicolons run a sequence. " +
+          "Execute one GAN construction on THIS page's triangle canvas and animate it with the cursor. Examples: △ABC, h(C,AB), m(A,BC), g(△ABC), b(A), circ(ABC), inc(ABC), mark(90,C), fit(△ABC ≅ △DEF), rot(A,90,△ABC), move(C,1,2). Semicolons run a sequence. " +
+          PAGE_IS_THE_CANVAS +
+          " " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -196,10 +209,6 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["gan"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const frozen = freezeCatalogLive(actionsRef.current);
-          if (frozen) {
-            return frozen;
-          }
           const gan = String(params.gan || "").trim();
           if (!gan) {
             return { success: false, message: "Provide a GAN string.", data: null };
@@ -215,7 +224,8 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-figure",
         description:
-          "Load a triangle figure from a template (scalene, two-triangles, right-at-C, isosceles-AB=AC, 30-60-90, equilateral, ssa-ambiguous) or a TFN string. If a Goal is open with no steps yet, this figure is stored on the lesson and restored later.",
+          "Load a triangle figure from a template (scalene, two-triangles, right-at-C, isosceles-AB=AC, 30-60-90, equilateral, ssa-ambiguous) or a TFN string onto THIS page's canvas. If a Goal is open with no steps yet, this figure is stored on the lesson and restored later. " +
+          PAGE_IS_THE_CANVAS,
         inputSchema: {
           type: "object",
           properties: {
@@ -227,10 +237,6 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const frozen = freezeCatalogLive(actionsRef.current);
-          if (frozen) {
-            return frozen;
-          }
           const result = actionsRef.current.setFigure({
             template: typeof params.template === "string" ? params.template : undefined,
             tfn: typeof params.tfn === "string" ? params.tfn : undefined,
@@ -241,7 +247,8 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "move-point",
         description:
-          "Move a free point on the triangle figure and animate the cursor to the new location. Constrained points follow.",
+          "Move a free point on THIS page's triangle canvas and animate the cursor to the new location. Constrained points follow. " +
+          PAGE_IS_THE_CANVAS,
         inputSchema: {
           type: "object",
           properties: {
@@ -252,10 +259,6 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["point", "x", "y"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const frozen = freezeCatalogLive(actionsRef.current);
-          if (frozen) {
-            return frozen;
-          }
           const point = String(params.point || "").trim();
           const result = await Promise.resolve(
             actionsRef.current.movePoint(point, {
@@ -284,10 +287,6 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["around", "deg"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const frozen = freezeCatalogLive(actionsRef.current);
-          if (frozen) {
-            return frozen;
-          }
           const result = await actionsRef.current.rotateFigure(
             String(params.around || ""),
             Number(params.deg),
@@ -303,7 +302,8 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "mark-figure",
         description:
-          "Mark the figure with GAN: mark(90,C), mark(=,AB,AC), mark(∠,BAC,EDF), mark(||,MN,BC), lab(AB=5), highlight(H).",
+          "Mark THIS page's triangle canvas with GAN: mark(90,C), mark(=,AB,AC), mark(∠,BAC,EDF), mark(||,MN,BC), lab(AB=5), highlight(H). " +
+          PAGE_IS_THE_CANVAS,
         inputSchema: {
           type: "object",
           properties: {
@@ -312,10 +312,6 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["gan"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
-          const frozen = freezeCatalogLive(actionsRef.current);
-          if (frozen) {
-            return frozen;
-          }
           const result = await actionsRef.current.markFigure(String(params.gan || ""));
           return {
             success: result.success,
@@ -741,6 +737,8 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
         name: "how_to_ask_the_user",
         description:
           "Returns instructions for asking the student in this chat with clickable visualization buttons, not a numbered list and not on the triangle page. Takes no arguments. Call this whenever you need them to choose what happens next, then follow the returned prompt exactly and stop. " +
+          PAGE_IS_THE_CANVAS +
+          " " +
           TRIANGLE_WAIT_TURN_RULE,
         inputSchema: { type: "object", properties: {} },
         execute: async (): Promise<ToolResponse> => {

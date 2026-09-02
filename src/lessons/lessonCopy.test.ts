@@ -6,6 +6,9 @@ import {
   lessonSlideCounter,
   keptPlayheadIndex,
   liveMatchesCatalogSlide,
+  catalogAuthoringRestoreIndex,
+  skippedCatalogLiveTool,
+  CATALOG_LIVE_FROZEN_MESSAGE,
   parseLessonStepType,
   parseStepDrafts,
   parseSummaryDraft,
@@ -227,6 +230,15 @@ describe("lesson copy", () => {
       keptPlayheadIndex(slides, { title: "Develop with tempo", phase: "step" }, 1)
     ).toBe(1);
     expect(keptPlayheadIndex(slides, { title: "Claim the center" }, 9)).toBe(4);
+    expect(catalogAuthoringRestoreIndex(null, slides.length, -1)).toBe(0);
+    expect(catalogAuthoringRestoreIndex({ title: "Goal" }, slides.length, 0)).toBeNull();
+    expect(catalogAuthoringRestoreIndex(null, 0, 0)).toBeNull();
+    expect(skippedCatalogLiveTool()).toEqual({
+      success: false,
+      message: CATALOG_LIVE_FROZEN_MESSAGE,
+      data: { skipped: true },
+    });
+    expect(skippedCatalogLiveTool().success).toBe(false);
     expect(liveMatchesCatalogSlide({ title: "Claim the center", phase: "step" }, slides[1])).toBe(
       true
     );

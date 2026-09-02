@@ -56,4 +56,31 @@ describe("registerModelContextTools", () => {
     cleanup();
     expect(registered).toEqual([]);
   });
+
+  it("registers after modelContext appears on the page", () => {
+    const provided: ModelContextTool[] = [];
+    const tool: ModelContextTool = {
+      name: "get-figure-state",
+      description: "demo",
+      inputSchema: { type: "object", properties: {} },
+      execute: async () => "ok",
+    };
+    const cleanup = registerModelContextTools([tool]);
+    expect(provided).toEqual([]);
+    Object.defineProperty(document, "modelContext", {
+      configurable: true,
+      value: {
+        provideContext: ({ tools }: { tools: ModelContextTool[] }) => {
+          provided.splice(0, provided.length, ...tools);
+        },
+        clearContext: () => {
+          provided.length = 0;
+        },
+      },
+    });
+    window.dispatchEvent(new Event("modelcontextready"));
+    expect(provided).toEqual([tool]);
+    cleanup();
+    expect(provided).toEqual([]);
+  });
 });

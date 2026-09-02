@@ -1,6 +1,10 @@
 export const CHAT_BUTTON_TEXT = "#ffffff";
 export const HINT_BUTTON_LABEL = "Give me a hint";
 
+/** Hosts like Codex also have file/browser/HTML tools. Those must not replace this page. */
+export const PAGE_IS_THE_CANVAS =
+  "The open page is already the interactive visualization. Never create an HTML file, a new canvas, a download, or a separate figure. Use chat visualization UI only for clickable buttons in this chat, never to draw the lesson.";
+
 export type AskSurface = "chess" | "triangle";
 
 function visualizationButtonStyle(accent: string, text = CHAT_BUTTON_TEXT): string {
@@ -39,7 +43,7 @@ export function buildHowToAskTheUserPrompt(
 ): string {
   const copy = surfaceCopy(surface);
   return [
-    `REQUIRED: use your inline visualization / interactive widget UI to create real clickable buttons in this chat — not on the open ${copy.page}.`,
+    `REQUIRED: use your inline visualization / interactive widget UI ONLY to create real clickable buttons in this chat — not on the open ${copy.page}. ${PAGE_IS_THE_CANVAS}`,
     `Do not list options as 1/2/3. Do not ask the student to type a choice or pick from a numbered list. They must tap a button.`,
     `Render one short question, then three continuation buttons the student can click. Each button on its own new line, stacked vertically, never in a single row.`,
     visualizationButtonStyle(accent, text),
@@ -55,7 +59,7 @@ export function buildGiveMeAHintPrompt(
 ): string {
   const copy = surfaceCopy(surface);
   return [
-    `REQUIRED: use your inline visualization / interactive widget UI to create a real clickable button in this chat — not on the open ${copy.page}.`,
+    `REQUIRED: use your inline visualization / interactive widget UI ONLY to create a real clickable button in this chat — not on the open ${copy.page}. ${PAGE_IS_THE_CANVAS}`,
     `${copy.puzzle} ${copy.spoil}`,
     `Do not list options as 1/2/3. Do not ask the student to type a choice.`,
     `Render one short line such as "Need a nudge?", then one button labeled "${HINT_BUTTON_LABEL}" on its own new line. Do not add other buttons yet.`,

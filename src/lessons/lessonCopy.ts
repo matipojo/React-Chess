@@ -152,7 +152,32 @@ export function lessonSlideCounter(input: {
 }
 
 export const CATALOG_LIVE_FROZEN_MESSAGE =
-  "A catalog lesson is on screen. Did not change the live board, figure, coach, or playhead. Store the next beat with add-lesson-step. The student stays on the current slide until they tap Next.";
+  "A catalog lesson is on screen. Did not change the coach or playhead. Store the next beat with add-lesson-step. The student stays on the current slide until they tap Next. Live figure/board tools still run on this page.";
+
+export function skippedCatalogLiveTool(): {
+  success: false;
+  message: string;
+  data: { skipped: true };
+} {
+  return {
+    success: false,
+    message: CATALOG_LIVE_FROZEN_MESSAGE,
+    data: { skipped: true },
+  };
+}
+
+/** Restore a stored slide only when the student has no live coach on screen. */
+export function catalogAuthoringRestoreIndex(
+  liveCoach: unknown,
+  snapCount: number,
+  currentIndex: number
+): number | null {
+  if (liveCoach || snapCount <= 0) {
+    return null;
+  }
+  const keep = currentIndex < 0 ? 0 : currentIndex;
+  return Math.max(0, Math.min(keep, snapCount - 1));
+}
 
 export function liveMatchesCatalogSlide(
   live: { title?: string; phase?: CoachState["phase"] } | null | undefined,
