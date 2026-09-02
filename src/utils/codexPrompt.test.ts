@@ -4,6 +4,7 @@ import {
   EXAMPLE_LESSON_PROMPTS,
   isCodexHost,
   openCodexPrompt,
+  promptWithCurrentLocation,
   sharePromptWithHost,
 } from "./codexPrompt";
 
@@ -47,9 +48,31 @@ describe("codexPrompt", () => {
     ).toBe(true);
   });
 
-  it("builds a new-chat deep link with the encoded prompt", () => {
+  it("capitalizes prompts and appends the current page URL", () => {
+    expect(
+      promptWithCurrentLocation(
+        "show Scholar's Mate",
+        "https://generative-learning.vercel.app/chess"
+      )
+    ).toBe(
+      "Show Scholar's Mate using https://generative-learning.vercel.app/chess"
+    );
+    expect(promptWithCurrentLocation("Quiz me on forks", "https://example.test/")).toBe(
+      "Quiz me on forks using https://example.test/"
+    );
+    expect(
+      promptWithCurrentLocation(
+        "Show Scholar's Mate using https://example.test/",
+        "https://example.test/"
+      )
+    ).toBe("Show Scholar's Mate using https://example.test/");
+  });
+
+  it("builds a new-chat deep link with the encoded prompt and page URL", () => {
     expect(buildCodexPromptHref(EXAMPLE_LESSON_PROMPTS[0])).toBe(
-      "codex://new?prompt=show%20me%20Scholar's%20Mate"
+      `codex://new?prompt=${encodeURIComponent(
+        promptWithCurrentLocation(EXAMPLE_LESSON_PROMPTS[0])
+      )}`
     );
     expect(CODEX_UNAVAILABLE_MESSAGE).toBe("Codex is not available");
   });
@@ -61,7 +84,7 @@ describe("codexPrompt", () => {
     try {
       openCodexPrompt(EXAMPLE_LESSON_PROMPTS[0]);
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=show%20me%20Scholar's%20Mate",
+        buildCodexPromptHref(EXAMPLE_LESSON_PROMPTS[0]),
         "_blank",
         "noopener"
       );
@@ -75,7 +98,7 @@ describe("codexPrompt", () => {
     expect(await sharePromptWithHost("quiz me on forks", copyText)).toBe(
       "copied"
     );
-    expect(copyText).toHaveBeenCalledWith("quiz me on forks");
+    expect(copyText).toHaveBeenCalledWith(promptWithCurrentLocation("quiz me on forks"));
 
     const original = navigator.userAgent;
     Object.defineProperty(navigator, "userAgent", {
@@ -92,7 +115,7 @@ describe("codexPrompt", () => {
       );
       expect(copyText).not.toHaveBeenCalled();
       expect(open).toHaveBeenCalledWith(
-        "codex://new?prompt=quiz%20me%20on%20forks",
+        buildCodexPromptHref("quiz me on forks"),
         "_blank",
         "noopener"
       );

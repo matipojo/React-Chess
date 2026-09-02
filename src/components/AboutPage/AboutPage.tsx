@@ -1,15 +1,18 @@
 import { FormEvent, useState } from "react";
 import Chessboard from "../Chessboard/Chessboard";
+import GeometryCanvas from "../GeometryCanvas/GeometryCanvas";
 import { boardFromFen } from "../../utils/board-setup";
+import { figureFromTemplate } from "../../geometry/templates";
 import { copyPlainText } from "../../lessons/waitForUser";
 import {
+  ABOUT_DEMO_FIGURE_ID,
   ABOUT_EXAMPLE_PROMPTS,
   ITALIAN_GAME_ARROWS,
   ITALIAN_GAME_FEN,
 } from "./aboutDemo";
 import {
-  ABOUT_PATH,
   CHESS_PATH,
+  HOME_PATH,
   TRIANGLES_PATH,
   appHref,
 } from "../../utils/appRoute";
@@ -24,10 +27,12 @@ import {
 } from "../../utils/codexPrompt";
 import { CopiedCheckIcon, CopyIcon } from "../LessonCoach/LessonCoachIcons";
 import "../LessonCoach/LessonCoach.css";
+import "../GeometryCanvas/GeometryCanvas.css";
 import "../../board-themes.css";
 import "./AboutPage.css";
 
 const italianBoard = boardFromFen(ITALIAN_GAME_FEN, true);
+const demoFigure = figureFromTemplate(ABOUT_DEMO_FIGURE_ID);
 
 function pieceSrc(name: string) {
   return `${process.env.PUBLIC_URL}/assets/images/${name}.png`;
@@ -217,17 +222,13 @@ function ExamplePrompts() {
   );
 }
 
-function MiniBoard() {
-  const dark = [false, true, false, true, true, false, true, false];
+function MiniSurface() {
   return (
-    <div className="about-mini-board" aria-hidden="true">
-      {dark.map((isDark, index) => (
-        <span
-          key={index}
-          className={isDark ? "about-mini-dark" : "about-mini-light"}
-        />
-      ))}
-    </div>
+    <span className="about-mini-surface" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </span>
   );
 }
 
@@ -237,14 +238,11 @@ export default function AboutPage() {
   return (
     <div className="about-page">
       <header className="about-header">
-        <a className="about-brand" href={appHref(ABOUT_PATH)}>
+        <a className="about-brand" href={appHref(HOME_PATH)}>
           <LogoMark />
-          <span>Living Learning Surfaces</span>
+          <span>Generative Learning</span>
         </a>
         <nav className="about-subnav" aria-label="Learning surfaces">
-          <a href={appHref(ABOUT_PATH)} aria-current="page">
-            Home
-          </a>
           <a className="about-subnav-chess" href={appHref(CHESS_PATH)}>
             Chess
           </a>
@@ -256,12 +254,18 @@ export default function AboutPage() {
 
       <main>
         <section className="about-hero">
+          <p className="about-kicker">
+            We build the learning surface once. AI personalizes the lesson endlessly.
+          </p>
           <h1>
             Generate the learning. <span>Not the canvas.</span>
           </h1>
           <p className="about-lede">
-            You decide what to learn, when to learn it, and how to learn it.
-            Your AI teaches inside a persistent interactive surface.
+            You learn on a real chessboard or triangle canvas — not in a chat.
+          </p>
+          <p className="about-lede about-lede-more">
+            Ask what you want to learn. The AI teaches you there, and the
+            lesson follows you.
           </p>
           <CodexPromptField
             id="about-hero-prompt"
@@ -271,19 +275,38 @@ export default function AboutPage() {
           <ExamplePrompts />
         </section>
 
-        <section className="about-demo" data-board-theme="purple" aria-label="Chess learning surface">
-          <div className="about-demo-board">
-            <Chessboard
-              playMove={() => false}
-              pieces={italianBoard.pieces}
-              arrows={ITALIAN_GAME_ARROWS}
-              locked
-            />
+        <section className="about-demo" data-board-theme="purple" aria-label="Example boards">
+          <div className="about-demo-surfaces">
+            <article className="about-demo-surface">
+              <div className="about-demo-board">
+                <Chessboard
+                  playMove={() => false}
+                  pieces={italianBoard.pieces}
+                  arrows={ITALIAN_GAME_ARROWS}
+                  locked
+                />
+              </div>
+              <a href={appHref(CHESS_PATH)}>
+                <strong>Chess</strong>
+                <span>Learn on a real chessboard</span>
+              </a>
+            </article>
+            <article className="about-demo-surface">
+              <div className="about-demo-board">
+                {demoFigure ? (
+                  <GeometryCanvas figure={demoFigure} locked />
+                ) : null}
+              </div>
+              <a href={appHref(TRIANGLES_PATH)}>
+                <strong>Triangles</strong>
+                <span>Learn on a figure you can move</span>
+              </a>
+            </article>
           </div>
           <aside className="lesson-coach about-tutor">
             <div className="lesson-coach-content">
               <p className="lesson-coach-kicker">AI Tutor</p>
-              <p className="lesson-coach-slide-count">Step 3 of 7</p>
+              <p className="lesson-coach-slide-count">With you as you learn</p>
               <div className="about-progress" aria-hidden="true">
                 <span className="is-done" />
                 <span className="is-done" />
@@ -293,40 +316,58 @@ export default function AboutPage() {
                 <span />
                 <span />
               </div>
-              <p className="lesson-coach-topic">Italian Game</p>
-              <h2>Develop the bishop</h2>
+              <p className="lesson-coach-topic">On the board</p>
+              <h2>The lesson follows you</h2>
               <p>
-                White develops the bishop to an active square and prepares to
-                castle.
+                Ask for another explanation, a slower step, or a new topic. The
+                board stays. The lesson changes.
               </p>
-              <ol className="about-moves">
-                <li>1. e4 e5</li>
-                <li>2. Nf3 Nc6</li>
-                <li>3. Bc4</li>
-              </ol>
               <CodexPromptField
                 id="about-move-prompt"
-                placeholder="Your move?"
-                submitName="Send move"
+                placeholder="Ask for another explanation"
+                submitName="Send prompt"
               />
             </div>
           </aside>
         </section>
 
         <section className="about-section">
+          <h2>Learn here, not in a chat</h2>
+          <div className="about-body">
+            <p>
+              You don&apos;t have to learn in a chat window, or watch a new
+              canvas appear every time you ask a question.
+            </p>
+            <p>
+              Chess and triangles already have a board built for them. You open
+              it, and the AI teaches you there.
+            </p>
+            <p>
+              The AI does not invent a new screen. It uses the board in front
+              of you.
+            </p>
+            <p>
+              You choose what to do next. The board keeps the structure.
+            </p>
+          </div>
+        </section>
+
+        <section className="about-section">
           <h2>How it works</h2>
           <div className="about-steps">
             <article className="about-card">
-              <div className="about-icon about-icon-chat" aria-hidden="true">
+              <div className="about-icon" aria-hidden="true">
                 <svg viewBox="0 0 48 48">
-                  <path
-                    fill="#7c4dcc"
-                    d="M8 10h32a4 4 0 014 4v18a4 4 0 01-4 4H20l-8 8v-8H8a4 4 0 01-4-4V14a4 4 0 014-4z"
-                  />
+                  <path fill="#9b74d8" d="M10 8h28v8H10z" />
+                  <path fill="#7c4dcc" d="M10 20h28v8H10z" />
+                  <path fill="#4a2a72" d="M10 32h28v8H10z" />
                 </svg>
               </div>
-              <h3>You ask</h3>
-              <p>You decide what to learn.</p>
+              <h3>Open a board</h3>
+              <p>
+                Chess or Triangles is already set up for the subject. You just
+                start.
+              </p>
             </article>
             <span className="about-step-arrow" aria-hidden="true">
               →
@@ -340,55 +381,66 @@ export default function AboutPage() {
                   <circle cx="28" cy="18" r="2" fill="#fff" />
                 </svg>
               </div>
-              <h3>AI teaches on the surface</h3>
-              <p>AI teaches inside the same interactive surface.</p>
+              <h3>Ask for a lesson</h3>
+              <p>
+                Tell the AI what you want to learn. It shows the idea on the
+                board and explains as you go.
+              </p>
             </article>
             <span className="about-step-arrow" aria-hidden="true">
               →
             </span>
             <article className="about-card">
-              <div className="about-icon about-icon-piece" aria-hidden="true">
-                <img src={pieceSrc("knight_w")} alt="" />
+              <div className="about-icon" aria-hidden="true">
+                <svg viewBox="0 0 48 48">
+                  <path
+                    fill="#7c4dcc"
+                    d="M8 24h14v4H8zm18-10l14 10-14 10v-6H22v-8h4z"
+                  />
+                </svg>
               </div>
-              <h3>You learn by doing</h3>
-              <p>You interact, experiment, and get feedback.</p>
+              <h3>You choose the path</h3>
+              <p>
+                Slow down, skip ahead, or change topic. The same board stays
+                with you.
+              </p>
             </article>
           </div>
         </section>
 
         <section className="about-section">
-          <h2>One surface. Continuous learning.</h2>
+          <h2>Stay on the same board</h2>
           <div className="about-compare">
             <div className="about-compare-col">
-              <h3>Typical AI</h3>
+              <h3>In a chat</h3>
               <div className="about-flow">
-                <span className="about-chip">Prompt</span>
+                <span className="about-chip">Chat</span>
                 <span aria-hidden="true">→</span>
-                <span className="about-ghost">New canvas</span>
+                <span className="about-ghost">A new canvas</span>
                 <span aria-hidden="true">→</span>
-                <span className="about-ghost">New canvas</span>
+                <span className="about-ghost">Another canvas</span>
                 <span aria-hidden="true">→</span>
-                <span className="about-ghost">New canvas</span>
+                <span className="about-ghost">Another canvas</span>
               </div>
             </div>
             <div className="about-compare-col">
-              <h3>Living Learning Surface</h3>
+              <h3>On your board</h3>
               <div className="about-flow">
-                <span className="about-chip">Ask</span>
+                <span className="about-chip">You ask</span>
                 <span aria-hidden="true">→</span>
                 <span className="about-chip about-chip-board">
-                  <MiniBoard />
-                  Same surface evolves
+                  <MiniSurface />
+                  Same board, new lesson
                 </span>
                 <span aria-hidden="true">→</span>
-                <span className="about-chip">Continue learning ∞</span>
+                <span className="about-chip">The lesson follows you</span>
               </div>
             </div>
           </div>
         </section>
 
         <section className="about-section">
-          <h2>You and AI see the same learning surface</h2>
+          <h2>You and the AI share this board</h2>
           <div className="about-shared">
             <div className="about-shared-actor" aria-hidden="true">
               <svg viewBox="0 0 48 48">
@@ -401,8 +453,8 @@ export default function AboutPage() {
               ↔
             </span>
             <div className="about-shared-board">
-              <img src={pieceSrc("knight_w")} alt="" />
-              <MiniBoard />
+              <LogoMark />
+              <MiniSurface />
             </div>
             <span className="about-shared-arrows" aria-hidden="true">
               ↔
@@ -417,20 +469,24 @@ export default function AboutPage() {
               <span>AI</span>
             </div>
           </div>
+          <p className="about-footnote">
+            The lesson lives on the board in front of you — not in a throwaway
+            chat.
+          </p>
         </section>
 
         <section className="about-section">
-          <h2>The pattern is broader</h2>
+          <h2>Choose a subject</h2>
           <div className="about-subjects">
             <a className="about-subject is-active" href={appHref(CHESS_PATH)}>
               <img src={pieceSrc("knight_w")} alt="" />
               <strong>Chess</strong>
-              <span>Working demo. Available now.</span>
+              <span>Open the chessboard</span>
             </a>
             <a className="about-subject is-active" href={appHref(TRIANGLES_PATH)}>
               <span className="about-subject-icon">△</span>
-              <strong>Geometry</strong>
-              <span>Working demo. Available now.</span>
+              <strong>Triangles</strong>
+              <span>Open the canvas</span>
             </a>
             <div className="about-subject is-soon">
               <span className="about-subject-icon">⎋</span>
@@ -454,7 +510,7 @@ export default function AboutPage() {
             </div>
           </div>
           <p className="about-footnote">
-            Possible applications — not announced products.
+            Chess and Triangles are ready. More subjects later.
           </p>
         </section>
       </main>
@@ -463,10 +519,9 @@ export default function AboutPage() {
         <div className="about-footer-brand">
           <LogoMark />
           <div>
-            <strong>Living Learning Surfaces</strong>
+            <strong>Generative Learning</strong>
             <p>
-              Persistent interactive environments where AI teaches through the
-              environment instead of regenerating it.
+              We build the learning surface once. AI personalizes the lesson endlessly.
             </p>
           </div>
         </div>

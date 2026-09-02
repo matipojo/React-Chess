@@ -34,8 +34,7 @@ export default function ModelContextBanner() {
   return (
     <div style={BANNER_STYLES}>
       <span>
-        This demo requires the <strong>document.modelContext</strong> API.
-        Open this page in{' '}
+        To learn with the AI tutor, open this page in{' '}
         <a
           href="https://learn.chatgpt.com/docs/webmcp"
           target="_blank"
@@ -55,7 +54,7 @@ export default function ModelContextBanner() {
         </a>
         {' '}with{' '}
         <strong>chrome://flags/#enable-webmcp-testing</strong>
-        {' '}enabled to use AI tools with this chess game.
+        {' '}enabled.
       </span>
     </div>
   );

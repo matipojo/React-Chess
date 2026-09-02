@@ -1,5 +1,6 @@
 export type AppRoute = "about" | "chess" | "triangles";
 
+export const HOME_PATH = "/";
 export const ABOUT_PATH = "/about";
 export const CHESS_PATH = "/chess";
 export const TRIANGLES_PATH = "/triangles";
@@ -32,13 +33,13 @@ export function appHref(path: string, basePath = appBasePath()): string {
 
 function routeFromSegments(segments: string[]): AppRoute {
   const first = (segments[0] || "").toLowerCase();
-  if (first === "about") {
-    return "about";
-  }
   if (first === "triangles") {
     return "triangles";
   }
-  return "chess";
+  if (first === "chess") {
+    return "chess";
+  }
+  return "about";
 }
 
 export function parseAppRoute(
@@ -57,9 +58,18 @@ export function parseAppRoute(
   return routeFromSegments(segments);
 }
 
+function isAboutAliasPath(pathname: string, basePath = appBasePath()): boolean {
+  let path = pathname || "/";
+  if (basePath && (path === basePath || path.startsWith(`${basePath}/`))) {
+    path = path.slice(basePath.length) || "/";
+  }
+  const trimmed = path.replace(/\/$/, "") || "/";
+  return trimmed === ABOUT_PATH;
+}
+
 export function migrateLegacyLocation(): AppRoute {
   if (typeof window === "undefined") {
-    return "chess";
+    return "about";
   }
   const params = new URLSearchParams(window.location.search);
   const hash = (window.location.hash || "").replace(/^#/, "").replace(/^\//, "").split("?")[0];
@@ -67,8 +77,8 @@ export function migrateLegacyLocation(): AppRoute {
   if (params.get("area") === "triangles") {
     nextPath = TRIANGLES_PATH;
     params.delete("area");
-  } else if (hash === "about") {
-    nextPath = ABOUT_PATH;
+  } else if (hash === "about" || isAboutAliasPath(window.location.pathname)) {
+    nextPath = HOME_PATH;
   } else if (hash === "triangles") {
     nextPath = TRIANGLES_PATH;
   } else if (hash === "chess" || hash === "play") {
