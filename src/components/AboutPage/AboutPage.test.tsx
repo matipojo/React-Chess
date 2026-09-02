@@ -33,6 +33,11 @@ describe("AboutPage", () => {
       )
     ).toBe(true);
     expect(queryByText("Geometry")).toBeNull();
+    expect(
+      getAllByText(
+        "We build the learning surface once. AI personalizes the lesson endlessly."
+      )
+    ).toHaveLength(2);
     expect(container.querySelector("#chessboard")).toBeTruthy();
     expect(container.querySelector(".geometry-canvas")).toBeTruthy();
   });

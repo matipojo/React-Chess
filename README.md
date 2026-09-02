@@ -2,7 +2,7 @@
 
 **Generate the learning. Not the canvas.**
 
-Build the learning surface once. Personalize the lesson endlessly.
+We build the learning surface once. AI personalizes the lesson endlessly.
 
 We build a professional, persistent learning environment for the subject, with the right tools already in place. AI generates the lesson *inside* that surface — it does not invent a throwaway canvas — and personalizes pace, explanations, and practice in real time.
 

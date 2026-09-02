@@ -255,7 +255,7 @@ export default function AboutPage() {
       <main>
         <section className="about-hero">
           <p className="about-kicker">
-            Build the learning surface once. Personalize the lesson endlessly.
+            We build the learning surface once. AI personalizes the lesson endlessly.
           </p>
           <h1>
             Generate the learning. <span>Not the canvas.</span>
@@ -524,7 +524,7 @@ export default function AboutPage() {
           <div>
             <strong>Generative Learning</strong>
             <p>
-              Build the learning surface once. Personalize the lesson endlessly.
+              We build the learning surface once. AI personalizes the lesson endlessly.
             </p>
           </div>
         </div>
