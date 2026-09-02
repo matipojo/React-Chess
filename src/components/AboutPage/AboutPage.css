@@ -340,14 +340,59 @@
 }
 
 .about-demo-board {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   min-width: 0;
+  container-type: size;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
 }
 
+.about-demo-board .chessboard-frame,
 .about-demo-board .geometry-frame {
-  --board-size: calc(var(--tile-size, 36px) * 8);
+  --axis-gutter: 0px;
+  --board-size: 100cqw;
+  --tile-size: calc(100cqw / 8);
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.about-demo-board .chessboard-frame {
+  grid-template-columns: var(--board-size);
+  grid-template-rows: var(--board-size);
+}
+
+.about-demo-board .chessboard-wrap,
+.about-demo-board #chessboard,
+.about-demo-board .board-arrows {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.about-demo-board #chessboard {
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+}
+
+.about-demo-board .chessboard-axis-rank,
+.about-demo-board .chessboard-axis-file {
+  display: none;
+}
+
+.about-demo-board .tile,
+.about-demo-board .tile .chess-piece {
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+}
+
+.about-demo-board .tile img {
+  width: 80%;
 }
 
 .about-tutor {
