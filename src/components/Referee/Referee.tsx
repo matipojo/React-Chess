@@ -23,6 +23,7 @@ import { getFamousGame } from "../../lessons/catalog";
 import { coordinatesToNotation } from "../../utils/chess-notation-utils";
 import { ChessRefPart, peekSquaresFromRef } from "../../utils/chess-text-links";
 import { useBoardTheme } from "../../hooks/useBoardTheme";
+import { whenDemoShouldStart } from "../../utils/demoStart";
 import AppHeader from "../AppHeader/AppHeader";
 import "./Referee.css";
 
@@ -239,30 +240,39 @@ export default function Referee() {
     }),
   });
 
+  const lessonsRef = useRef(lessons);
+  lessonsRef.current = lessons;
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const piece = params.get("piece");
     const game = params.get("game");
     const showme = params.get("showme");
-    lessons.enterLearnMode();
+    lessonsRef.current.enterLearnMode();
     if (piece) {
       try {
-        lessons.demonstratePiece(piece);
+        lessonsRef.current.demonstratePiece(piece);
       } catch {
         // ignore invalid demo links
       }
-    } else if (showme) {
+      return;
+    }
+    if (showme) {
       const famous = getFamousGame(showme);
-      if (famous) {
-        lessons.createLesson({
+      if (!famous) {
+        return;
+      }
+      return whenDemoShouldStart(() => {
+        lessonsRef.current.createLesson({
           type: "showme",
           title: famous.name,
           paragraphs: [famous.hook],
           moves: famous.moves,
         });
-      }
-    } else if (game) {
-      lessons.loadGame(game);
+      });
+    }
+    if (game) {
+      lessonsRef.current.loadGame(game);
     }
     // Run once so a shared lesson link can open without WebMCP.
     // eslint-disable-next-line react-hooks/exhaustive-deps

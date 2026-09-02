@@ -20,7 +20,7 @@ A persistent board, coach, and chess tools. Open [/chess](https://generative-lea
 
 ### Triangles
 
-![Triangles learning surface](docs/triangles.png)
+![Altitude to the hypotenuse demo](docs/triangles-altitude.gif)
 
 GAN constructions, a figure canvas, and triangle tools. Open [/triangles](https://generative-learning.vercel.app/triangles).
 
