@@ -3,7 +3,7 @@ import { Figure } from "../geometry/types";
 import { COACH_GAN_RULE, TRIANGLE_WAIT_TURN_RULE } from "../geometry/notation";
 import { missingQuizTargets } from "../geometry/hitTest";
 import { CoachState, QuizResult, QuizState } from "../lessons/types";
-import { parseLessonStepType, parseSummaryDraft } from "../lessons/lessonCopy";
+import { parseLessonStepType, parseSummaryDraft, CATALOG_LIVE_FROZEN_MESSAGE } from "../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
   buildGiveMeAHintPrompt,
@@ -73,7 +73,14 @@ type TriangleLessonActions = {
     message: string;
     lesson: number;
   };
-  setCoach: (coach: CoachState) => { lesson: number; step: number; totalSteps: number };
+  setCoach: (coach: CoachState) => {
+    lesson: number;
+    step: number;
+    totalSteps: number;
+    skipped?: boolean;
+    message?: string;
+  };
+  catalogSessionLive?: boolean;
   askQuiz: (quiz: QuizState, options?: { signal?: AbortSignal }) => Promise<QuizResult>;
   listLessons: () => unknown;
   clearLesson: () => void;
@@ -118,6 +125,13 @@ function asPositiveInt(value: unknown): number | undefined {
     }
   }
   return undefined;
+}
+
+function freezeCatalogLive(actions: { lessons: { catalogSessionLive?: boolean } }): ToolResponse | null {
+  if (!actions.lessons.catalogSessionLive) {
+    return null;
+  }
+  return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE, data: { skipped: true } };
 }
 
 function quizClickToolResponse(
@@ -181,6 +195,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["gan"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const gan = String(params.gan || "").trim();
           if (!gan) {
             return { success: false, message: "Provide a GAN string.", data: null };
@@ -208,6 +226,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const result = actionsRef.current.setFigure({
             template: typeof params.template === "string" ? params.template : undefined,
             tfn: typeof params.tfn === "string" ? params.tfn : undefined,
@@ -229,6 +251,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["point", "x", "y"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const point = String(params.point || "").trim();
           const result = await Promise.resolve(
             actionsRef.current.movePoint(point, {
@@ -257,6 +283,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["around", "deg"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const result = await actionsRef.current.rotateFigure(
             String(params.around || ""),
             Number(params.deg),
@@ -281,6 +311,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
           required: ["gan"],
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           const result = await actionsRef.current.markFigure(String(params.gan || ""));
           return {
             success: result.success,
@@ -323,7 +357,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "create-lesson",
         description:
-          "Create a new triangle catalog lesson. Goal copy only. Stores the current figure (every triangle and mark) with the Goal so it is restored when the student reopens the lesson. If the Goal names triangles such as △ABC and △DEF, they are placed on the canvas. Next: add-lesson-step. GAN tokens stay Latin (△ABC, h(C,AB)). " +
+          "Create a new triangle catalog lesson. Shows the Goal (starts the student at slide 1). Later add-lesson-step writes catalog content only and must not move the slider. If the Goal names triangles such as △ABC and △DEF, they are placed on the canvas. GAN tokens stay Latin (△ABC, h(C,AB)). " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -511,7 +545,7 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
       {
         name: "set-coach",
         description:
-          "Update the currently visible coach text only. Does not write the catalog. Prefer create-lesson, add-lesson-step, and set-lesson-recap. " +
+          "Update the currently visible coach text only when no catalog lesson is on screen. During create-lesson / add-lesson-step this is ignored so the student slider does not jump. Prefer add-lesson-step. " +
           COACH_GAN_RULE,
         inputSchema: {
           type: "object",
@@ -549,6 +583,13 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
             step: asPositiveInt(params.step),
             totalSteps: asPositiveInt(params.totalSteps),
           });
+          if (result.skipped) {
+            return {
+              success: true,
+              message: result.message || "Live playhead unchanged.",
+              data: result,
+            };
+          }
           return {
             success: true,
             message: `Coach panel updated. Lesson ${result.lesson}, step ${result.step} of ${result.totalSteps}. Prefer add-lesson-step then set-lesson-recap.`,
@@ -561,6 +602,10 @@ export function useTriangleModelContextTools(actions: TriangleActions) {
         description: "Clear coach text, highlights, and any pending quiz.",
         inputSchema: { type: "object", properties: {} },
         execute: async (): Promise<ToolResponse> => {
+          const frozen = freezeCatalogLive(actionsRef.current);
+          if (frozen) {
+            return frozen;
+          }
           actionsRef.current.lessons.clearLesson();
           return { success: true, message: "Lesson overlay cleared", data: null };
         },

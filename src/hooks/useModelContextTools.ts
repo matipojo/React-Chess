@@ -13,14 +13,20 @@ import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '.
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
 import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
-import { parseLessonFormat, parseLessonStepType, parseSummaryDraft } from '../lessons/lessonCopy';
+import { parseLessonFormat, parseLessonStepType, parseSummaryDraft, CATALOG_LIVE_FROZEN_MESSAGE } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
 type LessonActions = {
   learnMode: boolean;
   enterLearnMode: () => void;
   exitLearnMode: () => void;
-  setCoach: (coach: CoachState) => { lesson: number; step: number; totalSteps: number };
+  setCoach: (coach: CoachState) => {
+    lesson: number;
+    step: number;
+    totalSteps: number;
+    skipped?: boolean;
+    message?: string;
+  };
   createLesson: (args: {
     title: string;
     paragraphs?: string[];
@@ -80,6 +86,7 @@ type LessonActions = {
   }>;
   annotateBoard: (highlights?: BoardHighlight[], arrows?: BoardArrow[]) => void;
   clearLesson: () => void;
+  catalogSessionLive?: boolean;
   setPosition: (args: { fen?: string; pieces?: PlacedPiece[]; turn?: string }) => { success: boolean; message: string };
   loadGame: (id: string) => { success: boolean; message: string; data: unknown } | Promise<{ success: boolean; message: string; data: unknown }>;
   gotoMove: (ply: number) => { success: boolean; message: string; data: unknown };
@@ -413,7 +420,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'create-lesson',
         description:
-          'Create a new catalog lesson. type lesson (default): does not change the live board, coach, quiz, or playhead. Goal copy only: lasting title + what we will learn; then add-lesson-step. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
+          'Create a new catalog lesson. type lesson (default): writes Goal copy into the saved lesson only. Does not move the student slider, board, coach, or quiz. Then add-lesson-step. type showme: one live screen with one explanation; the planned line auto-plays, and the coach has Pause, Stop, and Replay. Call once per topic. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -627,7 +634,7 @@ export function useModelContextTools(actions: ChessActions) {
       {
         name: 'set-coach',
         description:
-          'Update the currently visible coach text only. Does not write the catalog. Prefer create-lesson, add-lesson-step, and set-lesson-recap. ' +
+          'Update the currently visible coach text only when no catalog lesson is on screen. During create-lesson / add-lesson-step this is ignored so the student is not jumped to a later beat. Prefer add-lesson-step. ' +
           COACH_NOTATION_RULE,
         inputSchema: {
           type: 'object',
@@ -684,6 +691,13 @@ export function useModelContextTools(actions: ChessActions) {
             step: asPositiveInt(params.step),
             totalSteps: asPositiveInt(params.totalSteps),
           });
+          if (result.skipped) {
+            return {
+              success: true,
+              message: result.message || 'Live playhead unchanged.',
+              data: result,
+            };
+          }
           return {
             success: true,
             message: `Coach panel updated. Lesson ${result.lesson}, step ${result.step} of ${result.totalSteps}. Prefer add-lesson-step then set-lesson-recap.`,
@@ -721,6 +735,9 @@ export function useModelContextTools(actions: ChessActions) {
           },
         },
         execute: async (params: Record<string, unknown>): Promise<ToolResponse> => {
+          if (actionsRef.current.lessons.catalogSessionLive) {
+            return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE, data: { skipped: true } };
+          }
           const highlights = Array.isArray(params.highlights) ? params.highlights as BoardHighlight[] : undefined;
           const arrows = Array.isArray(params.arrows) ? params.arrows as BoardArrow[] : undefined;
           actionsRef.current.lessons.annotateBoard(highlights, arrows);
@@ -732,6 +749,9 @@ export function useModelContextTools(actions: ChessActions) {
         description: 'Clear coach text, highlights, arrows, and any pending quiz. Stays in learn mode.',
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
+          if (actionsRef.current.lessons.catalogSessionLive) {
+            return { success: true, message: CATALOG_LIVE_FROZEN_MESSAGE, data: { skipped: true } };
+          }
           actionsRef.current.lessons.clearLesson();
           return { success: true, message: 'Lesson overlay cleared', data: null };
         },

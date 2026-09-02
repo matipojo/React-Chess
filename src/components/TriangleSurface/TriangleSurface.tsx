@@ -47,6 +47,7 @@ export default function TriangleSurface() {
       askQuiz: triangles.askQuiz,
       listLessons: triangles.listLessons,
       clearLesson: triangles.clearLesson,
+      catalogSessionLive: triangles.catalogSessionLive,
     },
     setPageBackground: (cssUrl: string | null) => ({
       persisted: setCustomBackground(cssUrl),
@@ -81,11 +82,7 @@ export default function TriangleSurface() {
   const quizPending = Boolean(triangles.quiz && !triangles.quiz.answered);
   const generatingNext = Boolean(triangles.awaitingContinuation);
   const canStep = !triangles.animating && !quizPending;
-  const stepCount = Math.max(
-    triangles.historyLength,
-    triangles.coach?.totalSteps || 0,
-    triangles.teachingCount || 0
-  );
+  const stepCount = triangles.historyLength;
   const showStepNav = shouldShowLessonNav({
     expectsRecap: triangles.expectsRecap,
     generatingNext,
