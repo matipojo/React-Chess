@@ -80,6 +80,20 @@ describe("apply-gan constructions", () => {
     const moved = moveFreePoint(start, "C", { x: 1, y: 3 });
     expect(moved.points[footName!].x).not.toBe(before);
   });
+
+  it("moves a free point with a grab animation", () => {
+    const start = defaultScalene();
+    const result = applyGan(start, "move(C,1,2)");
+    expect(result.error).toBeUndefined();
+    expect(result.animation).toEqual({
+      type: "move",
+      name: "C",
+      from: { x: start.points.C.x, y: start.points.C.y },
+      to: { x: 1, y: 2 },
+    });
+    expect(result.figure.points.C.x).toBe(1);
+    expect(result.figure.points.C.y).toBe(2);
+  });
 });
 
 describe("TFN round-trip", () => {

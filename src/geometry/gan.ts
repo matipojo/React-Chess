@@ -556,6 +556,7 @@ export function applyGanCommand(figure: Figure, raw: string): ApplyGanResult {
     animation = {
       type: "rotate",
       around,
+      aroundName: command.around,
       names: command.names,
       deg: command.deg,
     };
@@ -635,6 +636,8 @@ export function applyGanCommand(figure: Figure, raw: string): ApplyGanResult {
     }
     next.rights.push({ vertex: command.vertex, a: rays[0], b: rays[1] });
     remember("mark(90," + command.vertex + ")");
+    const vertex = next.points[command.vertex];
+    animation = { type: "draw", from: vertex, to: vertex };
   } else if (command.type === "mark-parallel") {
     next.parallels.push({
       segments: command.segs.map((s) => segmentKey(s[0], s[1])),
