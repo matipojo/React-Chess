@@ -1,5 +1,5 @@
 import { CHESS_TOOL_NAMES } from "./useModelContextTools";
-import { TRIANGLE_TOOL_NAMES } from "./useTriangleModelContextTools";
+import { TRIANGLE_LIVE_FIGURE_TOOLS, TRIANGLE_TOOL_NAMES } from "./useTriangleModelContextTools";
 
 const CHESS_ONLY = [
   "get-board-state",
@@ -44,5 +44,18 @@ describe("learning area tools", () => {
     expect(TRIANGLE_TOOL_NAMES).not.toContain("set-learning-area");
     expect(TRIANGLE_TOOL_NAMES).toContain("apply-gan");
     expect(TRIANGLE_TOOL_NAMES).toContain("create-lesson");
+  });
+
+  it("keeps live triangle figure tools available during catalog authoring", () => {
+    TRIANGLE_LIVE_FIGURE_TOOLS.forEach((name) => {
+      expect(TRIANGLE_TOOL_NAMES).toContain(name);
+    });
+    expect(TRIANGLE_LIVE_FIGURE_TOOLS).toEqual([
+      "apply-gan",
+      "set-figure",
+      "move-point",
+      "rotate-figure",
+      "mark-figure",
+    ]);
   });
 });

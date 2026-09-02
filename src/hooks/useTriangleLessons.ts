@@ -17,6 +17,7 @@ import {
   teachingSteps,
   keptPlayheadIndex,
   CATALOG_LIVE_FROZEN_MESSAGE,
+  catalogAuthoringRestoreIndex,
 } from "../lessons/lessonCopy";
 import { normalizeCoachCopy } from "../lessons/coachParagraphs";
 import {
@@ -287,6 +288,26 @@ export function useTriangleLessons(options?: {
       );
     },
     [publishHistory, snapshotsFromLesson]
+  );
+
+  const syncCatalogAuthoring = useCallback(
+    (saved: SavedLesson) => {
+      const hadCoach = Boolean(coachRef.current);
+      rebuildKeepingPlayhead(saved);
+      const restoreAt = catalogAuthoringRestoreIndex(
+        hadCoach ? coachRef.current : null,
+        historyRef.current.length,
+        historyIndexRef.current
+      );
+      if (restoreAt === null) {
+        return;
+      }
+      const snap = historyRef.current[restoreAt];
+      if (snap) {
+        restoreSnapshot(snap);
+      }
+    },
+    [rebuildKeepingPlayhead, restoreSnapshot]
   );
 
   const restoreWithAnimation = useCallback((snap: Snapshot, nextIndex: number, length: number) => {
@@ -567,7 +588,7 @@ export function useTriangleLessons(options?: {
       );
       const saved = findUserLessonByNumber(lessonNumber, TRIANGLE_CATALOG_KEY);
       if (saved && lessonNumberRef.current === lessonNumber) {
-        rebuildKeepingPlayhead(saved);
+        syncCatalogAuthoring(saved);
       }
       const recapExpected = lessonExpectsRecap(totalTeaching);
       if (isRiddle) {
@@ -597,7 +618,7 @@ export function useTriangleLessons(options?: {
         recapExpected,
       };
     },
-    [rebuildKeepingPlayhead]
+    [syncCatalogAuthoring]
   );
 
   const addLessonSteps = useCallback(
@@ -656,7 +677,7 @@ export function useTriangleLessons(options?: {
       setUserLessons(catalog);
       const saved = findUserLessonByNumber(lessonNumber, TRIANGLE_CATALOG_KEY);
       if (saved && lessonNumberRef.current === lessonNumber) {
-        rebuildKeepingPlayhead(saved);
+        syncCatalogAuthoring(saved);
       }
       return {
         success: true,
@@ -664,7 +685,7 @@ export function useTriangleLessons(options?: {
         lesson: lessonNumber,
       };
     },
-    [rebuildKeepingPlayhead]
+    [syncCatalogAuthoring]
   );
 
   const playGan = useCallback(async (notation: string) => {
@@ -862,7 +883,7 @@ export function useTriangleLessons(options?: {
     animation,
     historyIndex,
     historyLength,
-    catalogSessionLive: Boolean(lessonNumberRef.current),
+    catalogSessionLive: Boolean(typeof coach?.lesson === "number"),
     userLessons,
     awaitingContinuation,
     expectsRecap,

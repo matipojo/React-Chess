@@ -12,7 +12,7 @@ import { compactToolResult } from '../lessons/debugSnapshot';
 import { BoardHighlight, BoardArrow, CoachState, QuizResult, QuizState } from '../lessons/types';
 import { PlacedPiece } from '../utils/board-setup';
 import { COACH_NOTATION_RULE, WAIT_TURN_RULE, coachNotationViolation } from '../lessons/coachNotation';
-import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, readBoardChatAccent } from '../lessons/howToAskTheUser';
+import { buildGiveMeAHintPrompt, buildHowToAskTheUserPrompt, CHAT_BUTTON_TEXT, HINT_BUTTON_LABEL, PAGE_IS_THE_CANVAS, readBoardChatAccent } from '../lessons/howToAskTheUser';
 import { parseLessonFormat, parseLessonStepType, parseSummaryDraft, CATALOG_LIVE_FROZEN_MESSAGE } from '../lessons/lessonCopy';
 import { compactImageParam, parseBackgroundToolArgs, preparePageBackground } from '../utils/pageBackground';
 
@@ -198,7 +198,7 @@ export function useModelContextTools(actions: ChessActions) {
     const tools = [
       {
         name: 'get-board-state',
-        description: 'Retrieves the current state of the chess board including piece positions, current turn, total moves, game status, and whether learn mode is on.',
+        description: 'Retrieves the current state of the chess board including piece positions, current turn, total moves, game status, and whether learn mode is on. ' + PAGE_IS_THE_CANVAS,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {
           const board = actionsRef.current.getBoard();
@@ -966,6 +966,8 @@ export function useModelContextTools(actions: ChessActions) {
         name: 'how_to_ask_the_user',
         description:
           'Returns instructions for asking the student in this chat with clickable visualization buttons, not a numbered list and not on the chess page. Takes no arguments. Call this whenever you need them to choose what happens next, then follow the returned prompt exactly and stop. Includes the current board-theme accent and a readable label color. ' +
+          PAGE_IS_THE_CANVAS +
+          ' ' +
           WAIT_TURN_RULE,
         inputSchema: { type: 'object', properties: {} },
         execute: async (): Promise<ToolResponse> => {

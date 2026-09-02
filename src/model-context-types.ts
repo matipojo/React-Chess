@@ -43,4 +43,63 @@ export function getModelContext(): ModelContext | undefined {
   return document.modelContext ?? navigator.modelContext;
 }
 
-export type { ModelContextTool, ToolResponse };
+const MODEL_CONTEXT_WAIT_MS = 20000;
+const MODEL_CONTEXT_POLL_MS = 200;
+
+/**
+ * ChatGPT/Codex may inject document.modelContext after the first React paint.
+ * Register immediately when it exists; otherwise keep watching for a short window.
+ */
+export function whenModelContextAvailable(
+  onReady: (mc: ModelContext) => void
+): () => void {
+  let stopped = false;
+  let delivered = false;
+
+  const run = () => {
+    if (stopped || delivered) {
+      return;
+    }
+    const mc = getModelContext();
+    if (!mc) {
+      return;
+    }
+    delivered = true;
+    onReady(mc);
+  };
+
+  run();
+  if (delivered || stopped || typeof window === "undefined") {
+    return () => {
+      stopped = true;
+    };
+  }
+
+  const onEvent = () => run();
+  window.addEventListener("modelcontextready", onEvent);
+
+  const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
+  let timer: number | undefined;
+  let timeout: number | undefined;
+  if (!isTest) {
+    timer = window.setInterval(run, MODEL_CONTEXT_POLL_MS);
+    timeout = window.setTimeout(() => {
+      if (timer !== undefined) {
+        window.clearInterval(timer);
+      }
+    }, MODEL_CONTEXT_WAIT_MS);
+  }
+
+  return () => {
+    stopped = true;
+    if (timer !== undefined) {
+      window.clearInterval(timer);
+    }
+    if (timeout !== undefined) {
+      window.clearTimeout(timeout);
+    }
+    window.removeEventListener("modelcontextready", onEvent);
+  };
+}
+
+export type { ModelContext, ModelContextTool, ToolResponse };

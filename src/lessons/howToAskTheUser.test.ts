@@ -9,6 +9,8 @@ describe("buildHowToAskTheUserPrompt", () => {
     expect(prompt).toContain("#8a5fc8");
     expect(prompt).toContain("Do not list options as 1/2/3");
     expect(prompt).toContain("They must tap a button");
+    expect(prompt).toContain("Never create an HTML file");
+    expect(prompt).toContain("already the interactive visualization");
     expect(prompt).toContain("Each button on its own new line");
     expect(prompt).toContain("not full row");
     expect(prompt).toContain("airy and spacious");
@@ -25,6 +27,7 @@ describe("buildGiveMeAHintPrompt", () => {
     const prompt = buildGiveMeAHintPrompt("#8a5fc8");
     expect(prompt).toContain("inline visualization");
     expect(prompt).toContain("Give me a hint");
+    expect(prompt).toContain("Never create an HTML file");
     expect(prompt).toContain("Do not explain how to solve it");
     expect(prompt).toContain("Do not add other buttons yet");
     expect(prompt).toContain("background #8a5fc8");

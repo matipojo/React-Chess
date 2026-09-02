@@ -1,28 +1,19 @@
-import { getModelContext, ModelContextTool } from "../model-context-types";
+import { ModelContext, ModelContextTool, whenModelContextAvailable } from "../model-context-types";
 
-export function registerModelContextTools(tools: ModelContextTool[]): () => void {
-  const mc = getModelContext();
-  if (!mc) {
-    return () => undefined;
-  }
-
+function bindModelContextTools(mc: ModelContext, tools: ModelContextTool[]): () => void {
   const toolNames = tools.map((tool) => tool.name);
   const registration = new AbortController();
 
   function cleanupTools() {
     registration.abort();
-    const ctx = getModelContext();
-    if (!ctx) {
+    if (typeof mc.clearContext === "function") {
+      mc.clearContext();
       return;
     }
-    if (typeof ctx.clearContext === "function") {
-      ctx.clearContext();
-      return;
-    }
-    if (typeof ctx.unregisterTool === "function") {
+    if (typeof mc.unregisterTool === "function") {
       for (const name of toolNames) {
         try {
-          ctx.unregisterTool(name);
+          mc.unregisterTool(name);
         } catch {
           // Already unregistered or unsupported in this snapshot of the API.
         }
@@ -52,4 +43,16 @@ export function registerModelContextTools(tools: ModelContextTool[]): () => void
   }
 
   return () => undefined;
+}
+
+export function registerModelContextTools(tools: ModelContextTool[]): () => void {
+  let unbind = () => undefined;
+  const stopWait = whenModelContextAvailable((mc) => {
+    unbind();
+    unbind = bindModelContextTools(mc, tools);
+  });
+  return () => {
+    stopWait();
+    unbind();
+  };
 }

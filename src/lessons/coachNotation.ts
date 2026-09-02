@@ -8,7 +8,7 @@ const FROM_TO_MOVE = /^[a-h][1-8]:[a-h][1-8]$/i;
 
 /** Shared WebMCP instruction: ask the student in the host chat, not on the page. */
 export const WAIT_TURN_RULE =
-  'After anything the student should see on the board (coach text, a played line, a demo), call how_to_ask_the_user with no arguments, then follow the returned instructions: render clickable buttons in this chat with your visualization UI. Do not use a numbered list. Do not put the question on the webpage. For a puzzle or exam, call how_to_offer_a_hint, then add-lesson-step with type riddle (question + correct squares). Do not jump the live playhead while generating. The riddle prompt must not spoil how to solve; the student taps Give me a hint in this chat if they want a nudge.';
+  'After anything the student should see on the board (coach text, a played line, a demo), call how_to_ask_the_user with no arguments, then follow the returned instructions: render clickable buttons in this chat with your visualization UI. Do not create an HTML file or a new canvas — this chess page is the board. Do not use a numbered list. Do not put the question on the webpage. For a puzzle or exam, call how_to_offer_a_hint, then add-lesson-step with type riddle (question + correct squares). Do not jump the live playhead while generating. The riddle prompt must not spoil how to solve; the student taps Give me a hint in this chat if they want a nudge.';
 
 export function coachNotationViolation(
   texts: Array<string | undefined | null>,
