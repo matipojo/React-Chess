@@ -1399,25 +1399,21 @@ export function useChessLessons({
     (item: SavedLesson): LessonSnapshot[] => {
       const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
       restoringRef.current = true;
-      resetHistory();
-      slides.forEach((slide) => {
-        applyBoard(boardFromFen(slide.fen, true));
-        applyOverlays(slide.highlights, slide.arrows, slide.coach);
-        const restoredQuiz = slide.quiz
+      const snaps: LessonSnapshot[] = slides.map((slide) => ({
+        board: boardFromFen(slide.fen, true),
+        highlights: (slide.highlights || []).map((mark) => ({ ...mark })),
+        arrows: (slide.arrows || []).map((arrow) => ({ ...arrow })),
+        coach: slide.coach ? { ...slide.coach } : null,
+        quiz: slide.quiz
           ? { ...slide.quiz, correct: [...slide.quiz.correct], answered: false, timedOut: false }
-          : null;
-        lastQuizRef.current = restoredQuiz;
-        setQuiz(restoredQuiz);
-        setQuizFeedback("");
-        if (loadedLineRef.current) {
-          loadedLineRef.current.ply = slide.ply;
-        }
-        pushSnapshot();
-      });
+          : null,
+        ply: slide.ply,
+      }));
+      historyRef.current = snaps;
       restoringRef.current = false;
-      return historyRef.current;
+      return snaps;
     },
-    [applyBoard, applyOverlays, pushSnapshot, resetHistory, setQuiz, setQuizFeedback]
+    []
   );
 
   const refreshViewingLesson = useCallback(
@@ -1825,30 +1821,20 @@ export function useChessLessons({
   }, [presentShowMeLesson, rememberDraftLesson]);
 
   const presentLiveRiddle = useCallback(
-    (lessonNumber: number) => {
-      const item = findUserLessonByNumber(lessonNumber);
-      if (!item) {
-        return;
-      }
+    (lessonNumber: number, quiz: QuizState) => {
       enterLearnMode();
-      activeLessonNumberRef.current = lessonNumber;
-      const snaps = projectLessonHistory(item);
-      const slides = projectLessonSession(item, boardToFen(startingLearnBoard()));
-      const index = lastTeachingSlideIndex(slides);
-      const snap = snaps[index];
-      if (!snap) {
-        return;
+      if (activeLessonNumberRef.current === lessonNumber) {
+        refreshViewingLesson(lessonNumber);
       }
       logLessonDebug("visual", "present-riddle", {
         lesson: lessonNumber,
-        historyIndex: index,
-        historyLength: snaps.length,
-        question: snap.quiz ? snap.quiz.question : "",
+        historyIndex: historyIndexRef.current,
+        historyLength: historyRef.current.length,
+        question: quiz.question,
       });
-      restoreSnapshot(snap);
-      publishHistory(index, snaps.length);
+      armQuiz(quiz);
     },
-    [enterLearnMode, projectLessonHistory, publishHistory, restoreSnapshot]
+    [armQuiz, enterLearnMode, refreshViewingLesson]
   );
 
   const addLessonStep = useCallback(
@@ -1967,7 +1953,7 @@ export function useChessLessons({
       });
       setUserLessons(catalog);
       if (isRiddle && quiz) {
-        presentLiveRiddle(lessonNumber);
+        presentLiveRiddle(lessonNumber, quiz);
       } else {
         refreshViewingLesson(lessonNumber);
       }
@@ -1981,7 +1967,7 @@ export function useChessLessons({
       return {
         success: true,
         message: isRiddle
-          ? `The riddle is on the chess page now (lesson ${lessonNumber}, step ${totalTeaching}). Coach shows the question only — no why/move spoilers. Student clicks a square. Do not wait for the click.`
+          ? `The riddle question is on the current chess page (lesson ${lessonNumber}, step ${totalTeaching}). Playhead unchanged — did not jump to the last step. Coach shows the question only. Student clicks a square. Do not wait for the click.`
           : recapExpected
           ? `Stored teaching step ${totalTeaching} of lesson ${lessonNumber} in the catalog (not a recap). Live session unchanged. Next: add-lesson-step for another beat, OR set-lesson-recap if this was the last beat.`
           : `Stored the only teaching step of lesson ${lessonNumber} in the catalog. Live session unchanged. No recap.`,
@@ -2154,7 +2140,7 @@ export function useChessLessons({
           "create-lesson type lesson (default) — Goal, then add-lesson-step Why/Move beats.",
         showme:
           "create-lesson type showme — one explanation; the planned line auto-plays with Pause, Stop, and Replay on the coach.",
-        riddle: "add-lesson-step type riddle — a puzzle stored on a catalog lesson and shown on the chess page now.",
+        riddle: "add-lesson-step type riddle — a puzzle stored on a catalog lesson and shown on the current chess page without jumping the playhead.",
       },
     };
   }, [userLessons]);
