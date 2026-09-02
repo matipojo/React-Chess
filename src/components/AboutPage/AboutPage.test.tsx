@@ -18,7 +18,7 @@ const CHATGPT_UA =
 
 describe("AboutPage", () => {
   it("renders the generative learning pitch and example surfaces", () => {
-    const { getByText, getByRole, getAllByRole, queryByText, container } = renderAbout();
+    const { getByText, getByRole, getAllByRole, getAllByText, queryByText, container } = renderAbout();
     expect(getByRole("link", { name: "Generative Learning" })).toBeTruthy();
     expect(getByRole("heading", { name: /Personalize the lesson endlessly/ })).toBeTruthy();
     expect(getByText(/professional, persistent surface/i)).toBeTruthy();
